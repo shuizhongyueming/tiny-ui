@@ -1,29 +1,14 @@
 const esbuild = require('esbuild');
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 esbuild.build({
-  entryPoints: ['./src/.ts'],
+  entryPoints: ['./src/TinyUI.ts'],
   bundle: true,
-  outfile: `dist/xyx-vm__${process.env.PLATFORM}.js`,
+  outfile: `dist/tiny-ui.js`,
   logLevel: 'info',
   minify: isProduction,
   format: 'iife',
   treeShaking: true,
-  // globalName: 'xyxVM',
-  // footer: {
-  //   js: 'window.xyxVM = xyxVM;',
-  // },
-  target: 'es2018',
-  define: {
-    PLATFORM: JSON.stringify(platform),
-    IS_WEB_BASED_PLATFORM: JSON.stringify(IS_WEB_BASED_PLATFORM),
-    USE_CROSS_FRAME: JSON.stringify(USE_CROSS_FRAME),
-    WEB_USE_LITE_VM: JSON.stringify(WEB_USE_LITE_VM),
-    WEB_USE_FULL_VM: JSON.stringify(WEB_USE_FULL_VM),
-  },
-  plugins: [
-    globalExternals({
-      '@heigame2020/xyx-sdk': 'xyx',
-      'zip-file-server': 'ZipFileServer'
-    }),
-  ]
+  target: 'es2018'
 })

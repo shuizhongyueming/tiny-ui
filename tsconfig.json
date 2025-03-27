@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "moduleResolution": "Node",
+    "rootDir": "./src",
+    "lib": ["ESNext", "DOM"],
+    "module": "CommonJS",
+    "target": "ES2018",
+    "outDir": "./dist",
+    "declaration": false,
+    "skipLibCheck": true,
+    "allowJs": false
+  },
+  "exclude": ["node_modules/", "dist/"]
+}
