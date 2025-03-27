@@ -1,7 +1,7 @@
 import { type Container } from "./Container";
 import type { EventName, Callback, Rect } from "./type";
 import { type Matrix } from "./utils/Matrix";
-import { type TinyUI } from "./TinyUI";
+import type TinyUI from "./TinyUI";
 
 export class DisplayObject {
   app: TinyUI;

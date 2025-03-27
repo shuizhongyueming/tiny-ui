@@ -13,3 +13,5 @@ export enum EventName {
   TouchStart = 'touchstart',
   TouchEnd = 'touchend',
 }
+
+export interface Color { r: number, g: number, b: number, a: number }

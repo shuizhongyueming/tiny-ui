@@ -7,6 +7,7 @@ import { Matrix } from "./utils/Matrix";
 import { EventManager } from "./utils/EventManager";
 import { ShaderManager } from "./utils/ShaderManager";
 import { TextureManager } from "./utils/TextureManager";
+import { Color } from "./type";
 
 // WebGL基础着色器
 const VERTEX_SHADER_SOURCE = `
@@ -45,7 +46,7 @@ void main() {
 }
 `;
 
-export class TinyUI {
+class TinyUI {
   private canvas: HTMLCanvasElement;
   gl: WebGLRenderingContext;
 
@@ -62,8 +63,8 @@ export class TinyUI {
   private texCoordLocation: number;
   private colorLocation: number;
   private matrixLocation: WebGLUniformLocation | null;
-  private imageLocation: WebGLUniformLocation | null;
-  private useTextureLocation: WebGLUniformLocation | null;
+  _imageLocation: WebGLUniformLocation | null;
+  _useTextureLocation: WebGLUniformLocation | null;
 
   // 缓冲区
   private positionBuffer: WebGLBuffer;
@@ -151,8 +152,8 @@ export class TinyUI {
     this.colorLocation = this.gl.getAttribLocation(this.shaderProgram, 'a_color');
 
     this.matrixLocation = this.gl.getUniformLocation(this.shaderProgram, 'u_matrix');
-    this.imageLocation = this.gl.getUniformLocation(this.shaderProgram, 'u_image');
-    this.useTextureLocation = this.gl.getUniformLocation(this.shaderProgram, 'u_useTexture');
+    this._imageLocation = this.gl.getUniformLocation(this.shaderProgram, 'u_image');
+    this._useTextureLocation = this.gl.getUniformLocation(this.shaderProgram, 'u_useTexture');
 
     // 使用着色器程序
     this.gl.useProgram(this.shaderProgram);
@@ -185,10 +186,10 @@ export class TinyUI {
     this.currentMatrix = Matrix.projection(this.viewportWidth, this.viewportHeight);
 
     // 从根容器开始递归渲染整个UI树
-    this.renderNode(this.root);
+    this._renderNode(this.root);
   }
 
-  private renderNode(node: DisplayObject) {
+  _renderNode(node: DisplayObject) {
     if (!node.visible || node.alpha <= 0) return;
 
     // 保存当前变换矩阵
@@ -203,22 +204,8 @@ export class TinyUI {
     // 设置变换矩阵
     this.gl.uniformMatrix3fv(this.matrixLocation, false, this.currentMatrix.toArray());
 
-    // 根据节点类型执行不同的渲染逻辑
-    if (node instanceof Container) {
-      // 遍历并渲染子节点
-      for (const child of node.children) {
-        this.renderNode(child);
-      }
-    } else if (node instanceof Bitmap) {
-      // 渲染图片
-      this.renderBitmap(node);
-    } else if (node instanceof Text) {
-      // 渲染文本
-      this.renderText(node);
-    } else if (node instanceof Graphics) {
-      // 渲染图形
-      this.renderGraphics(node);
-    }
+    // 调用组件的 render 方法
+    node.render(this.currentMatrix);
 
     // 恢复变换矩阵
     this.currentMatrix = savedMatrix;
@@ -257,15 +244,15 @@ export class TinyUI {
     const indices = [0, 1, 2, 0, 2, 3];
 
     // 使用纹理
-    gl.uniform1i(this.useTextureLocation, 1);
+    gl.uniform1i(this._useTextureLocation, 1);
 
     // 绑定纹理
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, bitmap.texture);
-    gl.uniform1i(this.imageLocation, 0);
+    gl.uniform1i(this._imageLocation, 0);
 
     // 设置缓冲区数据
-    this.setBufferData(positions, texCoords, colors, indices);
+    this._setBufferData(positions, texCoords, colors, indices);
 
     // 绘制
     gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
@@ -312,15 +299,15 @@ export class TinyUI {
     const indices = [0, 1, 2, 0, 2, 3];
 
     // 使用纹理
-    gl.uniform1i(this.useTextureLocation, 1);
+    gl.uniform1i(this._useTextureLocation, 1);
 
     // 绑定纹理
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, text.texture);
-    gl.uniform1i(this.imageLocation, 0);
+    gl.uniform1i(this._imageLocation, 0);
 
     // 设置缓冲区数据
-    this.setBufferData(positions, texCoords, colors, indices);
+    this._setBufferData(positions, texCoords, colors, indices);
 
     // 绘制
     gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
@@ -332,7 +319,7 @@ export class TinyUI {
     const gl = this.gl;
 
     // 不使用纹理
-    gl.uniform1i(this.useTextureLocation, 0);
+    gl.uniform1i(this._useTextureLocation, 0);
 
     for (const cmd of graphics.commands) {
       if (cmd.type === 'rect') {
@@ -367,7 +354,7 @@ export class TinyUI {
         const indices = [0, 1, 2, 0, 2, 3];
 
         // 设置缓冲区数据
-        this.setBufferData(positions, texCoords, colors, indices);
+        this._setBufferData(positions, texCoords, colors, indices);
 
         // 绘制
         gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
@@ -404,7 +391,7 @@ export class TinyUI {
         }
 
         // 设置缓冲区数据
-        this.setBufferData(positions, texCoords, colors, indices);
+        this._setBufferData(positions, texCoords, colors, indices);
 
         // 绘制
         gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
@@ -412,7 +399,7 @@ export class TinyUI {
     }
   }
 
-  private setBufferData(positions: number[], texCoords: number[], colors: number[], indices: number[]) {
+  _setBufferData(positions: number[], texCoords: number[], colors: number[], indices: number[]) {
     const gl = this.gl;
 
     // 位置缓冲区
@@ -438,7 +425,7 @@ export class TinyUI {
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
   }
 
-  private parseColor(color: string): { r: number, g: number, b: number, a: number } {
+  parseColor(color: string): Color {
     // 默认颜色
     let r = 0, g = 0, b = 0, a = 1;
 
@@ -553,3 +540,5 @@ export class TinyUI {
     return graphics;
   }
 }
+
+export = TinyUI;

@@ -1,5 +1,6 @@
 import { DisplayObject } from "./DisplayObject";
-import { type TinyUI } from "./TinyUI";
+import type TinyUI from "./TinyUI";
+import { type Matrix } from "./utils/Matrix";
 
 type FontWeight = 'normal' | 'bold';
 type TextAlign = 'left' | 'center' | 'right';
@@ -221,5 +222,60 @@ export class Text extends DisplayObject {
       gl.deleteTexture(this.texture);
       this.texture = null;
     }
+  }
+
+  render(_matrix: Matrix): void {
+    // 如果文本为空，不需要渲染
+    if (!this.text || this.text.length === 0) return;
+
+    // 如果文本纹理不存在或文本内容变化，重新生成纹理
+    if (!this.texture || this.textureNeedsUpdate) {
+      this.updateTexture();
+    }
+
+    if (!this.texture) return;
+
+    const gl = this.app.gl;
+
+    // 顶点位置 (矩形)
+    const positions = [
+      0, 0,
+      this.width, 0,
+      this.width, this.height,
+      0, this.height,
+    ];
+
+    // 纹理坐标 (矩形)
+    const texCoords = [
+      0, 0,
+      1, 0,
+      1, 1,
+      0, 1,
+    ];
+
+    // 顶点颜色 (应用透明度)
+    const colors = [
+      1, 1, 1, this.alpha,
+      1, 1, 1, this.alpha,
+      1, 1, 1, this.alpha,
+      1, 1, 1, this.alpha,
+    ];
+
+    // 索引 (两个三角形)
+    const indices = [0, 1, 2, 0, 2, 3];
+
+    // 使用纹理
+    gl.uniform1i(this.app._useTextureLocation, 1);
+
+    // 绑定纹理
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.texture);
+    gl.uniform1i(this.app._imageLocation, 0);
+
+    // 设置缓冲区数据
+    this.app._setBufferData(positions, texCoords, colors, indices);
+
+    // 绘制
+    gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
   }
 }

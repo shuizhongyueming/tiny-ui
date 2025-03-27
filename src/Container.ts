@@ -1,5 +1,6 @@
 import { DisplayObject } from "./DisplayObject";
-import { type TinyUI } from "./TinyUI";
+import type TinyUI from "./TinyUI";
+import { type Matrix } from "./utils/Matrix";
 
 export class Container extends DisplayObject {
   children: DisplayObject[] = [];
@@ -48,4 +49,12 @@ export class Container extends DisplayObject {
     }
     this.children = [];
   }
+
+  render(matrix: Matrix): void {
+    // 遍历并渲染子节点
+    for (const child of this.children) {
+      this.app._renderNode(child);
+    }
+  }
+
 }
