@@ -9,6 +9,7 @@ esbuild.build({
   logLevel: 'info',
   minify: isProduction,
   format: 'iife',
+  globalName: 'TinyUI', // 添加这一行，定义全局变量名
   treeShaking: true,
   target: 'es2018'
 })
