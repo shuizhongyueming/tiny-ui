@@ -117,23 +117,25 @@ class TinyUI {
     this.gl.enable(this.gl.BLEND);
     this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
 
-    // 设置视口尺寸
-    this.updateViewport();
-
     // 创建根容器
     this.root = new Container(this, 'RootContainer');
+
+    // 设置视口尺寸
+    this.updateViewport();
   }
 
   private updateViewport() {
     // 获取canvas的显示尺寸
-    const displayWidth = this.canvas.clientWidth;
-    const displayHeight = this.canvas.clientHeight;
+    const displayWidth = this.canvas.clientWidth * window.devicePixelRatio;
+    const displayHeight = this.canvas.clientHeight * window.devicePixelRatio;
 
     // 更新canvas的绘图缓冲区尺寸以匹配显示尺寸
     if (this.canvas.width !== displayWidth || this.canvas.height !== displayHeight) {
       this.canvas.width = displayWidth;
       this.canvas.height = displayHeight;
     }
+    this.root.width = displayWidth;
+    this.root.height = displayHeight;
 
     this.viewportWidth = this.canvas.width;
     this.viewportHeight = this.canvas.height;
