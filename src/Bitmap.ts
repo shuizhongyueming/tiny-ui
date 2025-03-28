@@ -6,23 +6,36 @@ export class Bitmap extends DisplayObject {
   src: string = '';
   texture: WebGLTexture | null = null;
   imgLoadPromise: Promise<Bitmap> | null = null;
+  source: HTMLImageElement | null = null;
 
   constructor(app: TinyUI, name: string = 'Bitmap') {
     super(app, name);
   }
 
-  loadImage(url: string | HTMLImageElement): Promise<Bitmap> {
-    if (typeof url === 'string') {
-      this.src = url;
-      this.imgLoadPromise = this.app.textureManager.loadTexture(url).then(texture => {
-        this.texture = texture;
-        return this;
-      });
-      return this.imgLoadPromise;
-    } else {
-      this.texture = this.app.textureManager.createImageTexture(url);
-      return Promise.resolve(this);
+  private async realLoadFromUrl(url: string, resize: boolean = true): Promise<Bitmap> {
+    const image = await this.app.textureManager.loadImage(url);
+    return this.loadFromImage(image, resize);
+  }
+
+  /**
+  * @param url 图片或者图片地址
+  * @param resize 是否调整 Bitmap 的大小为图片的大小
+  * @returns
+  */
+  loadFromUrl(url: string, resize: boolean = true): Promise<Bitmap> {
+    this.imgLoadPromise = this.realLoadFromUrl(url, resize);
+    return this.imgLoadPromise;
+  }
+  loadFromImage(image: HTMLImageElement, resize: boolean = true): Bitmap {
+    this.src = image.src;
+    this.source = image;
+    this.texture = this.app.textureManager.createImageTexture(image);
+    this.imgLoadPromise = Promise.resolve(this);
+    if (resize) {
+      this.width = image.width;
+      this.height = image.height;
     }
+    return this;
   }
 
   override destroy(): void {

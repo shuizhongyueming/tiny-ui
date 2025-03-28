@@ -15,6 +15,7 @@ export class TextureManager {
 
     // 使用默认白色像素初始化纹理
     gl.bindTexture(gl.TEXTURE_2D, texture);
+
     gl.texImage2D(
       gl.TEXTURE_2D,
       0,
@@ -37,7 +38,7 @@ export class TextureManager {
     gl.bindTexture(gl.TEXTURE_2D, texture);
 
     // 反转Y轴 (WebGL中纹理坐标系Y轴向上)
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    // gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 
     // 将图像数据上传到纹理
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
@@ -54,22 +55,19 @@ export class TextureManager {
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     }
 
+    // 恢复默认值
+    // gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+
     gl.bindTexture(gl.TEXTURE_2D, null);
   }
 
-  // 加载纹理
-  loadTexture(url: string): Promise<WebGLTexture> {
-    // 检查缓存
-    if (this.textureCache.has(url)) {
-      return Promise.resolve(this.textureCache.get(url)!);
-    }
-
+  loadImage(url: string): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
       const image = new Image();
       image.crossOrigin = 'anonymous'; // 允许跨域图像
 
       image.onload = () => {
-        resolve(this.createImageTexture(image));
+        resolve(image);
       };
 
       image.onerror = () => {
@@ -78,6 +76,18 @@ export class TextureManager {
 
       image.src = url;
     });
+  }
+
+  // 加载纹理
+  async loadTexture(url: string): Promise<WebGLTexture> {
+    // 检查缓存
+    if (this.textureCache.has(url)) {
+      return this.textureCache.get(url)!;
+    }
+
+    const img = await this.loadImage(url);
+
+    return this.createImageTexture(img)
   }
   createImageTexture(image: HTMLImageElement): WebGLTexture {
     const texture = this.createTexture();
@@ -95,6 +105,7 @@ export class TextureManager {
   // 创建Canvas纹理
   createCanvasTexture(canvas: HTMLCanvasElement): WebGLTexture {
     const texture = this.createTexture();
+
     this.setTextureFromImage(texture, canvas);
 
     // 添加到纹理列表 (但不缓存)

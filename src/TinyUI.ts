@@ -327,15 +327,13 @@ class TinyUI {
   }
 
   async createBitmapFromUrl(url: string): Promise<Bitmap> {
-    const texture = await this.loadTexture(url);
     const bitmap = new Bitmap(this);
-    bitmap.texture = texture;
+    await bitmap.loadFromUrl(url)
     return bitmap;
   }
   createBitmapFromImage(image: HTMLImageElement): Bitmap {
-    const texture = this.textureManager.createImageTexture(image);
     const bitmap = new Bitmap(this);
-    bitmap.texture = texture;
+    bitmap.loadFromImage(image);
     return bitmap;
   }
   createText(textContent: string): Text {
