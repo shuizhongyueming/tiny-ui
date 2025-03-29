@@ -6,14 +6,14 @@ type FontWeight = 'normal' | 'bold';
 type TextAlign = 'left' | 'center' | 'right';
 
 export class Text extends DisplayObject {
-  text: string = '';
-  color: string = '#000000';
-  fontFamily: string = 'Arial';
-  fontSize: number = 16;
-  lineHeight: number = 20;
-  fontWeight: FontWeight = 'normal';
-  maxWidth: number = 0; // 0 表示无限制
-  align: TextAlign = 'left';
+  private _text: string = '';
+  private _color: string = '#000000';
+  private _fontFamily: string = 'Arial';
+  private _fontSize: number = 16;
+  private _lineHeight: number = 0; // 0 表示自动计算
+  private _fontWeight: FontWeight = 'normal';
+  private _maxWidth: number = 0; // 0 表示无限制
+  private _align: TextAlign = 'left';
 
   texture: WebGLTexture | null = null;
   textureNeedsUpdate: boolean = true;
@@ -23,67 +23,101 @@ export class Text extends DisplayObject {
     super(app, name);
   }
 
-  setText(text: string): Text {
-    if (this.text !== text) {
-      this.text = text;
-      this.textureNeedsUpdate = true;
-    }
-    return this;
+  // Getters
+  get text(): string {
+    return this._text;
   }
 
-  setColor(color: string): Text {
-    if (this.color !== color) {
-      this.color = color;
-      this.textureNeedsUpdate = true;
-    }
-    return this;
+  get color(): string {
+    return this._color;
   }
 
-  setFontFamily(fontFamily: string): Text {
-    if (this.fontFamily !== fontFamily) {
-      this.fontFamily = fontFamily;
-      this.textureNeedsUpdate = true;
-    }
-    return this;
+  get fontFamily(): string {
+    return this._fontFamily;
   }
 
-  setFontSize(fontSize: number): Text {
-    if (this.fontSize !== fontSize) {
-      this.fontSize = fontSize;
-      this.textureNeedsUpdate = true;
-    }
-    return this;
+  get fontSize(): number {
+    return this._fontSize;
   }
 
-  setFontWeight(fontWeight: FontWeight): Text {
-    if (this.fontWeight !== fontWeight) {
-      this.fontWeight = fontWeight;
-      this.textureNeedsUpdate = true;
-    }
-    return this;
+  get lineHeight(): number {
+    return this._lineHeight === 0 ? this._fontSize * 1.2 : this._lineHeight;
   }
 
-  setMaxWidth(maxWidth: number): Text {
-    if (this.maxWidth !== maxWidth) {
-      this.maxWidth = maxWidth;
-      this.textureNeedsUpdate = true;
-    }
-    return this;
+  get fontWeight(): FontWeight {
+    return this._fontWeight;
   }
 
-  setAlign(align: TextAlign): Text {
-    if (this.align !== align) {
-      this.align = align;
+  get maxWidth(): number {
+    return this._maxWidth;
+  }
+
+  get align(): TextAlign {
+    return this._align;
+  }
+
+  // Setters
+  set text(text: string) {
+    if (this._text !== text) {
+      this._text = text;
       this.textureNeedsUpdate = true;
     }
-    return this;
+  }
+
+  set color(color: string) {
+    if (this._color !== color) {
+      this._color = color;
+      this.textureNeedsUpdate = true;
+    }
+  }
+
+  set fontFamily(fontFamily: string) {
+    if (this._fontFamily !== fontFamily) {
+      this._fontFamily = fontFamily;
+      this.textureNeedsUpdate = true;
+    }
+  }
+
+  set fontSize(fontSize: number) {
+    if (this._fontSize !== fontSize) {
+      this._fontSize = fontSize;
+      this.textureNeedsUpdate = true;
+    }
+  }
+
+  set lineHeight(lineHeight: number) {
+    if (this._lineHeight !== lineHeight) {
+      this._lineHeight = lineHeight;
+      this.textureNeedsUpdate = true;
+    }
+  }
+
+  set fontWeight(fontWeight: FontWeight) {
+    if (this._fontWeight !== fontWeight) {
+      this._fontWeight = fontWeight;
+      this.textureNeedsUpdate = true;
+    }
+  }
+
+  set maxWidth(maxWidth: number) {
+    if (this._maxWidth !== maxWidth) {
+      this._maxWidth = maxWidth;
+      this.textureNeedsUpdate = true;
+    }
+  }
+
+  set align(align: TextAlign) {
+    if (this._align !== align) {
+      this._align = align;
+      this.textureNeedsUpdate = true;
+    }
   }
 
   updateTexture(): void {
     const gl = this.app.gl;
     const textureManager = this.app.textureManager;
     // 如果文本为空，清除纹理
-    if (!this.text || this.text.length === 0) {
+    if (!this._text || this._text.length === 0) {
       if (this.texture) {
         gl.deleteTexture(this.texture);
         this.texture = null;
@@ -96,7 +130,7 @@ export class Text extends DisplayObject {
     }
 
     // 如果文本内容没有变化，不需要更新
-    if (!this.textureNeedsUpdate && this.previousText === this.text) {
+    if (!this.textureNeedsUpdate && this.previousText === this._text) {
       return;
     }
 
@@ -110,7 +144,10 @@ export class Text extends DisplayObject {
     }
 
     // 设置字体
-    ctx.font = `${this.fontWeight} ${this.fontSize}px ${this.fontFamily}`;
+    ctx.font = `${this._fontWeight} ${this._fontSize}px ${this._fontFamily}`;
+
+    // 计算行高 - 如果没有设置，使用默认的1.2倍字体大小
+    const effectiveLineHeight = this.lineHeight;
 
     // 计算文本尺寸
     let textWidth: number;
@@ -118,9 +155,9 @@ export class Text extends DisplayObject {
     let lines: string[] = [];
 
     // 首先处理换行符
-    const linesFromBreaks = this.text.split('\n');
+    const linesFromBreaks = this._text.split('\n');
 
-    if (this.maxWidth > 0) {
+    if (this._maxWidth > 0) {
       // 多行文本处理 - 需要考虑手动换行和自动换行
       for (const lineText of linesFromBreaks) {
         if (lineText.length === 0) {
@@ -136,7 +173,7 @@ export class Text extends DisplayObject {
           const word = words[i];
           const width = ctx.measureText(currentLine + ' ' + word).width;
 
-          if (width < this.maxWidth) {
+          if (width < this._maxWidth) {
             currentLine += ' ' + word;
           } else {
             lines.push(currentLine);
@@ -147,8 +184,8 @@ export class Text extends DisplayObject {
         lines.push(currentLine);
       }
 
-      textWidth = this.maxWidth;
-      textHeight = lines.length * this.lineHeight;
+      textWidth = this._maxWidth;
+      textHeight = lines.length * effectiveLineHeight;
     } else {
       // 单行文本处理 - 但仍然需要处理手动换行符
       lines = linesFromBreaks;
@@ -160,18 +197,18 @@ export class Text extends DisplayObject {
       }
 
       textWidth = maxLineWidth;
-      textHeight = lines.length * this.lineHeight;
+      textHeight = lines.length * effectiveLineHeight;
     }
 
     console.log('Text#updateTexture: ', {
-      maxWidth: this.maxWidth,
-      text: this.text,
+      maxWidth: this._maxWidth,
+      text: this._text,
       textWidth,
       textHeight,
-      fontSize: this.fontSize,
-      lineHeight: this.lineHeight,
+      fontSize: this._fontSize,
+      lineHeight: effectiveLineHeight,
       lines
-    })
+    });
 
     // 设置canvas尺寸 (增加一点边距)
     canvas.width = textWidth + 4;
@@ -181,22 +218,22 @@ export class Text extends DisplayObject {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // 重新设置字体 (因为canvas尺寸改变后会重置字体)
-    ctx.font = `${this.fontWeight} ${this.fontSize}px ${this.fontFamily}`;
+    ctx.font = `${this._fontWeight} ${this._fontSize}px ${this._fontFamily}`;
     ctx.textBaseline = 'top';
-    ctx.fillStyle = this.color;
-    ctx.textAlign = this.align;
+    ctx.fillStyle = this._color;
+    ctx.textAlign = this._align;
 
     // 计算对齐位置
     let x = 2;
-    if (this.align === 'center') {
+    if (this._align === 'center') {
       x = canvas.width / 2;
-    } else if (this.align === 'right') {
+    } else if (this._align === 'right') {
       x = canvas.width - 2;
     }
 
     // 绘制文本
     for (let i = 0; i < lines.length; i++) {
-      ctx.fillText(lines[i], x, i * this.lineHeight + 2);
+      ctx.fillText(lines[i], x, i * effectiveLineHeight + 2);
     }
 
     // 更新对象尺寸
@@ -213,7 +250,7 @@ export class Text extends DisplayObject {
 
     // 更新状态
     this.textureNeedsUpdate = false;
-    this.previousText = this.text;
+    this.previousText = this._text;
   }
 
   override destroy(): void {
@@ -230,7 +267,7 @@ export class Text extends DisplayObject {
 
   render(_matrix: Matrix): void {
     // 如果文本为空，不需要渲染
-    if (!this.text || this.text.length === 0) return;
+    if (!this._text || this._text.length === 0) return;
 
     // 如果文本纹理不存在或文本内容变化，重新生成纹理
     if (!this.texture || this.textureNeedsUpdate) {

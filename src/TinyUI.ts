@@ -395,7 +395,7 @@ class TinyUI {
   }
   createText(textContent: string): Text {
     const text = new Text(this);
-    text.setText(textContent);
+    text.text = textContent;
     return text;
   }
   createContainer(name?: string): Container {
