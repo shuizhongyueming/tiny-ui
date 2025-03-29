@@ -1,28 +1,40 @@
 import { Bitmap } from "./Bitmap";
+import { Text } from "./Text";
 import { Container } from "./Container";
 import { DisplayObject } from "./DisplayObject";
 import { Graphics } from "./Graphics";
-import { Text } from "./Text";
-import { Matrix } from "./utils/Matrix";
+import { Color } from "./type";
 import { EventManager } from "./utils/EventManager";
+import { Matrix } from "./utils/Matrix";
 import { ShaderManager } from "./utils/ShaderManager";
 import { TextureManager } from "./utils/TextureManager";
-import { Color } from "./type";
 
 // WebGL基础着色器
 const VERTEX_SHADER_SOURCE = `
 attribute vec2 a_position;
 attribute vec2 a_texCoord;
 attribute vec4 a_color;
-
 uniform mat3 u_matrix;
-
+uniform vec2 u_resolution; // 新增：画布分辨率
 varying vec2 v_texCoord;
 varying vec4 v_color;
 
 void main() {
+  // 应用模型变换
   vec3 position = u_matrix * vec3(a_position, 1.0);
-  gl_Position = vec4(position.xy, 0.0, 1.0);
+
+  // 将像素坐标转换为 0.0 到 1.0
+  vec2 zeroToOne = position.xy / u_resolution;
+
+  // 将 0->1 转换为 0->2
+  vec2 zeroToTwo = zeroToOne * 2.0;
+
+  // 将 0->2 转换为 -1->+1 (裁剪空间)
+  vec2 clipSpace = zeroToTwo - 1.0;
+
+  // WebGL中y轴向上，而屏幕坐标y轴向下，所以需要翻转y轴
+  gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
+
   v_texCoord = a_texCoord;
   v_color = a_color;
 }
@@ -63,6 +75,7 @@ class TinyUI {
   private texCoordLocation: number;
   private colorLocation: number;
   private matrixLocation: WebGLUniformLocation | null;
+  private resolutionLocation: WebGLUniformLocation | null; // 新增
   _imageLocation: WebGLUniformLocation | null;
   _useTextureLocation: WebGLUniformLocation | null;
 
@@ -124,10 +137,11 @@ class TinyUI {
     this.updateViewport();
   }
 
+
   private updateViewport() {
     // 获取canvas的显示尺寸
-    const displayWidth = this.canvas.clientWidth * window.devicePixelRatio;
-    const displayHeight = this.canvas.clientHeight * window.devicePixelRatio;
+    const displayWidth = this.canvas.clientWidth;
+    const displayHeight = this.canvas.clientHeight;
 
     // 更新canvas的绘图缓冲区尺寸以匹配显示尺寸
     if (this.canvas.width !== displayWidth || this.canvas.height !== displayHeight) {
@@ -154,6 +168,8 @@ class TinyUI {
     this.colorLocation = this.gl.getAttribLocation(this.shaderProgram, 'a_color');
 
     this.matrixLocation = this.gl.getUniformLocation(this.shaderProgram, 'u_matrix');
+    this.resolutionLocation = this.gl.getUniformLocation(this.shaderProgram, 'u_resolution');
+
     this._imageLocation = this.gl.getUniformLocation(this.shaderProgram, 'u_image');
     this._useTextureLocation = this.gl.getUniformLocation(this.shaderProgram, 'u_useTexture');
 
@@ -179,31 +195,68 @@ class TinyUI {
     gl.clear(gl.COLOR_BUFFER_BIT);
 
     // 设置视口
+    console.log('当前视口:', this.viewportWidth, this.viewportHeight);
     gl.viewport(0, 0, this.viewportWidth, this.viewportHeight);
 
     // 使用着色器程序
     gl.useProgram(this.shaderProgram);
 
-    // 重置当前变换矩阵为正射投影矩阵
-    this.currentMatrix = Matrix.projection(this.viewportWidth, this.viewportHeight);
+    // 设置分辨率
+    // console.log('当前分辨率:', this.viewportWidth, this.viewportHeight);
+    // gl.uniform2f(this.resolutionLocation, this.viewportWidth, this.viewportHeight);
+    // console.log('分辨率uniform位置:', this.resolutionLocation);
 
-    // 从根容器开始递归渲染整个UI树
-    this._renderNode(this.root);
+    // 重置当前变换矩阵
+    this.currentMatrix = new Matrix();
+
+    // 渲染整个场景树
+    this._renderTree(this.root);
   }
 
-  _renderNode(node: DisplayObject) {
+  // 新方法：渲染整个场景树
+  _renderTree(node: DisplayObject) {
     if (!node.visible || node.alpha <= 0) return;
 
+    // 渲染当前节点
+    this._renderNode(node);
+
+    // 如果是容器，递归渲染子节点
+    if ('children' in node && Array.isArray((node as any).children)) {
+      const children = (node as any).children as DisplayObject[];
+      for (const child of children) {
+        this._renderTree(child);
+      }
+    }
+  }
+
+  // 负责单个节点的渲染和变换
+  _renderNode(node: DisplayObject) {
     // 保存当前变换矩阵
     const savedMatrix = this.currentMatrix.clone();
 
-    // 应用节点的变换 (平移、旋转、缩放)
-    this.currentMatrix.translate(node.x, node.y)
-      .rotate(node.rotation * Math.PI / 180)
-      .scale(node.scaleX, node.scaleY)
-      .translate(-node.width * node.anchorX, -node.height * node.anchorY);
+    // 应用变换: 先平移到位置
+    this.currentMatrix.translate(node.x, node.y);
+
+    // 如果需要围绕锚点旋转/缩放
+    if (node.rotation !== 0 || node.scaleX !== 1 || node.scaleY !== 1) {
+      // 计算锚点偏移
+      const anchorOffsetX = node.width * node.anchorX;
+      const anchorOffsetY = node.height * node.anchorY;
+
+      // 先将锚点移动到原点
+      this.currentMatrix.translate(anchorOffsetX, anchorOffsetY);
+
+      // 应用旋转和缩放
+      this.currentMatrix
+        .rotate(node.rotation * Math.PI / 180)
+        .scale(node.scaleX, node.scaleY);
+
+      // 将锚点移回原位置
+      this.currentMatrix.translate(-anchorOffsetX, -anchorOffsetY);
+    }
 
     // 设置变换矩阵
+    console.log('当前变换矩阵:', this.currentMatrix.clone().toArray());
     this.gl.uniformMatrix3fv(this.matrixLocation, false, this.currentMatrix.toArray());
 
     // 调用组件的 render 方法
@@ -214,6 +267,7 @@ class TinyUI {
   }
 
   _setBufferData(positions: number[], texCoords: number[], colors: number[], indices: number[]) {
+    console.log('_setBufferData', { positions, texCoords, colors, indices });
     const gl = this.gl;
 
     // 位置缓冲区
@@ -350,6 +404,48 @@ class TinyUI {
   createGraphics(name?: string): Graphics {
     const graphics = new Graphics(this, name);
     return graphics;
+  }
+
+  testRender(x: number, y: number, width: number, height: number) {
+    console.log('testRender: ', { x, y, width, height });
+    console.log('viewport size:', this.canvas.width, this.canvas.height);
+    // 保存当前WebGL状态
+    const currentProgram = this.gl.getParameter(this.gl.CURRENT_PROGRAM);
+
+    // 使用我们的着色器
+    this.gl.useProgram(this.shaderProgram);
+
+    this.gl.uniform2f(this.resolutionLocation, this.canvas.width, this.canvas.height);
+
+    this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+
+    // 创建一个简单矩阵，仅包含位移
+    const matrix = new Matrix().translate(x, y);
+    console.log('matrix:', matrix);
+    this.gl.uniformMatrix3fv(this.matrixLocation, false, matrix.toArray());
+
+    // 创建简单的红色矩形
+    const positions = [0, 0, width, 0, width, height, 0, height];
+    const texCoords = [0, 0, 1, 0, 1, 1, 0, 1];
+    const colors = [
+      1, 0, 0, 1,  // 红色
+      1, 0, 0, 1,
+      1, 0, 0, 1,
+      1, 0, 0, 1
+    ];
+    const indices = [0, 1, 2, 0, 2, 3];
+
+    // 设置缓冲
+    this._setBufferData(positions, texCoords, colors, indices);
+
+    // 禁用纹理
+    this.gl.uniform1i(this._useTextureLocation, 0);
+
+    // 绘制
+    this.gl.drawElements(this.gl.TRIANGLES, 6, this.gl.UNSIGNED_SHORT, 0);
+
+    // 恢复WebGL状态
+    this.gl.useProgram(currentProgram);
   }
 }
 

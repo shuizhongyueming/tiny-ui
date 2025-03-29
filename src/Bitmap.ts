@@ -52,6 +52,14 @@ export class Bitmap extends DisplayObject {
 
   render(_matrix: Matrix): void {
     if (!this.texture) return;
+    console.log(`Rendering bitmap at (${this.x}, ${this.y}) with size ${this.width}x${this.height}`);
+    console.log('Matrix passed to render:', _matrix.toArray());
+    console.log('Positions array:', [
+      0, 0,
+      this.width, 0,
+      this.width, this.height,
+      0, this.height,
+    ]);
 
     const gl = this.app.gl;
 

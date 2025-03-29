@@ -1,9 +1,9 @@
 export class Matrix {
-  // 矩阵用一维数组表示 3x3 矩阵
-  private values: number[] = [
-    1, 0, 0,
-    0, 1, 0,
-    0, 0, 1
+  // 矩阵用一维数组表示 3x3 矩阵，使用列主序
+  values: number[] = [
+    1, 0, 0,  // 第一列
+    0, 1, 0,  // 第二列
+    0, 0, 1   // 第三列
   ];
 
   constructor() { }
@@ -18,47 +18,82 @@ export class Matrix {
   // 重置为单位矩阵
   identity(): Matrix {
     this.values = [
-      1, 0, 0,
-      0, 1, 0,
-      0, 0, 1
+      1, 0, 0,  // 第一列
+      0, 1, 0,  // 第二列
+      0, 0, 1   // 第三列
     ];
     return this;
   }
 
-  // 平移矩阵
-  translate(x: number, y: number): Matrix {
+  // 矩阵乘法（列主序）
+  multiply(m: Matrix): Matrix {
     const a = this.values;
-    a[2] = a[0] * x + a[1] * y + a[2];
-    a[5] = a[3] * x + a[4] * y + a[5];
-    a[8] = a[6] * x + a[7] * y + a[8];
+    const b = m.values;
+
+    // 列主序下矩阵 a 的元素
+    const a00 = a[0], a10 = a[1], a20 = a[2]; // 第一列
+    const a01 = a[3], a11 = a[4], a21 = a[5]; // 第二列
+    const a02 = a[6], a12 = a[7], a22 = a[8]; // 第三列
+
+    // 列主序下矩阵 b 的元素
+    const b00 = b[0], b10 = b[1], b20 = b[2]; // 第一列
+    const b01 = b[3], b11 = b[4], b21 = b[5]; // 第二列
+    const b02 = b[6], b12 = b[7], b22 = b[8]; // 第三列
+
+    // 计算结果矩阵（列主序）
+    this.values = [
+      // 第一列
+      a00 * b00 + a01 * b10 + a02 * b20,
+      a10 * b00 + a11 * b10 + a12 * b20,
+      a20 * b00 + a21 * b10 + a22 * b20,
+
+      // 第二列
+      a00 * b01 + a01 * b11 + a02 * b21,
+      a10 * b01 + a11 * b11 + a12 * b21,
+      a20 * b01 + a21 * b11 + a22 * b21,
+
+      // 第三列
+      a00 * b02 + a01 * b12 + a02 * b22,
+      a10 * b02 + a11 * b12 + a12 * b22,
+      a20 * b02 + a21 * b12 + a22 * b22
+    ];
+
     return this;
   }
 
-  // 旋转矩阵
+  // 平移矩阵（列主序）
+  translate(x: number, y: number): Matrix {
+    const m = new Matrix();
+    m.values = [
+      1, 0, 0,  // 第一列
+      0, 1, 0,  // 第二列
+      x, y, 1   // 第三列（包含平移量）
+    ];
+    return this.multiply(m);
+  }
+
+  // 旋转矩阵（列主序）
   rotate(angle: number): Matrix {
     const sin = Math.sin(angle);
     const cos = Math.cos(angle);
-
-    const a = this.values;
-    const a00 = a[0], a01 = a[1], a02 = a[2];
-    const a10 = a[3], a11 = a[4], a12 = a[5];
-
-    a[0] = a00 * cos + a01 * sin;
-    a[1] = -a00 * sin + a01 * cos;
-    a[3] = a10 * cos + a11 * sin;
-    a[4] = -a10 * sin + a11 * cos;
-
-    return this;
+    const m = new Matrix();
+    m.values = [
+      cos, sin, 0,    // 第一列
+      -sin, cos, 0,   // 第二列
+      0, 0, 1         // 第三列
+    ];
+    return this.multiply(m);
   }
 
-  // 缩放矩阵
+  // 缩放矩阵（列主序）
   scale(x: number, y: number): Matrix {
-    const a = this.values;
-    a[0] *= x;
-    a[1] *= y;
-    a[3] *= x;
-    a[4] *= y;
-    return this;
+    const m = new Matrix();
+    m.values = [
+      x, 0, 0,  // 第一列
+      0, y, 0,  // 第二列
+      0, 0, 1   // 第三列
+    ];
+    return this.multiply(m);
   }
 
   // 转换为数组
@@ -66,20 +101,14 @@ export class Matrix {
     return this.values;
   }
 
-  // 创建正射投影矩阵
-  static projection(width: number, height: number): Matrix {
-    const matrix = new Matrix();
-
-    // WebGL 坐标系转换
-    // 屏幕坐标系: 左上角(0,0)，右下角(width,height)
-    // WebGL 坐标系: 左下角(-1,-1)，右上角(1,1)
-
-    matrix.values = [
-      2 / width, 0, 0,
-      0, -2 / height, 0,
-      -1, 1, 1
+  // 添加一个转置方法，用于在需要时转换为行主序
+  transpose(): Matrix {
+    const [a00, a10, a20, a01, a11, a21, a02, a12, a22] = this.values;
+    this.values = [
+      a00, a01, a02,
+      a10, a11, a12,
+      a20, a21, a22
     ];
-
-    return matrix;
+    return this;
   }
 }

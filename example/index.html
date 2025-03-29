@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tiny UI</title>
+    <style>
+    * {
+      padding: 0;
+      margin: 0;
+    }
+    /* xyx-sdk 需要基于这个来获取 safe area 值 */
+    :root {
+      --sat: env(safe-area-inset-top, 50px);
+      --sar: env(safe-area-inset-right, 50px);
+      --sab: env(safe-area-inset-bottom, 50px);
+      --sal: env(safe-area-inset-left, 50px);
+    }
+    html,body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+      -ms-touch-action: none;
+      touch-action: none;
+    }
+    canvas {
+      -ms-touch-action: none;
+      touch-action: none;
+      touch-action-delay: none;
+      -webkit-tap-highlight-color: rgba(0,0,0,0);
+      -moz-tap-highlight-color: rgba(0,0,0,0);
+      user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      outline: none;
+      border: none;
+      width: 100%;
+      height: 100%;
+    }
+    </style>
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+    <script src="../dist/tiny-ui.js"></script>
+    <script>
+    const canvas = document.getElementById('game');
+    const tinyUI = new TinyUI(canvas);
+    tinyUI.testRender(0, 0, 256, 256);
+    tinyUI.testRender(canvas.width - 256, 0, 256, 256);
+    tinyUI.testRender(0, canvas.height - 256, 256, 256);
+    tinyUI.testRender(canvas.width - 256, canvas.height - 256, 256, 256);
+    tinyUI.testRender(canvas.width / 2 - 128, canvas.height / 2 - 128, 256, 256);
+
+
+
+    // const text = tinyUI.createText('Hello, World!');
+    // text.x = 100;
+    // text.y = 300;
+
+    // tinyUI.root.addChild(text);
+
+    // tinyUI.createBitmapFromUrl('img.png').then(bitmap => {
+    //   // tinyUI.drawSimpleBitmap(bitmap, 0, 0);
+
+    //   // // 设置到画布中心
+    //   bitmap.x = canvas.width / 2;
+    //   bitmap.y = canvas.height / 2;
+    //   // // bitmap.rotation = 90;
+    //   // // 确保锚点也正确 (0.5表示中心)
+    //   // bitmap.anchorX = 0.5;
+    //   // bitmap.anchorY = 0.5;
+
+    //   tinyUI.root.addChild(bitmap);
+    //   console.log(`Bitmap position: (${bitmap.x}, ${bitmap.y}), size: ${bitmap.width}x${bitmap.height}`);
+    //   tinyUI.render();
+    // });
+
+    // tinyUI.render();
+    </script>
+  </body>
+</html>

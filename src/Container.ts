@@ -51,10 +51,12 @@ export class Container extends DisplayObject {
   }
 
   render(matrix: Matrix): void {
-    // 遍历并渲染子节点
-    for (const child of this.children) {
-      this.app._renderNode(child);
-    }
+    // Container自身不需要渲染内容
+    // 渲染子节点的逻辑已经移到TinyUI._renderTree中
+    // for (const child of this.children) {
+    //   const savedAppMatrix = this.app.currentMatrix.clone();
+    //   this.app._renderNode(child);
+    // }
   }
 
 }
