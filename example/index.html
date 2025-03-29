@@ -49,11 +49,11 @@
     <script>
     const canvas = document.getElementById('game');
     const tinyUI = new TinyUI(canvas);
-    tinyUI.testRender(0, 0, 256, 256);
-    tinyUI.testRender(canvas.width - 256, 0, 256, 256);
-    tinyUI.testRender(0, canvas.height - 256, 256, 256);
-    tinyUI.testRender(canvas.width - 256, canvas.height - 256, 256, 256);
-    tinyUI.testRender(canvas.width / 2 - 128, canvas.height / 2 - 128, 256, 256);
+    // tinyUI.testRender(0, 0, 256, 256);
+    // tinyUI.testRender(canvas.width - 256, 0, 256, 256);
+    // tinyUI.testRender(0, canvas.height - 256, 256, 256);
+    // tinyUI.testRender(canvas.width - 256, canvas.height - 256, 256, 256);
+    // tinyUI.testRender(canvas.width / 2 - 128, canvas.height / 2 - 128, 256, 256);
 
 
 
@@ -63,21 +63,107 @@
 
     // tinyUI.root.addChild(text);
 
-    // tinyUI.createBitmapFromUrl('img.png').then(bitmap => {
-    //   // tinyUI.drawSimpleBitmap(bitmap, 0, 0);
+    tinyUI.textureManager.loadImage('img.png').then(img => {
+      // tinyUI.drawSimpleBitmap(bitmap, 0, 0);
+      const bitmap2 = tinyUI.createBitmapFromImage(img);
+      const bitmap3 = tinyUI.createBitmapFromImage(img);
+      const bitmap4 = tinyUI.createBitmapFromImage(img);
 
-    //   // // 设置到画布中心
-    //   bitmap.x = canvas.width / 2;
-    //   bitmap.y = canvas.height / 2;
-    //   // // bitmap.rotation = 90;
-    //   // // 确保锚点也正确 (0.5表示中心)
-    //   // bitmap.anchorX = 0.5;
-    //   // bitmap.anchorY = 0.5;
+      // 左上角
+      const bitmap = tinyUI.createBitmapFromImage(img);
+      const bitmap5 = tinyUI.createBitmapFromImage(img);
+      bitmap.alpha = 0.5;
+      bitmap.anchorX = 0;
+      bitmap.anchorY = 0;
+      bitmap.scaleX = 0.5;
+      bitmap.scaleY = 0.5;
+      bitmap.x = bitmap.width / 2;
+      bitmap.y = bitmap.height / 2;
+      bitmap.rotation = 45;
 
-    //   tinyUI.root.addChild(bitmap);
-    //   console.log(`Bitmap position: (${bitmap.x}, ${bitmap.y}), size: ${bitmap.width}x${bitmap.height}`);
-    //   tinyUI.render();
-    // });
+      tinyUI.root.addChild(bitmap5);
+      tinyUI.root.addChild(bitmap);
+
+      // 右上角
+      bitmap2.anchorX = 0.5;
+      bitmap2.anchorY = 0.5;
+      bitmap2.x = canvas.width - bitmap2.width / 2;
+      bitmap2.y = bitmap2.height / 2;
+      bitmap2.rotation = 45;
+      bitmap2.alpha = 0.5;
+
+      // 右下角
+      bitmap3.scaleX = 0.5;
+      bitmap3.scaleY = 0.5;
+      bitmap3.anchorX = 0.5;
+      bitmap3.anchorY = 0.5;
+      bitmap3.x = canvas.width - bitmap3.width/2;
+      bitmap3.y = canvas.height - bitmap3.height/2;
+      bitmap3.alpha = 0.5;
+
+      // 左下角
+      bitmap4.anchorY = 0.5;
+      bitmap4.anchorX = 0.5;
+      bitmap4.y = canvas.height;
+
+      // // 设置到画布中心
+      // bitmap.x = canvas.width / 2;
+      // bitmap.y = canvas.height / 2;
+      // // bitmap.rotation = 90;
+      // // 确保锚点也正确 (0.5表示中心)
+      // bitmap.anchorX = 0.5;
+      // bitmap.anchorY = 0.5;
+
+      tinyUI.root.addChild(bitmap2);
+      tinyUI.root.addChild(bitmap4);
+      tinyUI.root.addChild(bitmap3);
+
+      // (() => {
+      //   const container = tinyUI.createContainer();
+      //   const childBitmap1 = tinyUI.createBitmapFromImage(img);
+      //   const childBitmap2 = tinyUI.createBitmapFromImage(img);
+      //   container.addChild(childBitmap1);
+      //   container.addChild(childBitmap2);
+      //   container.x = childBitmap1.width;
+      //   childBitmap2.y = childBitmap2.height;
+      //   childBitmap2.alpha = 0.8;
+      //   childBitmap2.anchorX = 0.5;
+      //   childBitmap2.anchorY = 0.5;
+      //   childBitmap2.rotation = 45;
+
+      //   tinyUI.root.addChild(container);
+      // })();
+
+
+      (() => {
+        const container = tinyUI.createContainer();
+        const childBitmap1 = tinyUI.createBitmapFromImage(img);
+        const childBitmap2 = tinyUI.createBitmapFromImage(img);
+
+        container.x = childBitmap1.width * 1.5;
+        container.y = childBitmap1.height;
+        container.alpha = 0.8;
+
+        childBitmap2.y = childBitmap2.height;
+        childBitmap2.alpha = 0.8;
+
+        container.width = childBitmap1.width;
+        container.height = childBitmap1.height * 2;
+        container.anchorX = 0.5;
+        container.anchorY = 0.5;
+
+        container.scaleX = 0.5;
+        container.scaleY = 0.5;
+
+        container.addChild(childBitmap1);
+        container.addChild(childBitmap2);
+        tinyUI.root.addChild(container);
+      })();
+
+
+      console.log(`Bitmap position: (${bitmap.x}, ${bitmap.y}), size: ${bitmap.width}x${bitmap.height}`);
+      tinyUI.render();
+    });
 
     // tinyUI.render();
     </script>

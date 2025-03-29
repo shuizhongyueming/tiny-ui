@@ -14,8 +14,8 @@ export class DisplayObject {
   visible: boolean = true;
   scaleX: number = 1;
   scaleY: number = 1;
-  anchorX: number = 0.5;
-  anchorY: number = 0.5;
+  anchorX: number = 0;
+  anchorY: number = 0;
   alpha: number = 1;
   name: string = "";
   rotation: number = 0; // 角度 (0-360)

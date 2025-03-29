@@ -202,9 +202,8 @@ class TinyUI {
     gl.useProgram(this.shaderProgram);
 
     // 设置分辨率
-    // console.log('当前分辨率:', this.viewportWidth, this.viewportHeight);
-    // gl.uniform2f(this.resolutionLocation, this.viewportWidth, this.viewportHeight);
-    // console.log('分辨率uniform位置:', this.resolutionLocation);
+    console.log('当前分辨率:', this.viewportWidth, this.viewportHeight);
+    gl.uniform2f(this.resolutionLocation, this.viewportWidth, this.viewportHeight);
 
     // 重置当前变换矩阵
     this.currentMatrix = new Matrix();
@@ -213,57 +212,59 @@ class TinyUI {
     this._renderTree(this.root);
   }
 
-  // 新方法：渲染整个场景树
-  _renderTree(node: DisplayObject) {
+  _renderTree(node: DisplayObject, parentMatrix: Matrix = new Matrix(), parentAlpha: number = 1) {
     if (!node.visible || node.alpha <= 0) return;
 
+    // 计算当前节点的实际alpha值（自身alpha × 父级alpha）
+    const actualAlpha = node.alpha * parentAlpha;
+
+    // 创建当前节点的变换矩阵，基于父矩阵
+    const nodeMatrix = parentMatrix.clone();
+
+    const anchorOffsetX = node.width * node.anchorX;
+    const anchorOffsetY = node.height * node.anchorY;
+
+    // 应用当前节点的变换
+    // 平移到位置
+    nodeMatrix.translate(node.x - anchorOffsetX, node.y - anchorOffsetY);
+
+    // 如果需要围绕锚点旋转/缩放
+    if (node.rotation !== 0 || node.scaleX !== 1 || node.scaleY !== 1) {
+
+      // 先将锚点移动到原点
+      nodeMatrix.translate(anchorOffsetX, anchorOffsetY);
+
+      // 应用旋转和缩放
+      nodeMatrix
+        .rotate(node.rotation * Math.PI / 180)
+        .scale(node.scaleX, node.scaleY);
+
+      // 将锚点移回原位置
+      nodeMatrix.translate(-anchorOffsetX, -anchorOffsetY);
+    }
+
+    // 设置变换矩阵并渲染当前节点
+    this.currentMatrix = nodeMatrix;
+    this.gl.uniformMatrix3fv(this.matrixLocation, false, this.currentMatrix.toArray());
+
+    // 临时存储原始alpha值
+    const originalAlpha = node.alpha;
+    // 设置实际alpha值用于渲染
+    node.alpha = actualAlpha;
+
     // 渲染当前节点
-    this._renderNode(node);
+    node.render(this.currentMatrix);
+
+    // 恢复原始alpha值
+    node.alpha = originalAlpha;
 
     // 如果是容器，递归渲染子节点
     if ('children' in node && Array.isArray((node as any).children)) {
       const children = (node as any).children as DisplayObject[];
       for (const child of children) {
-        this._renderTree(child);
+        this._renderTree(child, nodeMatrix, actualAlpha);
       }
     }
-  }
-
-  // 负责单个节点的渲染和变换
-  _renderNode(node: DisplayObject) {
-    // 保存当前变换矩阵
-    const savedMatrix = this.currentMatrix.clone();
-
-    // 应用变换: 先平移到位置
-    this.currentMatrix.translate(node.x, node.y);
-
-    // 如果需要围绕锚点旋转/缩放
-    if (node.rotation !== 0 || node.scaleX !== 1 || node.scaleY !== 1) {
-      // 计算锚点偏移
-      const anchorOffsetX = node.width * node.anchorX;
-      const anchorOffsetY = node.height * node.anchorY;
-
-      // 先将锚点移动到原点
-      this.currentMatrix.translate(anchorOffsetX, anchorOffsetY);
-
-      // 应用旋转和缩放
-      this.currentMatrix
-        .rotate(node.rotation * Math.PI / 180)
-        .scale(node.scaleX, node.scaleY);
-
-      // 将锚点移回原位置
-      this.currentMatrix.translate(-anchorOffsetX, -anchorOffsetY);
-    }
-
-    // 设置变换矩阵
-    console.log('当前变换矩阵:', this.currentMatrix.clone().toArray());
-    this.gl.uniformMatrix3fv(this.matrixLocation, false, this.currentMatrix.toArray());
-
-    // 调用组件的 render 方法
-    node.render(this.currentMatrix);
-
-    // 恢复变换矩阵
-    this.currentMatrix = savedMatrix;
   }
 
   _setBufferData(positions: number[], texCoords: number[], colors: number[], indices: number[]) {
