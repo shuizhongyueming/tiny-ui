@@ -57,11 +57,28 @@
 
 
 
-    // const text = tinyUI.createText('Hello, World!');
-    // text.x = 100;
-    // text.y = 300;
+    const text = tinyUI.createText('Hello, World!');
+    text.color = '#ff0000';
+    text.fontSize = 32;
+    text.x = 100;
+    text.y = 300;
+    tinyUI.root.addChild(text);
 
-    // tinyUI.root.addChild(text);
+    const paragraph = tinyUI.createText('This is a paragraph. With force new line!\nWith very very very loooooong line!');
+    paragraph.color = '#0000ff';
+    paragraph.fontSize = 24;
+    paragraph.x = 100;
+    paragraph.y = 350;
+    paragraph.maxWidth = 200;
+    tinyUI.root.addChild(paragraph);
+
+    const rect = tinyUI.createGraphics();
+    rect.drawRect(200, 200, 100, 100, '#ff0000');
+    tinyUI.root.addChild(rect);
+
+    const circle = tinyUI.createGraphics();
+    circle.drawCircle(250, 250, 50, '#00ff00');
+    tinyUI.root.addChild(circle);
 
     tinyUI.textureManager.loadImage('img.png').then(img => {
       // tinyUI.drawSimpleBitmap(bitmap, 0, 0);

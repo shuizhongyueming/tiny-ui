@@ -115,35 +115,63 @@ export class Text extends DisplayObject {
     // 计算文本尺寸
     let textWidth: number;
     let textHeight: number;
+    let lines: string[] = [];
+
+    // 首先处理换行符
+    const linesFromBreaks = this.text.split('\n');
 
     if (this.maxWidth > 0) {
-      // 多行文本
-      const words = this.text.split(' ');
-      const lines: string[] = [];
-      let currentLine = words[0];
-
-      for (let i = 1; i < words.length; i++) {
-        const word = words[i];
-        const width = ctx.measureText(currentLine + ' ' + word).width;
-
-        if (width < this.maxWidth) {
-          currentLine += ' ' + word;
-        } else {
-          lines.push(currentLine);
-          currentLine = word;
+      // 多行文本处理 - 需要考虑手动换行和自动换行
+      for (const lineText of linesFromBreaks) {
+        if (lineText.length === 0) {
+          // 空行直接添加
+          lines.push('');
+          continue;
         }
-      }
 
-      lines.push(currentLine);
+        const words = lineText.split(' ');
+        let currentLine = words[0];
+
+        for (let i = 1; i < words.length; i++) {
+          const word = words[i];
+          const width = ctx.measureText(currentLine + ' ' + word).width;
+
+          if (width < this.maxWidth) {
+            currentLine += ' ' + word;
+          } else {
+            lines.push(currentLine);
+            currentLine = word;
+          }
+        }
+
+        lines.push(currentLine);
+      }
 
       textWidth = this.maxWidth;
       textHeight = lines.length * this.lineHeight;
     } else {
-      // 单行文本
-      const metrics = ctx.measureText(this.text);
-      textWidth = metrics.width;
-      textHeight = this.fontSize;
+      // 单行文本处理 - 但仍然需要处理手动换行符
+      lines = linesFromBreaks;
+      let maxLineWidth = 0;
+
+      for (const line of lines) {
+        const metrics = ctx.measureText(line);
+        maxLineWidth = Math.max(maxLineWidth, metrics.width);
+      }
+
+      textWidth = maxLineWidth;
+      textHeight = lines.length * this.lineHeight;
     }
+
+    console.log('Text#updateTexture: ', {
+      maxWidth: this.maxWidth,
+      text: this.text,
+      textWidth,
+      textHeight,
+      fontSize: this.fontSize,
+      lineHeight: this.lineHeight,
+      lines
+    })
 
     // 设置canvas尺寸 (增加一点边距)
     canvas.width = textWidth + 4;
@@ -166,33 +194,9 @@ export class Text extends DisplayObject {
       x = canvas.width - 2;
     }
 
-    if (this.maxWidth > 0) {
-      // 多行文本
-      const words = this.text.split(' ');
-      const lines: string[] = [];
-      let currentLine = words[0];
-
-      for (let i = 1; i < words.length; i++) {
-        const word = words[i];
-        const width = ctx.measureText(currentLine + ' ' + word).width;
-
-        if (width < this.maxWidth) {
-          currentLine += ' ' + word;
-        } else {
-          lines.push(currentLine);
-          currentLine = word;
-        }
-      }
-
-      lines.push(currentLine);
-
-      // 绘制文本
-      for (let i = 0; i < lines.length; i++) {
-        ctx.fillText(lines[i], x, i * this.lineHeight + 2);
-      }
-    } else {
-      // 单行文本
-      ctx.fillText(this.text, x, 2);
+    // 绘制文本
+    for (let i = 0; i < lines.length; i++) {
+      ctx.fillText(lines[i], x, i * this.lineHeight + 2);
     }
 
     // 更新对象尺寸
