@@ -140,8 +140,8 @@ class TinyUI {
 
   private updateViewport() {
     // 获取canvas的显示尺寸
-    const displayWidth = this.canvas.clientWidth;
-    const displayHeight = this.canvas.clientHeight;
+    const displayWidth = this.canvas.clientWidth * window.devicePixelRatio;
+    const displayHeight = this.canvas.clientHeight * window.devicePixelRatio;
 
     // 更新canvas的绘图缓冲区尺寸以匹配显示尺寸
     if (this.canvas.width !== displayWidth || this.canvas.height !== displayHeight) {

@@ -59,17 +59,17 @@
 
     const text = tinyUI.createText('Hello, World!');
     text.color = '#ff0000';
-    text.fontSize = 32;
+    text.fontSize = 64;
     text.x = 700;
     text.y = 300;
     tinyUI.root.addChild(text);
 
     const paragraph = tinyUI.createText('This is a paragraph. With force new line!\nWith very very very loooooong line!');
     paragraph.color = '#0000ff';
-    paragraph.fontSize = 24;
+    paragraph.fontSize = 48;
     paragraph.x = 700;
-    paragraph.y = 350;
-    paragraph.maxWidth = 300;
+    paragraph.y = 450;
+    paragraph.maxWidth = 600;
     tinyUI.root.addChild(paragraph);
 
     const rect = tinyUI.createGraphics();
@@ -82,9 +82,6 @@
 
     tinyUI.textureManager.loadImage('img.png').then(img => {
       // tinyUI.drawSimpleBitmap(bitmap, 0, 0);
-      const bitmap2 = tinyUI.createBitmapFromImage(img);
-      const bitmap3 = tinyUI.createBitmapFromImage(img);
-      const bitmap4 = tinyUI.createBitmapFromImage(img);
 
       // 左上角
       const bitmap = tinyUI.createBitmapFromImage(img);
@@ -102,6 +99,7 @@
       tinyUI.root.addChild(bitmap);
 
       // 右上角
+      const bitmap2 = tinyUI.createBitmapFromImage(img);
       bitmap2.anchorX = 0.5;
       bitmap2.anchorY = 0.5;
       bitmap2.x = canvas.width - bitmap2.width / 2;
@@ -110,6 +108,7 @@
       bitmap2.alpha = 0.5;
 
       // 右下角
+      const bitmap3 = tinyUI.createBitmapFromImage(img);
       bitmap3.scaleX = 0.5;
       bitmap3.scaleY = 0.5;
       bitmap3.anchorX = 0.5;
@@ -119,6 +118,7 @@
       bitmap3.alpha = 0.5;
 
       // 左下角
+      const bitmap4 = tinyUI.createBitmapFromImage(img);
       bitmap4.anchorY = 0.5;
       bitmap4.anchorX = 0.5;
       bitmap4.y = canvas.height;
