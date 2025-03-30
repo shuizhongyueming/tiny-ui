@@ -48,6 +48,11 @@ export class DisplayObject {
     }
   }
 
+  hasEventListener(eventName: EventName): boolean {
+    return this.eventListeners.has(eventName) &&
+      this.eventListeners.get(eventName)!.size > 0;
+  }
+
   // 返回对象自身的本地变换矩阵
   getLocalTransformMatrix(): Matrix {
     const matrix = new Matrix();

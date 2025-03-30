@@ -97,7 +97,7 @@ export class EventManager {
     }
 
     // 检查点是否在节点内
-    if (node.hitTest && node.hitTest(event.x, event.y)) {
+    if (node.hasEventListener(event.type) && node.hitTest && node.hitTest(event.x, event.y)) {
       // 设置事件目标
       event.target = node;
 
