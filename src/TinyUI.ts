@@ -218,33 +218,15 @@ class TinyUI {
     // 计算当前节点的实际alpha值（自身alpha × 父级alpha）
     const actualAlpha = node.alpha * parentAlpha;
 
-    // 创建当前节点的变换矩阵，基于父矩阵
-    const nodeMatrix = parentMatrix.clone();
+    // 直接使用DisplayObject提供的矩阵计算能力
+    // 注意：不再需要手动计算nodeMatrix，而是使用node的方法
+    const nodeMatrix = node.getLocalTransformMatrix();
 
-    const anchorOffsetX = node.width * node.anchorX;
-    const anchorOffsetY = node.height * node.anchorY;
+    // 与父矩阵组合（如果有父矩阵）
+    const combinedMatrix = parentMatrix.clone().multiply(nodeMatrix);
 
-    // 应用当前节点的变换
-    // 平移到位置
-    nodeMatrix.translate(node.x - anchorOffsetX, node.y - anchorOffsetY);
-
-    // 如果需要围绕锚点旋转/缩放
-    if (node.rotation !== 0 || node.scaleX !== 1 || node.scaleY !== 1) {
-
-      // 先将锚点移动到原点
-      nodeMatrix.translate(anchorOffsetX, anchorOffsetY);
-
-      // 应用旋转和缩放
-      nodeMatrix
-        .rotate(node.rotation * Math.PI / 180)
-        .scale(node.scaleX, node.scaleY);
-
-      // 将锚点移回原位置
-      nodeMatrix.translate(-anchorOffsetX, -anchorOffsetY);
-    }
-
-    // 设置变换矩阵并渲染当前节点
-    this.currentMatrix = nodeMatrix;
+    // 设置WebGL的变换矩阵
+    this.currentMatrix = combinedMatrix;
     this.gl.uniformMatrix3fv(this.matrixLocation, false, this.currentMatrix.toArray());
 
     // 临时存储原始alpha值
@@ -262,7 +244,8 @@ class TinyUI {
     if ('children' in node && Array.isArray((node as any).children)) {
       const children = (node as any).children as DisplayObject[];
       for (const child of children) {
-        this._renderTree(child, nodeMatrix, actualAlpha);
+        // 传递计算出的组合矩阵和实际alpha值给子节点
+        this._renderTree(child, combinedMatrix, actualAlpha);
       }
     }
   }
