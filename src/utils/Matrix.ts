@@ -6,7 +6,29 @@ export class Matrix {
     0, 0, 1   // 第三列
   ];
 
-  constructor() { }
+  // 添加属性访问器，便于访问矩阵中的元素
+  get a(): number { return this.values[0]; } // a (0,0)
+  get b(): number { return this.values[1]; } // b (1,0)
+  get c(): number { return this.values[3]; } // c (0,1)
+  get d(): number { return this.values[4]; } // d (1,1)
+  get tx(): number { return this.values[6]; } // tx (0,2)
+  get ty(): number { return this.values[7]; } // ty (1,2)
+
+  set a(value: number) { this.values[0] = value; }
+  set b(value: number) { this.values[1] = value; }
+  set c(value: number) { this.values[3] = value; }
+  set d(value: number) { this.values[4] = value; }
+  set tx(value: number) { this.values[6] = value; }
+  set ty(value: number) { this.values[7] = value; }
+
+  constructor(a?: number, b?: number, c?: number, d?: number, tx?: number, ty?: number) {
+    if (a !== undefined) this.a = a;
+    if (b !== undefined) this.b = b;
+    if (c !== undefined) this.c = c;
+    if (d !== undefined) this.d = d;
+    if (tx !== undefined) this.tx = tx;
+    if (ty !== undefined) this.ty = ty;
+  }
 
   // 克隆矩阵
   clone(): Matrix {
@@ -94,6 +116,50 @@ export class Matrix {
       0, 0, 1   // 第三列
     ];
     return this.multiply(m);
+  }
+
+  // 矩阵求逆
+  invert(): Matrix | null {
+    const [a00, a10, a20, a01, a11, a21, a02, a12, a22] = this.values;
+
+    // 计算行列式
+    const det = a00 * (a11 * a22 - a21 * a12) -
+      a01 * (a10 * a22 - a20 * a12) +
+      a02 * (a10 * a21 - a20 * a11);
+
+    // 如果行列式为零，矩阵不可逆
+    if (Math.abs(det) < 1e-8) {
+      return null;
+    }
+
+    const invDet = 1 / det;
+
+    // 计算伴随矩阵的转置，然后乘以行列式的倒数
+    const result = new Matrix();
+    result.values = [
+      (a11 * a22 - a21 * a12) * invDet,
+      (a20 * a12 - a10 * a22) * invDet,
+      (a10 * a21 - a20 * a11) * invDet,
+
+      (a21 * a02 - a01 * a22) * invDet,
+      (a00 * a22 - a20 * a02) * invDet,
+      (a20 * a01 - a00 * a21) * invDet,
+
+      (a01 * a12 - a11 * a02) * invDet,
+      (a10 * a02 - a00 * a12) * invDet,
+      (a00 * a11 - a10 * a01) * invDet
+    ];
+
+    return result;
+  }
+
+  // 转换点坐标
+  transformPoint(x: number, y: number): { x: number, y: number } {
+    const a = this.values;
+    return {
+      x: a[0] * x + a[3] * y + a[6],
+      y: a[1] * x + a[4] * y + a[7]
+    };
   }
 
   // 转换为数组
