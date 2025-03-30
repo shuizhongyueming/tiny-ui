@@ -63,6 +63,9 @@
     text.x = 700;
     text.y = 300;
     tinyUI.root.addChild(text);
+    text.addEventListener('touchstart', () => {
+      console.log('text touchstarted');
+    });
 
     const paragraph = tinyUI.createText('This is a paragraph. With force new line!\nWith very very very loooooong line!');
     paragraph.color = '#0000ff';
@@ -71,6 +74,9 @@
     paragraph.y = 450;
     paragraph.maxWidth = 600;
     tinyUI.root.addChild(paragraph);
+    paragraph.addEventListener('touchmove', () => {
+      console.log('paragraph touchmoved');
+    });
 
     const rect = tinyUI.createGraphics();
     rect.drawRect(200, 200, 100, 100, '#ff0000');
@@ -106,6 +112,9 @@
       bitmap2.y = bitmap2.height / 2;
       bitmap2.rotation = 45;
       bitmap2.alpha = 0.5;
+      bitmap2.addEventListener('touchend', () => {
+        console.log('bitmap2 touchended');
+      });
 
       // 右下角
       const bitmap3 = tinyUI.createBitmapFromImage(img);
@@ -116,12 +125,18 @@
       bitmap3.x = canvas.width - bitmap3.width/2;
       bitmap3.y = canvas.height - bitmap3.height/2;
       bitmap3.alpha = 0.5;
+      bitmap3.addEventListener('touchstart', () => {
+        console.log('bitmap3 touchstarted');
+      });
 
       // 左下角
       const bitmap4 = tinyUI.createBitmapFromImage(img);
       bitmap4.anchorY = 0.5;
       bitmap4.anchorX = 0.5;
       bitmap4.y = canvas.height;
+      bitmap4.addEventListener('touchstart', () => {
+        console.log('bitmap4 touchstarted');
+      });
 
       // // 设置到画布中心
       // bitmap.x = canvas.width / 2;
