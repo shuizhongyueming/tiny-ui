@@ -1,11 +1,14 @@
 import { EventName } from "../type";
+import type TinyUI from "../TinyUI";
 
 export class EventManager {
   private canvas: HTMLCanvasElement;
+  private app: TinyUI;
   private eventListeners: Map<string, EventListener> = new Map();
 
-  constructor(canvas: HTMLCanvasElement) {
-    this.canvas = canvas;
+  constructor(app: TinyUI) {
+    this.app = app;
+    this.canvas = app.canvas;
     this.setupEventListeners();
   }
 
@@ -73,11 +76,8 @@ export class EventManager {
         stopPropagation: false
       };
 
-      // 将事件传递给UI树
-      // 注: 这需要一个root引用，暂时先使用全局变量
-      if (window['_TinyUIRoot']) {
-        this.dispatchEventToNode(window['_TinyUIRoot'], uiEvent);
-      }
+      // 将事件传递给UI树，直接使用app.root
+      this.dispatchEventToNode(this.app.root, uiEvent);
     };
   }
 

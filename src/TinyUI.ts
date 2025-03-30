@@ -59,7 +59,7 @@ void main() {
 `;
 
 class TinyUI {
-  private canvas: HTMLCanvasElement;
+  canvas: HTMLCanvasElement;
   gl: WebGLRenderingContext;
 
   // 管理器
@@ -118,7 +118,7 @@ class TinyUI {
     // 初始化管理器
     this.shaderManager = new ShaderManager(this.gl);
     this.textureManager = new TextureManager(this.gl);
-    this.eventManager = new EventManager(canvas);
+    this.eventManager = new EventManager(this);
 
     // 初始化着色器
     this.initShaders();
