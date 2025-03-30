@@ -195,14 +195,12 @@ class TinyUI {
     gl.clear(gl.COLOR_BUFFER_BIT);
 
     // 设置视口
-    console.log('当前视口:', this.viewportWidth, this.viewportHeight);
     gl.viewport(0, 0, this.viewportWidth, this.viewportHeight);
 
     // 使用着色器程序
     gl.useProgram(this.shaderProgram);
 
     // 设置分辨率
-    console.log('当前分辨率:', this.viewportWidth, this.viewportHeight);
     gl.uniform2f(this.resolutionLocation, this.viewportWidth, this.viewportHeight);
 
     // 重置当前变换矩阵
@@ -251,7 +249,6 @@ class TinyUI {
   }
 
   _setBufferData(positions: number[], texCoords: number[], colors: number[], indices: number[]) {
-    console.log('_setBufferData', { positions, texCoords, colors, indices });
     const gl = this.gl;
 
     // 位置缓冲区
@@ -391,8 +388,6 @@ class TinyUI {
   }
 
   testRender(x: number, y: number, width: number, height: number) {
-    console.log('testRender: ', { x, y, width, height });
-    console.log('viewport size:', this.canvas.width, this.canvas.height);
     // 保存当前WebGL状态
     const currentProgram = this.gl.getParameter(this.gl.CURRENT_PROGRAM);
 

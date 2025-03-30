@@ -200,16 +200,6 @@ export class Text extends DisplayObject {
       textHeight = lines.length * effectiveLineHeight;
     }
 
-    console.log('Text#updateTexture: ', {
-      maxWidth: this._maxWidth,
-      text: this._text,
-      textWidth,
-      textHeight,
-      fontSize: this._fontSize,
-      lineHeight: effectiveLineHeight,
-      lines
-    });
-
     // 设置canvas尺寸 (增加一点边距)
     canvas.width = textWidth + 4;
     canvas.height = textHeight + 4;
