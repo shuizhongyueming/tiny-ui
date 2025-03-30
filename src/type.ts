@@ -8,7 +8,6 @@ export interface Rect {
 }
 
 export enum EventName {
-  Click = 'click',
   TouchMove = 'touchmove',
   TouchStart = 'touchstart',
   TouchEnd = 'touchend',

@@ -33,11 +33,6 @@ export class EventManager {
     this.eventListeners.set('touchend', touchEndListener);
     this.canvas.addEventListener('mouseup', touchEndListener);
     this.eventListeners.set('mouseup', touchEndListener);
-
-    // 点击事件
-    const clickListener = this.createTouchListener(EventName.Click);
-    this.canvas.addEventListener('click', clickListener);
-    this.eventListeners.set('click', clickListener);
   }
 
   private createTouchListener(eventName: EventName): EventListener {
