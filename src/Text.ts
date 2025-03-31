@@ -279,8 +279,7 @@ export class Text extends DisplayObject {
 
     // 释放纹理
     if (this.texture) {
-      const canvas = document.createElement('canvas');
-      const gl = canvas.getContext('webgl') as WebGLRenderingContext;
+      const gl = this.app.gl;
       gl.deleteTexture(this.texture);
       this.texture = null;
     }
