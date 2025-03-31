@@ -21,6 +21,7 @@ export class Text extends DisplayObject {
   private textureWidth: number = 0;
   private textureHeight: number = 0;
   private previousText: string = '';
+  private canvas: HTMLCanvasElement | null = null;
 
   constructor(app: TinyUI, name: string = 'Text') {
     super(app, name);
@@ -150,8 +151,12 @@ export class Text extends DisplayObject {
       return;
     }
 
+    if (!this.canvas) {
+      this.canvas = document.createElement('canvas');
+    }
+
     // 创建离屏canvas
-    const canvas = document.createElement('canvas');
+    const canvas = this.canvas;
     const ctx = canvas.getContext('2d');
 
     if (!ctx) {
