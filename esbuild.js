@@ -12,6 +12,9 @@ const buildOptions = {
   minify: isProduction,
   format: 'iife',
   globalName: 'TinyUI', // 添加这一行，定义全局变量名
+  footer: {
+    js: 'window.TinyUI = TinyUI;',
+  },
   treeShaking: true,
   target: 'es2018',
 };
