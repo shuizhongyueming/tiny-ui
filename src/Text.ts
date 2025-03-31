@@ -245,9 +245,9 @@ export class Text extends DisplayObject {
     // 计算对齐位置
     let x = 2;
     if (this._align === 'center') {
-      x = canvas.width / 2;
+      x = originalWidth / 2;
     } else if (this._align === 'right') {
-      x = canvas.width - 2;
+      x = originalWidth - 2;
     }
 
     // 绘制文本
