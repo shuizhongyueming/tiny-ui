@@ -1,6 +1,7 @@
 import { DisplayObject } from "./DisplayObject";
 import type TinyUI from "./TinyUI";
 import { type Matrix } from "./utils/Matrix";
+import { nextPowerOfTwo } from "./utils/Power2";
 
 type FontWeight = 'normal' | 'bold';
 type TextAlign = 'left' | 'center' | 'right';
@@ -17,6 +18,8 @@ export class Text extends DisplayObject {
 
   texture: WebGLTexture | null = null;
   textureNeedsUpdate: boolean = true;
+  private textureWidth: number = 0;
+  private textureHeight: number = 0;
   private previousText: string = '';
 
   constructor(app: TinyUI, name: string = 'Text') {
@@ -214,8 +217,16 @@ export class Text extends DisplayObject {
     }
 
     // 设置canvas尺寸 (增加一点边距)
-    canvas.width = textWidth + 4;
-    canvas.height = textHeight + 4;
+    const originalWidth = textWidth + 4;
+    const originalHeight = textHeight + 4;
+
+    // 设置canvas尺寸为2的指数
+    // 这样可以确保纹理尺寸为2的指数，提高性能和缩放效果
+    this.textureWidth = nextPowerOfTwo(originalWidth);
+    this.textureHeight = nextPowerOfTwo(originalHeight);
+
+    canvas.width = this.textureWidth;
+    canvas.height = this.textureHeight;
 
     // 清除canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -240,8 +251,10 @@ export class Text extends DisplayObject {
     }
 
     // 更新对象尺寸
-    this.setWidth(canvas.width);
-    this.setHeight(canvas.height);
+    // 但是对象的宽高仍然使用原始尺寸
+    // 这样用户使用的时候，不会有奇怪的空白
+    this.setWidth(originalWidth);
+    this.setHeight(originalHeight);
 
     // 删除旧纹理
     if (this.texture) {
@@ -249,7 +262,7 @@ export class Text extends DisplayObject {
     }
 
     // 创建新纹理
-    this.texture = textureManager.createCanvasTexture(canvas);
+    this.texture = textureManager.createCanvasTexture(canvas, false);
 
     // 更新状态
     this.textureNeedsUpdate = false;
@@ -289,12 +302,16 @@ export class Text extends DisplayObject {
       0, this.height,
     ];
 
-    // 纹理坐标 (矩形)
+    // 计算纹理坐标比例 - 实际内容与Power-of-2尺寸的比例
+    const texCoordX = this.width / this.textureWidth;
+    const texCoordY = this.height / this.textureHeight;
+
+    // 纹理坐标 (矩形) - 只使用纹理的一部分
     const texCoords = [
       0, 0,
-      1, 0,
-      1, 1,
-      0, 1,
+      texCoordX, 0,
+      texCoordX, texCoordY,
+      0, texCoordY,
     ];
 
     // 顶点颜色 (应用透明度)

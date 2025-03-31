@@ -32,16 +32,23 @@ export class TextureManager {
   }
 
   // 从图像设置纹理
-  setTextureFromImage(texture: WebGLTexture, image: HTMLImageElement | HTMLCanvasElement): void {
+  setTextureFromImage(texture: WebGLTexture, image: HTMLImageElement | HTMLCanvasElement, premultiplyAlpha: boolean = false): void {
     const gl = this.gl;
 
     gl.bindTexture(gl.TEXTURE_2D, texture);
 
-    // 反转Y轴 (WebGL中纹理坐标系Y轴向上)
-    // gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    // 使用 WebGL 内置的预乘 alpha
+    if (premultiplyAlpha) {
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+    }
 
     // 将图像数据上传到纹理
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+
+    // 恢复默认设置
+    if (premultiplyAlpha) {
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+    }
 
     // 检查图像尺寸是否为2的幂
     const isPowerOf2 = (value: number) => (value & (value - 1)) === 0;
@@ -53,6 +60,7 @@ export class TextureManager {
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     }
 
     // 恢复默认值
@@ -103,10 +111,10 @@ export class TextureManager {
   }
 
   // 创建Canvas纹理
-  createCanvasTexture(canvas: HTMLCanvasElement): WebGLTexture {
+  createCanvasTexture(canvas: HTMLCanvasElement, premultiplyAlpha = false): WebGLTexture {
     const texture = this.createTexture();
 
-    this.setTextureFromImage(texture, canvas);
+    this.setTextureFromImage(texture, canvas, premultiplyAlpha);
 
     // 添加到纹理列表 (但不缓存)
     this.textures.set(`canvas-${Date.now()}`, texture);
