@@ -101,6 +101,8 @@
       bitmap.y = bitmap.height / 2;
       bitmap.rotation = 45;
 
+      bitmap5.x = bitmap.width / 2;
+      bitmap5.y = bitmap.height / 2;
       tinyUI.root.addChild(bitmap5);
       tinyUI.root.addChild(bitmap);
 
@@ -197,7 +199,14 @@
       tinyUI.render();
     });
 
-    // tinyUI.render();
+    tinyUI.createBitmapFromUrl('img.png').then((bitmap) => {
+      bitmap.x = canvas.width / 2;
+      bitmap.y = canvas.height / 2;
+      tinyUI.root.addChild(bitmap);
+      window.bitmapRemote = bitmap;
+    })
+
+    tinyUI.render();
     </script>
   </body>
 </html>
