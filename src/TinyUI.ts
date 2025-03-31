@@ -210,6 +210,127 @@ class TinyUI {
     this._renderTree(this.root);
   }
 
+  patchRender() {
+    const gl = this.gl;
+
+    // 保存关键状态
+    const savedState = {
+      // 着色器程序
+      program: gl.getParameter(gl.CURRENT_PROGRAM),
+
+      // 纹理状态
+      activeTexture: gl.getParameter(gl.ACTIVE_TEXTURE),
+      texture2D: gl.getParameter(gl.TEXTURE_BINDING_2D),
+
+      // 缓冲区绑定
+      arrayBuffer: gl.getParameter(gl.ARRAY_BUFFER_BINDING),
+      elementArrayBuffer: gl.getParameter(gl.ELEMENT_ARRAY_BUFFER_BINDING),
+
+      // 混合状态
+      blendEnabled: gl.isEnabled(gl.BLEND),
+      blendSrc: gl.getParameter(gl.BLEND_SRC_RGB),
+      blendDst: gl.getParameter(gl.BLEND_DST_RGB),
+
+      // 视口
+      viewport: gl.getParameter(gl.VIEWPORT),
+
+      // 顶点属性状态（仅保存我们使用的属性）
+      vertexAttribState: [
+        {
+          enabled: gl.getVertexAttrib(this.positionLocation, gl.VERTEX_ATTRIB_ARRAY_ENABLED),
+          buffer: gl.getVertexAttrib(this.positionLocation, gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING),
+          size: gl.getVertexAttrib(this.positionLocation, gl.VERTEX_ATTRIB_ARRAY_SIZE),
+          type: gl.getVertexAttrib(this.positionLocation, gl.VERTEX_ATTRIB_ARRAY_TYPE),
+          normalized: gl.getVertexAttrib(this.positionLocation, gl.VERTEX_ATTRIB_ARRAY_NORMALIZED),
+          stride: gl.getVertexAttrib(this.positionLocation, gl.VERTEX_ATTRIB_ARRAY_STRIDE),
+          offset: gl.getVertexAttribOffset(this.positionLocation, gl.VERTEX_ATTRIB_ARRAY_POINTER)
+        },
+        {
+          enabled: gl.getVertexAttrib(this.texCoordLocation, gl.VERTEX_ATTRIB_ARRAY_ENABLED),
+          buffer: gl.getVertexAttrib(this.texCoordLocation, gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING),
+          size: gl.getVertexAttrib(this.texCoordLocation, gl.VERTEX_ATTRIB_ARRAY_SIZE),
+          type: gl.getVertexAttrib(this.texCoordLocation, gl.VERTEX_ATTRIB_ARRAY_TYPE),
+          normalized: gl.getVertexAttrib(this.texCoordLocation, gl.VERTEX_ATTRIB_ARRAY_NORMALIZED),
+          stride: gl.getVertexAttrib(this.texCoordLocation, gl.VERTEX_ATTRIB_ARRAY_STRIDE),
+          offset: gl.getVertexAttribOffset(this.texCoordLocation, gl.VERTEX_ATTRIB_ARRAY_POINTER)
+        },
+        {
+          enabled: gl.getVertexAttrib(this.colorLocation, gl.VERTEX_ATTRIB_ARRAY_ENABLED),
+          buffer: gl.getVertexAttrib(this.colorLocation, gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING),
+          size: gl.getVertexAttrib(this.colorLocation, gl.VERTEX_ATTRIB_ARRAY_SIZE),
+          type: gl.getVertexAttrib(this.colorLocation, gl.VERTEX_ATTRIB_ARRAY_TYPE),
+          normalized: gl.getVertexAttrib(this.colorLocation, gl.VERTEX_ATTRIB_ARRAY_NORMALIZED),
+          stride: gl.getVertexAttrib(this.colorLocation, gl.VERTEX_ATTRIB_ARRAY_STRIDE),
+          offset: gl.getVertexAttribOffset(this.colorLocation, gl.VERTEX_ATTRIB_ARRAY_POINTER)
+        }
+      ]
+    };
+
+    // 执行UI渲染
+    this.render();
+
+    // 恢复状态
+
+    // 恢复着色器程序
+    gl.useProgram(savedState.program);
+
+    // 恢复纹理状态
+    gl.activeTexture(savedState.activeTexture);
+    gl.bindTexture(gl.TEXTURE_2D, savedState.texture2D);
+
+    // 恢复缓冲区绑定
+    gl.bindBuffer(gl.ARRAY_BUFFER, savedState.arrayBuffer);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, savedState.elementArrayBuffer);
+
+    // 恢复混合状态
+    if (savedState.blendEnabled) {
+      gl.enable(gl.BLEND);
+    } else {
+      gl.disable(gl.BLEND);
+    }
+    gl.blendFunc(savedState.blendSrc, savedState.blendDst);
+
+    // 恢复视口
+    gl.viewport(
+      savedState.viewport[0],
+      savedState.viewport[1],
+      savedState.viewport[2],
+      savedState.viewport[3]
+    );
+
+    // 恢复顶点属性状态
+    const attributes = [
+      { location: this.positionLocation, state: savedState.vertexAttribState[0] },
+      { location: this.texCoordLocation, state: savedState.vertexAttribState[1] },
+      { location: this.colorLocation, state: savedState.vertexAttribState[2] }
+    ];
+
+    for (const attr of attributes) {
+      const { location, state } = attr;
+
+      if (state.enabled) {
+        gl.enableVertexAttribArray(location);
+      } else {
+        gl.disableVertexAttribArray(location);
+      }
+
+      if (state.buffer) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, state.buffer);
+        gl.vertexAttribPointer(
+          location,
+          state.size,
+          state.type,
+          state.normalized,
+          state.stride,
+          state.offset
+        );
+      }
+    }
+
+    // 最后再次绑定原始数组缓冲区，确保一致性
+    gl.bindBuffer(gl.ARRAY_BUFFER, savedState.arrayBuffer);
+  }
+
   _renderTree(node: DisplayObject, parentMatrix: Matrix = new Matrix(), parentAlpha: number = 1) {
     if (!node.visible || node.alpha <= 0) return;
 
