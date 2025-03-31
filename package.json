@@ -2,7 +2,8 @@
   "name": "@shuizhongyueming/tiny-ui",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/tiny-ui.js",
+  "types": "types/TinyUI.d.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -18,5 +19,9 @@
     "onlyBuiltDependencies": [
       "esbuild"
     ]
-  }
+  },
+  "files": [
+    "dist",
+    "types"
+  ]
 }

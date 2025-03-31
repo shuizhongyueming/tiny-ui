@@ -8,7 +8,7 @@ dev *FLAGS:
   just tsc;
 
 tsc:
-  ./node_modules/.bin/tsc --project ./tsconfig.json --declaration true --emitDeclarationOnly true --declarationDir ./dist
+  ./node_modules/.bin/tsc --project ./tsconfig.json --declaration true --emitDeclarationOnly true --declarationDir ./types
 
 _common-publish versionType:
   just tsc;
