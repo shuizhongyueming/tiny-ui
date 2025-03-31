@@ -122,8 +122,8 @@ export class Text extends DisplayObject {
         gl.deleteTexture(this.texture);
         this.texture = null;
       }
-      this.width = 0;
-      this.height = 0;
+      this.setWidth(0);
+      this.setHeight(0);
       this.textureNeedsUpdate = false;
       this.previousText = '';
       return;
@@ -227,8 +227,8 @@ export class Text extends DisplayObject {
     }
 
     // 更新对象尺寸
-    this.width = canvas.width;
-    this.height = canvas.height;
+    this.setWidth(canvas.width);
+    this.setHeight(canvas.height);
 
     // 删除旧纹理
     if (this.texture) {

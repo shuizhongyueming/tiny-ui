@@ -5,6 +5,17 @@ import { type Matrix } from "./utils/Matrix";
 export class Container extends DisplayObject {
   children: DisplayObject[] = [];
 
+  /**
+  * container 的 width 和 height 可以从外部设置
+  */
+  set width(value: number) {
+    this.setWidth(value);
+  }
+
+  set height(value: number) {
+    this.setHeight(value);
+  }
+
   constructor(app: TinyUI, name: string = 'Container') {
     super(app, name);
   }

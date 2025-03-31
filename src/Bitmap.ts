@@ -32,8 +32,8 @@ export class Bitmap extends DisplayObject {
     this.texture = this.app.textureManager.createImageTexture(image);
     this.imgLoadPromise = Promise.resolve(this);
     if (resize) {
-      this.width = image.width;
-      this.height = image.height;
+      this.setWidth(image.width);
+      this.setHeight(image.height);
     }
     return this;
   }

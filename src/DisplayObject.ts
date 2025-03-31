@@ -9,8 +9,8 @@ export class DisplayObject {
   isScaleAffectedSize: boolean = false;
   x: number = 0;
   y: number = 0;
-  width: number = 0;
-  height: number = 0;
+  private _width: number = 0;
+  private _height: number = 0;
   visible: boolean = true;
   scaleX: number = 1;
   scaleY: number = 1;
@@ -21,6 +21,26 @@ export class DisplayObject {
   rotation: number = 0; // 角度 (0-360)
 
   private eventListeners: Map<EventName, Set<Callback>> = new Map();
+
+  /**
+   * 节点的 width 和 height 只能从内部设定，外部无法修改
+   * 外部调整节点的尺寸，只能通过 scale 来设定
+   */
+  get width(): number {
+    return this._width;
+  }
+
+  get height(): number {
+    return this._height;
+  }
+
+  protected setWidth(value: number): void {
+    this._width = value;
+  }
+
+  protected setHeight(value: number): void {
+    this._height = value;
+  }
 
   constructor(app: TinyUI, name?: string) {
     this.app = app;

@@ -57,8 +57,8 @@ export class Graphics extends DisplayObject {
     const bottom = y + radius;
 
     if (this.commands.length === 1) {
-      this.width = right - left;
-      this.height = bottom - top;
+      this.setWidth(right - left);
+      this.setHeight(bottom - top);
       this.x = left + this.width / 2;
       this.y = top + this.height / 2;
     } else {
@@ -66,18 +66,18 @@ export class Graphics extends DisplayObject {
       if (left < this.x - this.width * this.anchorX) {
         const newWidth = (this.x - this.width * this.anchorX + this.width) - left;
         this.x = left + newWidth / 2;
-        this.width = newWidth;
+        this.setWidth(newWidth);
       }
       if (top < this.y - this.height * this.anchorY) {
         const newHeight = (this.y - this.height * this.anchorY + this.height) - top;
         this.y = top + newHeight / 2;
-        this.height = newHeight;
+        this.setHeight(newHeight);
       }
       if (right > this.x - this.width * this.anchorX + this.width) {
-        this.width = right - (this.x - this.width * this.anchorX);
+        this.setWidth(right - (this.x - this.width * this.anchorX));
       }
       if (bottom > this.y - this.height * this.anchorY + this.height) {
-        this.height = bottom - (this.y - this.height * this.anchorY);
+        this.setHeight(bottom - (this.y - this.height * this.anchorY));
       }
     }
 
@@ -101,8 +101,8 @@ export class Graphics extends DisplayObject {
     const bottom = y + height;
 
     if (this.commands.length === 1) {
-      this.width = width;
-      this.height = height;
+      this.setWidth(width);
+      this.setHeight(height);
       this.x = left + width / 2;
       this.y = top + height / 2;
     } else {
@@ -110,18 +110,18 @@ export class Graphics extends DisplayObject {
       if (left < this.x - this.width * this.anchorX) {
         const newWidth = (this.x - this.width * this.anchorX + this.width) - left;
         this.x = left + newWidth / 2;
-        this.width = newWidth;
+        this.setWidth(newWidth);
       }
       if (top < this.y - this.height * this.anchorY) {
         const newHeight = (this.y - this.height * this.anchorY + this.height) - top;
         this.y = top + newHeight / 2;
-        this.height = newHeight;
+        this.setHeight(newHeight);
       }
       if (right > this.x - this.width * this.anchorX + this.width) {
-        this.width = right - (this.x - this.width * this.anchorX);
+        this.setWidth(right - (this.x - this.width * this.anchorX));
       }
       if (bottom > this.y - this.height * this.anchorY + this.height) {
-        this.height = bottom - (this.y - this.height * this.anchorY);
+        this.setHeight(bottom - (this.y - this.height * this.anchorY));
       }
     }
 
