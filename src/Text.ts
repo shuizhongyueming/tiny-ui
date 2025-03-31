@@ -64,9 +64,22 @@ export class Text extends DisplayObject {
     }
   }
 
-  set color(color: string) {
-    if (this._color !== color) {
-      this._color = color;
+  // 添加一个私有方法来处理颜色格式转换
+  private _formatColor(color: string | number): string {
+    if (typeof color === 'number') {
+      // 处理 0xRRGGBB 格式，转换为 #RRGGBB
+      return `#${color.toString(16).padStart(6, '0')}`;
+    }
+
+    // 如果已经是字符串格式，直接返回
+    return color;
+  }
+
+  // 修改 set color 方法
+  set color(color: string | number) {
+    const formattedColor = this._formatColor(color);
+    if (this._color !== formattedColor) {
+      this._color = formattedColor;
       this.textureNeedsUpdate = true;
     }
   }
