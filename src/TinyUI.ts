@@ -95,6 +95,8 @@ class TinyUI {
   // 根容器
   root: Container;
 
+  private prevGlState: any = null;
+
   constructor(canvas: HTMLCanvasElement, options: WebGLContextAttributes = {}) {
     this.canvas = canvas;
 
@@ -110,6 +112,8 @@ class TinyUI {
     };
 
     this.gl = canvas.getContext('webgl', contextOptions) as WebGLRenderingContext;
+
+    this.stashGlState();
 
     if (!this.gl) {
       throw new Error('WebGL not supported');
@@ -212,7 +216,7 @@ class TinyUI {
     this._renderTree(this.root);
   }
 
-  patchRender() {
+  private stashGlState() {
     const gl = this.gl;
 
     // 保存关键状态
@@ -268,8 +272,12 @@ class TinyUI {
       ]
     };
 
-    // 执行UI渲染
-    this.render();
+    this.prevGlState = savedState;
+  }
+
+  private restoreGlState() {
+    const gl = this.gl;
+    const savedState = this.prevGlState;
 
     // 恢复状态
 
@@ -331,6 +339,13 @@ class TinyUI {
 
     // 最后再次绑定原始数组缓冲区，确保一致性
     gl.bindBuffer(gl.ARRAY_BUFFER, savedState.arrayBuffer);
+  }
+
+  patchRender() {
+
+    // 执行UI渲染
+    this.render();
+
   }
 
   _renderTree(node: DisplayObject, parentMatrix: Matrix = new Matrix(), parentAlpha: number = 1) {
@@ -462,28 +477,6 @@ class TinyUI {
     return this.textureManager.loadTexture(url);
   }
 
-  resetGLState() {
-    const gl = this.gl;
-
-    // 重置绑定的纹理
-    gl.bindTexture(gl.TEXTURE_2D, null);
-
-    // 重置使用的着色器程序
-    gl.useProgram(null);
-
-    // 重置顶点数组和缓冲区
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
-    gl.disableVertexAttribArray(this.positionLocation);
-    gl.disableVertexAttribArray(this.texCoordLocation);
-    gl.disableVertexAttribArray(this.colorLocation);
-
-    // 重置混合模式
-    gl.disable(gl.BLEND);
-
-    // 重置视口
-    gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height);
-  }
 
   destroy() {
     const gl = this.gl;
@@ -505,6 +498,8 @@ class TinyUI {
 
     // 销毁根容器及所有子节点
     this.root.destroy();
+
+    this.restoreGlState();
   }
 
   async createBitmapFromUrl(url: string): Promise<Bitmap> {
