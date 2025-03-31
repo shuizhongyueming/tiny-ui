@@ -3,7 +3,7 @@ import { Text } from "./Text";
 import { Container } from "./Container";
 import { DisplayObject } from "./DisplayObject";
 import { Graphics } from "./Graphics";
-import { Color } from "./type";
+import { type Color } from "./type";
 import { EventManager } from "./utils/EventManager";
 import { Matrix } from "./utils/Matrix";
 import { ShaderManager } from "./utils/ShaderManager";
@@ -15,7 +15,7 @@ attribute vec2 a_position;
 attribute vec2 a_texCoord;
 attribute vec4 a_color;
 uniform mat3 u_matrix;
-uniform vec2 u_resolution; // 新增：画布分辨率
+uniform vec2 u_resolution;
 varying vec2 v_texCoord;
 varying vec4 v_color;
 
