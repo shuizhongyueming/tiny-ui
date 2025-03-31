@@ -132,6 +132,8 @@ class TinyUI {
 
     // 创建根容器
     this.root = new Container(this, 'RootContainer');
+    this.root.anchorX = 0;
+    this.root.anchorY = 0;
 
     // 设置视口尺寸
     this.updateViewport();
