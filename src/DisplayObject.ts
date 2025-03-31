@@ -42,6 +42,15 @@ export class DisplayObject {
     this._height = value;
   }
 
+  scaleToFit(width: number, height?: number): void {
+    this.scaleX = width / this.width;
+    if (!height) {
+      this.scaleY = this.scaleX;
+    } else {
+      this.scaleY = height / this.height;
+    }
+  }
+
   constructor(app: TinyUI, name?: string) {
     this.app = app;
     this.name = name || "DisplayObject";
