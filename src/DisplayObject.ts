@@ -9,8 +9,8 @@ export class DisplayObject {
   isScaleAffectedSize: boolean = false;
   x: number = 0;
   y: number = 0;
-  private _width: number = 0;
-  private _height: number = 0;
+  protected _width: number = 0;
+  protected _height: number = 0;
   visible: boolean = true;
   scaleX: number = 1;
   scaleY: number = 1;

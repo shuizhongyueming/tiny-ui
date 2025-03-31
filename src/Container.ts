@@ -6,8 +6,17 @@ export class Container extends DisplayObject {
   children: DisplayObject[] = [];
 
   /**
-  * container 的 width 和 height 可以从外部设置
-  */
+   * 节点的 width 和 height 只能从内部设定，外部无法修改
+   * 外部调整节点的尺寸，只能通过 scale 来设定
+   * container 的 width 和 height 可以从外部设置
+   */
+  get width(): number {
+    return this._width;
+  }
+
+  get height(): number {
+    return this._height;
+  }
   set width(value: number) {
     this.setWidth(value);
   }
