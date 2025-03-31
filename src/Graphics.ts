@@ -42,6 +42,7 @@ export class Graphics extends DisplayObject {
   }
 
   drawCircle(x: number, y: number, radius: number, fillColor: string): Graphics {
+    // 相对坐标 - x和y是相对于当前图形的锚点
     this.commands.push({
       type: 'circle',
       x,
@@ -50,41 +51,33 @@ export class Graphics extends DisplayObject {
       fillColor
     });
 
-    // 更新显示对象尺寸
+    // 计算相对于锚点的边界
     const left = x - radius;
     const top = y - radius;
     const right = x + radius;
     const bottom = y + radius;
 
+    // 更新显示对象尺寸，但不更新位置
     if (this.commands.length === 1) {
       this.setWidth(right - left);
       this.setHeight(bottom - top);
-      this.x = left + this.width / 2;
-      this.y = top + this.height / 2;
     } else {
-      // 扩展显示对象边界以包含新图形
-      if (left < this.x - this.width * this.anchorX) {
-        const newWidth = (this.x - this.width * this.anchorX + this.width) - left;
-        this.x = left + newWidth / 2;
-        this.setWidth(newWidth);
-      }
-      if (top < this.y - this.height * this.anchorY) {
-        const newHeight = (this.y - this.height * this.anchorY + this.height) - top;
-        this.y = top + newHeight / 2;
-        this.setHeight(newHeight);
-      }
-      if (right > this.x - this.width * this.anchorX + this.width) {
-        this.setWidth(right - (this.x - this.width * this.anchorX));
-      }
-      if (bottom > this.y - this.height * this.anchorY + this.height) {
-        this.setHeight(bottom - (this.y - this.height * this.anchorY));
-      }
+      // 计算需要的最小宽高
+      const minLeft = Math.min(left, -this.width * this.anchorX);
+      const minTop = Math.min(top, -this.height * this.anchorY);
+      const maxRight = Math.max(right, this.width * (1 - this.anchorX));
+      const maxBottom = Math.max(bottom, this.height * (1 - this.anchorY));
+
+      // 设置新的宽高
+      this.setWidth(maxRight - minLeft);
+      this.setHeight(maxBottom - minTop);
     }
 
     return this;
   }
 
   drawRect(x: number, y: number, width: number, height: number, fillColor: string): Graphics {
+    // 相对坐标 - x和y是相对于当前图形的锚点
     this.commands.push({
       type: 'rect',
       x,
@@ -94,35 +87,26 @@ export class Graphics extends DisplayObject {
       fillColor
     });
 
-    // 更新显示对象尺寸
+    // 计算相对于锚点的边界
     const left = x;
     const top = y;
     const right = x + width;
     const bottom = y + height;
 
+    // 更新显示对象尺寸，但不更新位置
     if (this.commands.length === 1) {
       this.setWidth(width);
       this.setHeight(height);
-      this.x = left + width / 2;
-      this.y = top + height / 2;
     } else {
-      // 扩展显示对象边界以包含新图形
-      if (left < this.x - this.width * this.anchorX) {
-        const newWidth = (this.x - this.width * this.anchorX + this.width) - left;
-        this.x = left + newWidth / 2;
-        this.setWidth(newWidth);
-      }
-      if (top < this.y - this.height * this.anchorY) {
-        const newHeight = (this.y - this.height * this.anchorY + this.height) - top;
-        this.y = top + newHeight / 2;
-        this.setHeight(newHeight);
-      }
-      if (right > this.x - this.width * this.anchorX + this.width) {
-        this.setWidth(right - (this.x - this.width * this.anchorX));
-      }
-      if (bottom > this.y - this.height * this.anchorY + this.height) {
-        this.setHeight(bottom - (this.y - this.height * this.anchorY));
-      }
+      // 计算需要的最小宽高
+      const minLeft = Math.min(left, -this.width * this.anchorX);
+      const minTop = Math.min(top, -this.height * this.anchorY);
+      const maxRight = Math.max(right, this.width * (1 - this.anchorX));
+      const maxBottom = Math.max(bottom, this.height * (1 - this.anchorY));
+
+      // 设置新的宽高
+      this.setWidth(maxRight - minLeft);
+      this.setHeight(maxBottom - minTop);
     }
 
     return this;
