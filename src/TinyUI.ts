@@ -397,39 +397,60 @@ class TinyUI {
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
   }
 
-  parseColor(color: string): Color {
+  parseColor(color: string | number): Color {
     // 默认颜色
     let r = 0, g = 0, b = 0, a = 1;
 
-    // 解析颜色字符串
-    if (color.startsWith('#')) {
-      // 十六进制颜色
-      const hex = color.substring(1);
-      if (hex.length === 3) {
-        r = parseInt(hex[0] + hex[0], 16) / 255;
-        g = parseInt(hex[1] + hex[1], 16) / 255;
-        b = parseInt(hex[2] + hex[2], 16) / 255;
-      } else if (hex.length === 6) {
-        r = parseInt(hex.substring(0, 2), 16) / 255;
-        g = parseInt(hex.substring(2, 4), 16) / 255;
-        b = parseInt(hex.substring(4, 6), 16) / 255;
+    if (typeof color === 'number') {
+      // 处理数字格式: 0xff0000 或 0xff000000
+      if (color <= 0xffffff) {
+        // 没有 alpha 通道的格式 (0xRRGGBB)
+        r = ((color >> 16) & 0xff) / 255;
+        g = ((color >> 8) & 0xff) / 255;
+        b = (color & 0xff) / 255;
+      } else {
+        // 有 alpha 通道的格式 (0xAARRGGBB)
+        a = ((color >> 24) & 0xff) / 255;
+        r = ((color >> 16) & 0xff) / 255;
+        g = ((color >> 8) & 0xff) / 255;
+        b = (color & 0xff) / 255;
       }
-    } else if (color.startsWith('rgba')) {
-      // rgba(r,g,b,a) 格式
-      const rgba = color.match(/rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/);
-      if (rgba) {
-        r = parseInt(rgba[1]) / 255;
-        g = parseInt(rgba[2]) / 255;
-        b = parseInt(rgba[3]) / 255;
-        a = parseFloat(rgba[4]);
-      }
-    } else if (color.startsWith('rgb')) {
-      // rgb(r,g,b) 格式
-      const rgb = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-      if (rgb) {
-        r = parseInt(rgb[1]) / 255;
-        g = parseInt(rgb[2]) / 255;
-        b = parseInt(rgb[3]) / 255;
+    } else if (typeof color === 'string') {
+      // 解析颜色字符串
+      if (color.startsWith('#')) {
+        // 十六进制颜色
+        const hex = color.substring(1);
+        if (hex.length === 3) {
+          r = parseInt(hex[0] + hex[0], 16) / 255;
+          g = parseInt(hex[1] + hex[1], 16) / 255;
+          b = parseInt(hex[2] + hex[2], 16) / 255;
+        } else if (hex.length === 6) {
+          r = parseInt(hex.substring(0, 2), 16) / 255;
+          g = parseInt(hex.substring(2, 4), 16) / 255;
+          b = parseInt(hex.substring(4, 6), 16) / 255;
+        } else if (hex.length === 8) {
+          a = parseInt(hex.substring(0, 2), 16) / 255;
+          r = parseInt(hex.substring(2, 4), 16) / 255;
+          g = parseInt(hex.substring(4, 6), 16) / 255;
+          b = parseInt(hex.substring(6, 8), 16) / 255;
+        }
+      } else if (color.startsWith('rgba')) {
+        // rgba(r,g,b,a) 格式
+        const rgba = color.match(/rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/);
+        if (rgba) {
+          r = parseInt(rgba[1]) / 255;
+          g = parseInt(rgba[2]) / 255;
+          b = parseInt(rgba[3]) / 255;
+          a = parseFloat(rgba[4]);
+        }
+      } else if (color.startsWith('rgb')) {
+        // rgb(r,g,b) 格式
+        const rgb = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+        if (rgb) {
+          r = parseInt(rgb[1]) / 255;
+          g = parseInt(rgb[2]) / 255;
+          b = parseInt(rgb[3]) / 255;
+        }
       }
     }
 
