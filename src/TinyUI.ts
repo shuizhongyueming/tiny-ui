@@ -191,14 +191,16 @@ class TinyUI {
     this.indexBuffer = this.gl.createBuffer();
   }
 
-  render() {
+  render(patch: boolean = false) {
     this.updateViewport();
 
     const gl = this.gl;
 
-    // 清除画布
-    gl.clearColor(0, 0, 0, 0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
+    if (!patch) {
+      // 清除画布
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+    }
 
     // 设置视口
     gl.viewport(0, 0, this.viewportWidth, this.viewportHeight);
@@ -342,10 +344,12 @@ class TinyUI {
   }
 
   patchRender() {
+    this.stashGlState();
 
     // 执行UI渲染
-    this.render();
+    this.render(true);
 
+    this.restoreGlState();
   }
 
   _renderTree(node: DisplayObject, parentMatrix: Matrix = new Matrix(), parentAlpha: number = 1) {
