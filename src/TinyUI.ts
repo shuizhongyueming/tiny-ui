@@ -51,9 +51,19 @@ varying vec4 v_color;
 
 void main() {
   if (u_useTexture) {
-    gl_FragColor = texture2D(u_image, v_texCoord) * v_color;
+    vec4 texColor = texture2D(u_image, v_texCoord);
+    // 适当处理透明度
+    gl_FragColor = texColor * v_color;
+    // 确保完全透明的像素被正确处理
+    if (gl_FragColor.a < 0.01) {
+      discard;
+    }
   } else {
     gl_FragColor = v_color;
+    // 同样处理纯色的透明度
+    if (gl_FragColor.a < 0.01) {
+      discard;
+    }
   }
 }
 `;
@@ -61,6 +71,7 @@ void main() {
 class TinyUI {
   canvas: HTMLCanvasElement;
   gl: WebGLRenderingContext;
+  contextOptions: WebGLContextAttributes;
 
   // 管理器
   shaderManager: ShaderManager;
@@ -110,6 +121,7 @@ class TinyUI {
       alpha: true,
       ...options
     };
+    this.contextOptions = contextOptions;
 
     this.gl = canvas.getContext('webgl', contextOptions) as WebGLRenderingContext;
 
@@ -132,7 +144,11 @@ class TinyUI {
 
     // 设置基本WebGL状态
     this.gl.enable(this.gl.BLEND);
-    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+    if (this.contextOptions.premultipliedAlpha) {
+      this.gl.blendFunc(this.gl.ONE, this.gl.ONE_MINUS_SRC_ALPHA);
+    } else {
+      this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+    }
 
     // 创建根容器
     this.root = new Container(this, 'RootContainer');
@@ -345,6 +361,14 @@ class TinyUI {
 
   patchRender() {
     this.stashGlState();
+
+    // 启用正确的混合模式
+    this.gl.enable(this.gl.BLEND);
+    if (this.contextOptions.premultipliedAlpha) {
+      this.gl.blendFunc(this.gl.ONE, this.gl.ONE_MINUS_SRC_ALPHA);
+    } else {
+      this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+    }
 
     // 执行UI渲染
     this.render(true);
