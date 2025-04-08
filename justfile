@@ -1,20 +1,25 @@
 set dotenv-load
 
+[no-cd]
 build *FLAGS:
   NODE_ENV=production node esbuild.js {{FLAGS}}
 
+[no-cd]
 dev *FLAGS:
   NODE_ENV=development node esbuild.js {{FLAGS}};
   just tsc;
 
+[no-cd]
 tsc:
   ./node_modules/.bin/tsc --project ./tsconfig.json --declaration true --emitDeclarationOnly true --declarationDir ./types
 
+[no-cd]
 _common-publish versionType:
   just tsc;
   npm version {{versionType}};
   npm publish;
 
+[no-cd]
 publish versionType="patch":
   git pull;
   rm -rf {{justfile_directory()}}/dist;
@@ -24,7 +29,7 @@ publish versionType="patch":
   git push;
 
 
-# TODO: 加上 target 不存在时的条件判断
+[no-cd]
 prepublish versionType="prerelease":
   git pull;
   rm -rf {{justfile_directory()}}/dist;

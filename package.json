@@ -1,27 +1,14 @@
 {
-  "name": "@shuizhongyueming/tiny-ui",
+  "name": "@shuizhongyueming/tiny-ui-monorepo",
+  "private": true,
   "version": "1.0.0",
   "description": "",
-  "main": "dist/tiny-ui.js",
-  "types": "types/TinyUI.d.ts",
+  "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "packageManager": "pnpm@10.6.5",
-  "devDependencies": {
-    "esbuild": "^0.25.1",
-    "typescript": "^5.8.2"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild"
-    ]
-  },
-  "files": [
-    "dist",
-    "types"
-  ]
+  "packageManager": "pnpm@10.7.1"
 }
