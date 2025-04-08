@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "main": "dist/tiny-ui-components.js",
-  "types": "dist/mod.d.ts",
+  "types": "types/main.d.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },

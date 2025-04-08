@@ -6,7 +6,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 const isWatch = process.argv.includes('--watch');
 
 const buildOptions = {
-  entryPoints: ['./src/mod.ts'],
+  entryPoints: ['./src/main.ts'],
   bundle: true,
   outfile: `dist/tiny-ui-components.js`,
   logLevel: 'info',
