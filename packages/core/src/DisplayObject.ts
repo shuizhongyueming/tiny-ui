@@ -200,6 +200,9 @@ export class DisplayObject {
   }
 
   destroy(): void {
+    if (this.parent) {
+      this.parent.removeChild(this);
+    }
     this.eventListeners.clear();
   }
 }
