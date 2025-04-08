@@ -79,7 +79,7 @@ export class EventManager {
   }
 
   private dispatchEventToNode(node: DisplayObject | Container, event: UIEvent): void {
-    if (!node.visible) return;
+    if (!node || !node.visible) return;
 
     // 事件已阻止传播
     if (event.stopPropagation) return;
