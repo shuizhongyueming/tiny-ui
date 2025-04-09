@@ -13,11 +13,20 @@ dev *FLAGS:
 tsc:
   ./node_modules/.bin/tsc --project ./tsconfig.json --declaration true --emitDeclarationOnly true --declarationDir ./types
 
+
+# commit with prefix
+[no-cd]
+commit msg:
+  dir_name=$(basename `pwd`);\
+  git commit -m "$dir_name: {{msg}}"
+
 [no-cd]
 _common-publish versionType:
   just tsc;
-  npm version {{versionType}};
-  npm publish;
+  pnpm version {{versionType}};
+  git add './package.json';
+  PACKAGE_VERSION=$(node -pe "require('./package.json').version"); just commit "release ${PACKAGE_VERSION}";
+  pnpm publish;
 
 [no-cd]
 publish versionType="patch":
