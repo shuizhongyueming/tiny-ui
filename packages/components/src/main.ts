@@ -1,6 +1,6 @@
 import * as TinyUIComponents from './mod';
 
-export default TinyUIComponents;
+export = TinyUIComponents;
 
 declare global {
   interface Window {
