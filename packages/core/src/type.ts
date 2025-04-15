@@ -2,14 +2,11 @@ import { DisplayObject } from "./DisplayObject";
 
 export type Callback<P = unknown, R extends unknown[] = unknown[]> = (param?: P, ...rest: R) => void;
 
-export interface Rect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
+export interface Point { x: number, y: number };
 
-export type Size = Pick<Rect, 'width' | 'height'>;
+export interface Size { width: number, height: number };
+
+export type Rect = Point & Size;
 
 export enum EventName {
   TouchMove = 'touchmove',

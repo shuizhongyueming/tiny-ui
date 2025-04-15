@@ -1,5 +1,6 @@
 import { DisplayObject } from "./DisplayObject";
 import type TinyUI from "./TinyUI";
+import { Size } from "./type";
 import { type Matrix } from "./utils/Matrix";
 
 export class Container extends DisplayObject {
@@ -23,6 +24,10 @@ export class Container extends DisplayObject {
 
   set height(value: number) {
     this.setHeight(value);
+  }
+  setSize(size: Size) {
+    this.setWidth(size.width);
+    this.setHeight(size.height);
   }
 
   constructor(app: TinyUI, name: string = 'Container') {

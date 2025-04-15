@@ -1,5 +1,5 @@
 import { type Container } from "./Container";
-import type { EventName, Callback, Rect, UIEvent, Size } from "./type";
+import type { EventName, Callback, Rect, UIEvent, Size, Point } from "./type";
 import { Matrix } from "./utils/Matrix";
 import type TinyUI from "./TinyUI";
 
@@ -50,6 +50,23 @@ export class DisplayObject {
     } else {
       this.scaleY = height / this.height;
     }
+  }
+
+  scaleToFitSize(size: Size): void {
+    this.scaleToFit(size.width, size.height);
+  }
+
+  scaleTo(scale: number): void {
+    this.scaleX = this.scaleY = scale;
+  }
+
+  moveTo(x: number, y: number): void {
+    this.x = x;
+    this.y = y;
+  }
+  moveToPoint(p: Point): void {
+    this.x = p.x;
+    this.y = p.y;
   }
 
   constructor(app: TinyUI, name?: string) {
