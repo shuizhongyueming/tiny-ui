@@ -9,6 +9,7 @@ export * from './utils/EventManager';
 export * from './utils/Matrix';
 export * from './utils/ShaderManager';
 export * from './utils/TextureManager';
+export * from './utils/UIEvent';
 
 import TinyUI from './TinyUI';
 export { TinyUI };

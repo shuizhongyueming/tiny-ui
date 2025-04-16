@@ -1,6 +1,7 @@
-import { EventName, UIEvent } from "../type";
+import { EventName } from "../type";
 import type TinyUI from "../TinyUI";
 import { DisplayObject } from "../DisplayObject";
+import { UIEvent } from "../utils/UIEvent";
 import { Container } from "../Container";
 
 export class EventManager {
@@ -64,14 +65,13 @@ export class EventManager {
       y *= scaleY;
 
       // 创建自定义事件对象
-      const uiEvent: UIEvent = {
+      const uiEvent = new UIEvent({
         type: eventName,
         x,
         y,
         originalEvent: event,
         target: null,
-        stopPropagation: false
-      };
+      });
 
       // 将事件传递给UI树，直接使用app.root
       this.dispatchEventToNode(this.app.root, uiEvent);
@@ -82,14 +82,14 @@ export class EventManager {
     if (!node || !node.visible) return;
 
     // 事件已阻止传播
-    if (event.stopPropagation) return;
+    if (event.propagationStopped) return;
 
     // 首先传递给子节点 (从前到后，以便最上层的节点先接收到事件)
     if (node.children && node.children.length > 0) {
       // 从后向前遍历，这样最上层的元素先接收到事件
       for (let i = node.children.length - 1; i >= 0; i--) {
         this.dispatchEventToNode(node.children[i], event);
-        if (event.stopPropagation) return;
+        if (event.propagationStopped) return;
       }
     }
 

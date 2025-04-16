@@ -3,7 +3,7 @@ import { Text } from "./Text";
 import { Container } from "./Container";
 import { DisplayObject } from "./DisplayObject";
 import { Graphics } from "./Graphics";
-import { EventName, type Color } from "./type";
+import { EventName, Size, type Color } from "./type";
 import { EventManager } from "./utils/EventManager";
 import { Matrix } from "./utils/Matrix";
 import { ShaderManager } from "./utils/ShaderManager";
@@ -187,6 +187,10 @@ class TinyUI {
 
   get stageHeight() {
     return this.viewportHeight;
+  }
+
+  get stageSize(): Size {
+    return { width: this.stageWidth, height: this.stageHeight };
   }
 
   private initShaders() {

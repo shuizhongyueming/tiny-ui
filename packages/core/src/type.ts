@@ -15,12 +15,3 @@ export enum EventName {
 }
 
 export interface Color { r: number, g: number, b: number, a: number }
-
-export interface UIEvent {
-  type: EventName;
-  x: number;
-  y: number;
-  originalEvent: Event;
-  target: null | DisplayObject;
-  stopPropagation: boolean;
-}
