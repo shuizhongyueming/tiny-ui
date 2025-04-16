@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tiny UI</title>
+    <style>
+    * {
+      padding: 0;
+      margin: 0;
+    }
+    /* xyx-sdk 需要基于这个来获取 safe area 值 */
+    :root {
+      --sat: env(safe-area-inset-top, 50px);
+      --sar: env(safe-area-inset-right, 50px);
+      --sab: env(safe-area-inset-bottom, 50px);
+      --sal: env(safe-area-inset-left, 50px);
+    }
+    html,body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+      -ms-touch-action: none;
+      touch-action: none;
+    }
+    canvas {
+      -ms-touch-action: none;
+      touch-action: none;
+      touch-action-delay: none;
+      -webkit-tap-highlight-color: rgba(0,0,0,0);
+      -moz-tap-highlight-color: rgba(0,0,0,0);
+      user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      outline: none;
+      border: none;
+      width: 100%;
+      height: 100%;
+    }
+    </style>
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+    <script src="../dist/tiny-ui-core.js"></script>
+    <script type="module">
+    const canvas = document.getElementById('game');
+    const tinyUI = new TinyUI(canvas);
+
+    const container = tinyUI.createContainer();
+    container.setSize(tinyUI.stageSize);
+    container.moveTo(container.width/2, container.height/2);
+
+    const rect = await tinyUI.createBitmapFromUrl('rect.png')
+    rect.moveTo(container.width/2, container.height/2);
+    container.addChild(rect);
+
+    tinyUI.root.addChild(container);
+
+    tinyUI.render();
+
+    window.tinyUI = tinyUI;
+    </script>
+  </body>
+</html>
