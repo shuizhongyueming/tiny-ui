@@ -92,6 +92,7 @@ export class DisplayObject {
     if (this.eventListeners.has(eventName)) {
       for (const handler of this.eventListeners.get(eventName)!) {
         handler(event);
+        event.markHandled();
       }
     }
   }
