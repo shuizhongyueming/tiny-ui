@@ -20,22 +20,16 @@ export class EventManager {
     const touchStartListener = this.createTouchListener(EventName.TouchStart);
     this.canvas.addEventListener('touchstart', touchStartListener);
     this.eventListeners.set('touchstart', touchStartListener);
-    this.canvas.addEventListener('mousedown', touchStartListener);
-    this.eventListeners.set('mousedown', touchStartListener);
 
     // 触摸移动事件
     const touchMoveListener = this.createTouchListener(EventName.TouchMove);
     this.canvas.addEventListener('touchmove', touchMoveListener);
     this.eventListeners.set('touchmove', touchMoveListener);
-    this.canvas.addEventListener('mousemove', touchMoveListener);
-    this.eventListeners.set('mousemove', touchMoveListener);
 
     // 触摸结束事件
     const touchEndListener = this.createTouchListener(EventName.TouchEnd);
     this.canvas.addEventListener('touchend', touchEndListener);
     this.eventListeners.set('touchend', touchEndListener);
-    this.canvas.addEventListener('mouseup', touchEndListener);
-    this.eventListeners.set('mouseup', touchEndListener);
   }
 
   private createTouchListener(eventName: EventName): EventListener {
