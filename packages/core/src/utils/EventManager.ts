@@ -35,7 +35,11 @@ export class EventManager {
   private createTouchListener(eventName: EventName): EventListener {
     return (event: Event) => {
       // 阻止默认行为
-      event.preventDefault();
+      // 这个如果需要，还是在业务逻辑里面执行
+      // 因为有些游戏逻辑里面，会判断事件是否已经执行了 preventDefault
+      // 如果执行了，就不再执行。
+      // 这个会导致游戏无法响应点击事件
+      // event.preventDefault();
 
       // 转换事件坐标到canvas坐标系
       const canvasRect = this.canvas.getBoundingClientRect();
