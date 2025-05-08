@@ -8,8 +8,7 @@ import { EventManager } from "./utils/EventManager";
 import { Matrix } from "./utils/Matrix";
 import { ShaderManager } from "./utils/ShaderManager";
 import { TextureManager } from "./utils/TextureManager";
-
-
+import { restoreGlState, stashGlState, UniformState, VertexAttributeState } from "./utils/GLState";
 
 // WebGL基础着色器
 const VERTEX_SHADER_SOURCE = `
@@ -70,6 +69,10 @@ void main() {
 }
 `;
 
+interface StashGlStateParam {
+  uniformState?: UniformState[];
+};
+
 class TinyUI {
   static EventName = EventName;
   EventName = EventName;
@@ -110,8 +113,6 @@ class TinyUI {
   // 根容器
   root: Container;
 
-  private prevGlState: any = null;
-
   constructor(canvas: HTMLCanvasElement, options: WebGLContextAttributes = {}) {
     this.canvas = canvas;
 
@@ -123,16 +124,19 @@ class TinyUI {
       antialias: options.antialias ?? true,
       depth: options.depth ?? false,
       alpha: true,
-      ...options
+      ...options,
     };
     this.contextOptions = contextOptions;
 
-    this.gl = canvas.getContext('webgl', contextOptions) as WebGLRenderingContext;
+    this.gl = canvas.getContext(
+      "webgl",
+      contextOptions,
+    ) as WebGLRenderingContext;
 
     this.stashGlState();
 
     if (!this.gl) {
-      throw new Error('WebGL not supported');
+      throw new Error("WebGL not supported");
     }
 
     // 初始化管理器
@@ -155,25 +159,43 @@ class TinyUI {
     }
 
     // 创建根容器
-    this.root = new Container(this, 'RootContainer');
+    this.root = new Container(this, "RootContainer");
     this.root.anchorX = 0;
     this.root.anchorY = 0;
+
+    const displayWidth = this.canvas.clientWidth * window.devicePixelRatio;
+    const displayHeight = this.canvas.clientHeight * window.devicePixelRatio;
+    this.canvas.width = displayWidth;
+    this.canvas.height = displayHeight;
 
     // 设置视口尺寸
     this.updateViewport();
   }
 
-
-  private updateViewport() {
+  private updateViewport(patch = false) {
     // 获取canvas的显示尺寸
-    const displayWidth = this.canvas.clientWidth * window.devicePixelRatio;
-    const displayHeight = this.canvas.clientHeight * window.devicePixelRatio;
+    let displayWidth: number;
+    let displayHeight: number;
 
-    // 更新canvas的绘图缓冲区尺寸以匹配显示尺寸
-    if (this.canvas.width !== displayWidth || this.canvas.height !== displayHeight) {
-      this.canvas.width = displayWidth;
-      this.canvas.height = displayHeight;
-    }
+    // if (!patch) {
+    //   displayWidth = this.canvas.clientWidth * window.devicePixelRatio;
+    //   displayHeight = this.canvas.clientHeight * window.devicePixelRatio;
+    //   // 更新canvas的绘图缓冲区尺寸以匹配显示尺寸
+    //   if (
+    //     this.canvas.width !== displayWidth ||
+    //     this.canvas.height !== displayHeight
+    //   ) {
+    //     this.canvas.width = displayWidth;
+    //     this.canvas.height = displayHeight;
+    //   }
+    // } else {
+    //   displayWidth = this.canvas.width;
+    //   displayHeight = this.canvas.height;
+    // }
+
+    displayWidth = this.canvas.width;
+    displayHeight = this.canvas.height;
+
     this.root.width = displayWidth;
     this.root.height = displayHeight;
 
@@ -197,19 +219,40 @@ class TinyUI {
     // 创建着色器程序
     this.shaderProgram = this.shaderManager.createProgram(
       VERTEX_SHADER_SOURCE,
-      FRAGMENT_SHADER_SOURCE
+      FRAGMENT_SHADER_SOURCE,
     );
 
     // 获取着色器变量位置
-    this.positionLocation = this.gl.getAttribLocation(this.shaderProgram, 'a_position');
-    this.texCoordLocation = this.gl.getAttribLocation(this.shaderProgram, 'a_texCoord');
-    this.colorLocation = this.gl.getAttribLocation(this.shaderProgram, 'a_color');
+    this.positionLocation = this.gl.getAttribLocation(
+      this.shaderProgram,
+      "a_position",
+    );
+    this.texCoordLocation = this.gl.getAttribLocation(
+      this.shaderProgram,
+      "a_texCoord",
+    );
+    this.colorLocation = this.gl.getAttribLocation(
+      this.shaderProgram,
+      "a_color",
+    );
 
-    this.matrixLocation = this.gl.getUniformLocation(this.shaderProgram, 'u_matrix');
-    this.resolutionLocation = this.gl.getUniformLocation(this.shaderProgram, 'u_resolution');
+    this.matrixLocation = this.gl.getUniformLocation(
+      this.shaderProgram,
+      "u_matrix",
+    );
+    this.resolutionLocation = this.gl.getUniformLocation(
+      this.shaderProgram,
+      "u_resolution",
+    );
 
-    this._imageLocation = this.gl.getUniformLocation(this.shaderProgram, 'u_image');
-    this._useTextureLocation = this.gl.getUniformLocation(this.shaderProgram, 'u_useTexture');
+    this._imageLocation = this.gl.getUniformLocation(
+      this.shaderProgram,
+      "u_image",
+    );
+    this._useTextureLocation = this.gl.getUniformLocation(
+      this.shaderProgram,
+      "u_useTexture",
+    );
 
     // 使用着色器程序
     this.gl.useProgram(this.shaderProgram);
@@ -224,7 +267,7 @@ class TinyUI {
   }
 
   render(patch: boolean = false) {
-    this.updateViewport();
+    this.updateViewport(patch);
 
     const gl = this.gl;
 
@@ -250,135 +293,122 @@ class TinyUI {
     this._renderTree(this.root);
   }
 
-  private stashGlState() {
+  private stashGlState({uniformState}: StashGlStateParam = {}) {
     const gl = this.gl;
 
-    // 保存关键状态
-    const savedState = {
-      // 着色器程序
-      program: gl.getParameter(gl.CURRENT_PROGRAM),
-
-      // 纹理状态
-      activeTexture: gl.getParameter(gl.ACTIVE_TEXTURE),
-      texture2D: gl.getParameter(gl.TEXTURE_BINDING_2D),
-
-      // 缓冲区绑定
-      arrayBuffer: gl.getParameter(gl.ARRAY_BUFFER_BINDING),
-      elementArrayBuffer: gl.getParameter(gl.ELEMENT_ARRAY_BUFFER_BINDING),
-
-      // 混合状态
-      blendEnabled: gl.isEnabled(gl.BLEND),
-      blendSrc: gl.getParameter(gl.BLEND_SRC_RGB),
-      blendDst: gl.getParameter(gl.BLEND_DST_RGB),
-
-      // 视口
-      viewport: gl.getParameter(gl.VIEWPORT),
-
-      // 顶点属性状态（仅保存我们使用的属性）
-      vertexAttribState: [
+    const vertexAttribState: VertexAttributeState[] = [
         {
-          enabled: gl.getVertexAttrib(this.positionLocation, gl.VERTEX_ATTRIB_ARRAY_ENABLED),
-          buffer: gl.getVertexAttrib(this.positionLocation, gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING),
-          size: gl.getVertexAttrib(this.positionLocation, gl.VERTEX_ATTRIB_ARRAY_SIZE),
-          type: gl.getVertexAttrib(this.positionLocation, gl.VERTEX_ATTRIB_ARRAY_TYPE),
-          normalized: gl.getVertexAttrib(this.positionLocation, gl.VERTEX_ATTRIB_ARRAY_NORMALIZED),
-          stride: gl.getVertexAttrib(this.positionLocation, gl.VERTEX_ATTRIB_ARRAY_STRIDE),
-          offset: gl.getVertexAttribOffset(this.positionLocation, gl.VERTEX_ATTRIB_ARRAY_POINTER)
+          location: this.positionLocation,
+          enabled: gl.getVertexAttrib(
+            this.positionLocation,
+            gl.VERTEX_ATTRIB_ARRAY_ENABLED,
+          ),
+          buffer: gl.getVertexAttrib(
+            this.positionLocation,
+            gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING,
+          ),
+          size: gl.getVertexAttrib(
+            this.positionLocation,
+            gl.VERTEX_ATTRIB_ARRAY_SIZE,
+          ),
+          type: gl.getVertexAttrib(
+            this.positionLocation,
+            gl.VERTEX_ATTRIB_ARRAY_TYPE,
+          ),
+          normalized: gl.getVertexAttrib(
+            this.positionLocation,
+            gl.VERTEX_ATTRIB_ARRAY_NORMALIZED,
+          ),
+          stride: gl.getVertexAttrib(
+            this.positionLocation,
+            gl.VERTEX_ATTRIB_ARRAY_STRIDE,
+          ),
+          offset: gl.getVertexAttribOffset(
+            this.positionLocation,
+            gl.VERTEX_ATTRIB_ARRAY_POINTER,
+          ),
         },
         {
-          enabled: gl.getVertexAttrib(this.texCoordLocation, gl.VERTEX_ATTRIB_ARRAY_ENABLED),
-          buffer: gl.getVertexAttrib(this.texCoordLocation, gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING),
-          size: gl.getVertexAttrib(this.texCoordLocation, gl.VERTEX_ATTRIB_ARRAY_SIZE),
-          type: gl.getVertexAttrib(this.texCoordLocation, gl.VERTEX_ATTRIB_ARRAY_TYPE),
-          normalized: gl.getVertexAttrib(this.texCoordLocation, gl.VERTEX_ATTRIB_ARRAY_NORMALIZED),
-          stride: gl.getVertexAttrib(this.texCoordLocation, gl.VERTEX_ATTRIB_ARRAY_STRIDE),
-          offset: gl.getVertexAttribOffset(this.texCoordLocation, gl.VERTEX_ATTRIB_ARRAY_POINTER)
+          location: this.texCoordLocation,
+          enabled: gl.getVertexAttrib(
+            this.texCoordLocation,
+            gl.VERTEX_ATTRIB_ARRAY_ENABLED,
+          ),
+          buffer: gl.getVertexAttrib(
+            this.texCoordLocation,
+            gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING,
+          ),
+          size: gl.getVertexAttrib(
+            this.texCoordLocation,
+            gl.VERTEX_ATTRIB_ARRAY_SIZE,
+          ),
+          type: gl.getVertexAttrib(
+            this.texCoordLocation,
+            gl.VERTEX_ATTRIB_ARRAY_TYPE,
+          ),
+          normalized: gl.getVertexAttrib(
+            this.texCoordLocation,
+            gl.VERTEX_ATTRIB_ARRAY_NORMALIZED,
+          ),
+          stride: gl.getVertexAttrib(
+            this.texCoordLocation,
+            gl.VERTEX_ATTRIB_ARRAY_STRIDE,
+          ),
+          offset: gl.getVertexAttribOffset(
+            this.texCoordLocation,
+            gl.VERTEX_ATTRIB_ARRAY_POINTER,
+          ),
         },
         {
-          enabled: gl.getVertexAttrib(this.colorLocation, gl.VERTEX_ATTRIB_ARRAY_ENABLED),
-          buffer: gl.getVertexAttrib(this.colorLocation, gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING),
-          size: gl.getVertexAttrib(this.colorLocation, gl.VERTEX_ATTRIB_ARRAY_SIZE),
-          type: gl.getVertexAttrib(this.colorLocation, gl.VERTEX_ATTRIB_ARRAY_TYPE),
-          normalized: gl.getVertexAttrib(this.colorLocation, gl.VERTEX_ATTRIB_ARRAY_NORMALIZED),
-          stride: gl.getVertexAttrib(this.colorLocation, gl.VERTEX_ATTRIB_ARRAY_STRIDE),
-          offset: gl.getVertexAttribOffset(this.colorLocation, gl.VERTEX_ATTRIB_ARRAY_POINTER)
-        }
-      ]
-    };
+          location: this.colorLocation,
+          enabled: gl.getVertexAttrib(
+            this.colorLocation,
+            gl.VERTEX_ATTRIB_ARRAY_ENABLED,
+          ),
+          buffer: gl.getVertexAttrib(
+            this.colorLocation,
+            gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING,
+          ),
+          size: gl.getVertexAttrib(
+            this.colorLocation,
+            gl.VERTEX_ATTRIB_ARRAY_SIZE,
+          ),
+          type: gl.getVertexAttrib(
+            this.colorLocation,
+            gl.VERTEX_ATTRIB_ARRAY_TYPE,
+          ),
+          normalized: gl.getVertexAttrib(
+            this.colorLocation,
+            gl.VERTEX_ATTRIB_ARRAY_NORMALIZED,
+          ),
+          stride: gl.getVertexAttrib(
+            this.colorLocation,
+            gl.VERTEX_ATTRIB_ARRAY_STRIDE,
+          ),
+          offset: gl.getVertexAttribOffset(
+            this.colorLocation,
+            gl.VERTEX_ATTRIB_ARRAY_POINTER,
+          ),
+        },
+      ];
 
-    this.prevGlState = savedState;
+    stashGlState({
+      gl,
+      vertexAttribState,
+      uniformState
+    });
   }
 
   private restoreGlState() {
     const gl = this.gl;
-    const savedState = this.prevGlState;
 
-    // 恢复状态
-
-    // 恢复着色器程序
-    gl.useProgram(savedState.program);
-
-    // 恢复纹理状态
-    gl.activeTexture(savedState.activeTexture);
-    gl.bindTexture(gl.TEXTURE_2D, savedState.texture2D);
-
-    // 恢复缓冲区绑定
-    gl.bindBuffer(gl.ARRAY_BUFFER, savedState.arrayBuffer);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, savedState.elementArrayBuffer);
-
-    // 恢复混合状态
-    if (savedState.blendEnabled) {
-      gl.enable(gl.BLEND);
-    } else {
-      gl.disable(gl.BLEND);
-    }
-    gl.blendFunc(savedState.blendSrc, savedState.blendDst);
-
-    // 恢复视口
-    gl.viewport(
-      savedState.viewport[0],
-      savedState.viewport[1],
-      savedState.viewport[2],
-      savedState.viewport[3]
-    );
-
-    // 恢复顶点属性状态
-    const attributes = [
-      { location: this.positionLocation, state: savedState.vertexAttribState[0] },
-      { location: this.texCoordLocation, state: savedState.vertexAttribState[1] },
-      { location: this.colorLocation, state: savedState.vertexAttribState[2] }
-    ];
-
-    for (const attr of attributes) {
-      const { location, state } = attr;
-
-      if (state.enabled) {
-        gl.enableVertexAttribArray(location);
-      } else {
-        gl.disableVertexAttribArray(location);
-      }
-
-      if (state.buffer) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, state.buffer);
-        gl.vertexAttribPointer(
-          location,
-          state.size,
-          state.type,
-          state.normalized,
-          state.stride,
-          state.offset
-        );
-      }
-    }
-
-    // 最后再次绑定原始数组缓冲区，确保一致性
-    gl.bindBuffer(gl.ARRAY_BUFFER, savedState.arrayBuffer);
+    restoreGlState({gl})
   }
 
-  patchRender() {
-    this.stashGlState();
+  patchRender(p?: StashGlStateParam) {
+    this.stashGlState(p);
 
-    // 启用正确的混合模式
+    // // 启用正确的混合模式
     this.gl.enable(this.gl.BLEND);
     if (this.contextOptions.premultipliedAlpha) {
       this.gl.blendFunc(this.gl.ONE, this.gl.ONE_MINUS_SRC_ALPHA);
@@ -392,7 +422,11 @@ class TinyUI {
     this.restoreGlState();
   }
 
-  _renderTree(node: DisplayObject, parentMatrix: Matrix = new Matrix(), parentAlpha: number = 1) {
+  _renderTree(
+    node: DisplayObject,
+    parentMatrix: Matrix = new Matrix(),
+    parentAlpha: number = 1,
+  ) {
     if (!node.visible || node.alpha <= 0) return;
 
     // 计算当前节点的实际alpha值（自身alpha × 父级alpha）
@@ -407,7 +441,11 @@ class TinyUI {
 
     // 设置WebGL的变换矩阵
     this.currentMatrix = combinedMatrix;
-    this.gl.uniformMatrix3fv(this.matrixLocation, false, this.currentMatrix.toArray());
+    this.gl.uniformMatrix3fv(
+      this.matrixLocation,
+      false,
+      this.currentMatrix.toArray(),
+    );
 
     // 临时存储原始alpha值
     const originalAlpha = node.alpha;
@@ -421,7 +459,7 @@ class TinyUI {
     node.alpha = originalAlpha;
 
     // 如果是容器，递归渲染子节点
-    if ('children' in node && Array.isArray((node as any).children)) {
+    if ("children" in node && Array.isArray((node as any).children)) {
       const children = (node as any).children as DisplayObject[];
       for (const child of children) {
         // 传递计算出的组合矩阵和实际alpha值给子节点
@@ -430,7 +468,12 @@ class TinyUI {
     }
   }
 
-  _setBufferData(positions: number[], texCoords: number[], colors: number[], indices: number[]) {
+  _setBufferData(
+    positions: number[],
+    texCoords: number[],
+    colors: number[],
+    indices: number[],
+  ) {
     const gl = this.gl;
 
     // 位置缓冲区
@@ -453,14 +496,21 @@ class TinyUI {
 
     // 索引缓冲区
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+    gl.bufferData(
+      gl.ELEMENT_ARRAY_BUFFER,
+      new Uint16Array(indices),
+      gl.STATIC_DRAW,
+    );
   }
 
   parseColor(color: string | number): Color {
     // 默认颜色
-    let r = 0, g = 0, b = 0, a = 1;
+    let r = 0,
+      g = 0,
+      b = 0,
+      a = 1;
 
-    if (typeof color === 'number') {
+    if (typeof color === "number") {
       // 处理数字格式: 0xff0000 或 0xff000000
       if (color <= 0xffffff) {
         // 没有 alpha 通道的格式 (0xRRGGBB)
@@ -474,9 +524,9 @@ class TinyUI {
         g = ((color >> 8) & 0xff) / 255;
         b = (color & 0xff) / 255;
       }
-    } else if (typeof color === 'string') {
+    } else if (typeof color === "string") {
       // 解析颜色字符串
-      if (color.startsWith('#')) {
+      if (color.startsWith("#")) {
         // 十六进制颜色
         const hex = color.substring(1);
         if (hex.length === 3) {
@@ -493,7 +543,7 @@ class TinyUI {
           g = parseInt(hex.substring(4, 6), 16) / 255;
           b = parseInt(hex.substring(6, 8), 16) / 255;
         }
-      } else if (color.startsWith('rgba')) {
+      } else if (color.startsWith("rgba")) {
         // rgba(r,g,b,a) 格式
         const rgba = color.match(/rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/);
         if (rgba) {
@@ -502,7 +552,7 @@ class TinyUI {
           b = parseInt(rgba[3]) / 255;
           a = parseFloat(rgba[4]);
         }
-      } else if (color.startsWith('rgb')) {
+      } else if (color.startsWith("rgb")) {
         // rgb(r,g,b) 格式
         const rgb = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
         if (rgb) {
@@ -520,7 +570,6 @@ class TinyUI {
   loadTexture(url: string): Promise<WebGLTexture> {
     return this.textureManager.loadTexture(url);
   }
-
 
   destroy() {
     const gl = this.gl;
@@ -548,7 +597,7 @@ class TinyUI {
 
   async createBitmapFromUrl(url: string): Promise<Bitmap> {
     const bitmap = new Bitmap(this);
-    await bitmap.loadFromUrl(url)
+    await bitmap.loadFromUrl(url);
     return bitmap;
   }
   createBitmapFromImage(image: HTMLImageElement): Bitmap {
@@ -556,7 +605,10 @@ class TinyUI {
     bitmap.loadFromImage(image);
     return bitmap;
   }
-  createBitmapFromCanvas(canvas: HTMLCanvasElement, resize: boolean = true): Bitmap {
+  createBitmapFromCanvas(
+    canvas: HTMLCanvasElement,
+    resize: boolean = true,
+  ): Bitmap {
     const bitmap = new Bitmap(this);
     bitmap.loadFromCanvas(canvas, resize);
     return bitmap;
@@ -582,13 +634,17 @@ class TinyUI {
     // 使用我们的着色器
     this.gl.useProgram(this.shaderProgram);
 
-    this.gl.uniform2f(this.resolutionLocation, this.canvas.width, this.canvas.height);
+    this.gl.uniform2f(
+      this.resolutionLocation,
+      this.canvas.width,
+      this.canvas.height,
+    );
 
     this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
 
     // 创建一个简单矩阵，仅包含位移
     const matrix = new Matrix().translate(x, y);
-    console.log('matrix:', matrix);
+    console.log("matrix:", matrix);
     this.gl.uniformMatrix3fv(this.matrixLocation, false, matrix.toArray());
 
     // 创建简单的红色矩形
