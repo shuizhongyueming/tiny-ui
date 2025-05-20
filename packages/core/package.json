@@ -1,6 +1,6 @@
 {
   "name": "@shuizhongyueming/tiny-ui-core",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "",
   "main": "dist/tiny-ui-core.js",
   "types": "types/mod.d.ts",
