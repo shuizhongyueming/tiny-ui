@@ -8,7 +8,12 @@ import { EventManager } from "./utils/EventManager";
 import { Matrix } from "./utils/Matrix";
 import { ShaderManager } from "./utils/ShaderManager";
 import { TextureManager } from "./utils/TextureManager";
-import { restoreGlState, stashGlState, UniformState, VertexAttributeState } from "./utils/GLState";
+import {
+  restoreGlState,
+  stashGlState,
+  UniformState,
+  VertexAttributeState,
+} from "./utils/GLState";
 
 // WebGL基础着色器
 const VERTEX_SHADER_SOURCE = `
@@ -71,7 +76,7 @@ void main() {
 
 interface StashGlStateParam {
   uniformState?: UniformState[];
-};
+}
 
 class TinyUI {
   static EventName = EventName;
@@ -113,7 +118,11 @@ class TinyUI {
   // 根容器
   root: Container;
 
-  constructor(canvas: HTMLCanvasElement, options: WebGLContextAttributes = {}) {
+  constructor(
+    canvas: HTMLCanvasElement,
+    options: WebGLContextAttributes = {},
+    contextId: "webgl" | "webgl2" = "webgl",
+  ) {
     this.canvas = canvas;
 
     // 创建WebGL上下文
@@ -129,7 +138,7 @@ class TinyUI {
     this.contextOptions = contextOptions;
 
     this.gl = canvas.getContext(
-      "webgl",
+      contextId,
       contextOptions,
     ) as WebGLRenderingContext;
 
@@ -284,7 +293,11 @@ class TinyUI {
     gl.useProgram(this.shaderProgram);
 
     // 设置分辨率
-    gl.uniform2f(this.resolutionLocation, this.viewportWidth, this.viewportHeight);
+    gl.uniform2f(
+      this.resolutionLocation,
+      this.viewportWidth,
+      this.viewportHeight,
+    );
 
     // 重置当前变换矩阵
     this.currentMatrix = new Matrix();
@@ -293,116 +306,116 @@ class TinyUI {
     this._renderTree(this.root);
   }
 
-  private stashGlState({uniformState}: StashGlStateParam = {}) {
+  private stashGlState({ uniformState }: StashGlStateParam = {}) {
     const gl = this.gl;
 
     const vertexAttribState: VertexAttributeState[] = [
-        {
-          location: this.positionLocation,
-          enabled: gl.getVertexAttrib(
-            this.positionLocation,
-            gl.VERTEX_ATTRIB_ARRAY_ENABLED,
-          ),
-          buffer: gl.getVertexAttrib(
-            this.positionLocation,
-            gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING,
-          ),
-          size: gl.getVertexAttrib(
-            this.positionLocation,
-            gl.VERTEX_ATTRIB_ARRAY_SIZE,
-          ),
-          type: gl.getVertexAttrib(
-            this.positionLocation,
-            gl.VERTEX_ATTRIB_ARRAY_TYPE,
-          ),
-          normalized: gl.getVertexAttrib(
-            this.positionLocation,
-            gl.VERTEX_ATTRIB_ARRAY_NORMALIZED,
-          ),
-          stride: gl.getVertexAttrib(
-            this.positionLocation,
-            gl.VERTEX_ATTRIB_ARRAY_STRIDE,
-          ),
-          offset: gl.getVertexAttribOffset(
-            this.positionLocation,
-            gl.VERTEX_ATTRIB_ARRAY_POINTER,
-          ),
-        },
-        {
-          location: this.texCoordLocation,
-          enabled: gl.getVertexAttrib(
-            this.texCoordLocation,
-            gl.VERTEX_ATTRIB_ARRAY_ENABLED,
-          ),
-          buffer: gl.getVertexAttrib(
-            this.texCoordLocation,
-            gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING,
-          ),
-          size: gl.getVertexAttrib(
-            this.texCoordLocation,
-            gl.VERTEX_ATTRIB_ARRAY_SIZE,
-          ),
-          type: gl.getVertexAttrib(
-            this.texCoordLocation,
-            gl.VERTEX_ATTRIB_ARRAY_TYPE,
-          ),
-          normalized: gl.getVertexAttrib(
-            this.texCoordLocation,
-            gl.VERTEX_ATTRIB_ARRAY_NORMALIZED,
-          ),
-          stride: gl.getVertexAttrib(
-            this.texCoordLocation,
-            gl.VERTEX_ATTRIB_ARRAY_STRIDE,
-          ),
-          offset: gl.getVertexAttribOffset(
-            this.texCoordLocation,
-            gl.VERTEX_ATTRIB_ARRAY_POINTER,
-          ),
-        },
-        {
-          location: this.colorLocation,
-          enabled: gl.getVertexAttrib(
-            this.colorLocation,
-            gl.VERTEX_ATTRIB_ARRAY_ENABLED,
-          ),
-          buffer: gl.getVertexAttrib(
-            this.colorLocation,
-            gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING,
-          ),
-          size: gl.getVertexAttrib(
-            this.colorLocation,
-            gl.VERTEX_ATTRIB_ARRAY_SIZE,
-          ),
-          type: gl.getVertexAttrib(
-            this.colorLocation,
-            gl.VERTEX_ATTRIB_ARRAY_TYPE,
-          ),
-          normalized: gl.getVertexAttrib(
-            this.colorLocation,
-            gl.VERTEX_ATTRIB_ARRAY_NORMALIZED,
-          ),
-          stride: gl.getVertexAttrib(
-            this.colorLocation,
-            gl.VERTEX_ATTRIB_ARRAY_STRIDE,
-          ),
-          offset: gl.getVertexAttribOffset(
-            this.colorLocation,
-            gl.VERTEX_ATTRIB_ARRAY_POINTER,
-          ),
-        },
-      ];
+      {
+        location: this.positionLocation,
+        enabled: gl.getVertexAttrib(
+          this.positionLocation,
+          gl.VERTEX_ATTRIB_ARRAY_ENABLED,
+        ),
+        buffer: gl.getVertexAttrib(
+          this.positionLocation,
+          gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING,
+        ),
+        size: gl.getVertexAttrib(
+          this.positionLocation,
+          gl.VERTEX_ATTRIB_ARRAY_SIZE,
+        ),
+        type: gl.getVertexAttrib(
+          this.positionLocation,
+          gl.VERTEX_ATTRIB_ARRAY_TYPE,
+        ),
+        normalized: gl.getVertexAttrib(
+          this.positionLocation,
+          gl.VERTEX_ATTRIB_ARRAY_NORMALIZED,
+        ),
+        stride: gl.getVertexAttrib(
+          this.positionLocation,
+          gl.VERTEX_ATTRIB_ARRAY_STRIDE,
+        ),
+        offset: gl.getVertexAttribOffset(
+          this.positionLocation,
+          gl.VERTEX_ATTRIB_ARRAY_POINTER,
+        ),
+      },
+      {
+        location: this.texCoordLocation,
+        enabled: gl.getVertexAttrib(
+          this.texCoordLocation,
+          gl.VERTEX_ATTRIB_ARRAY_ENABLED,
+        ),
+        buffer: gl.getVertexAttrib(
+          this.texCoordLocation,
+          gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING,
+        ),
+        size: gl.getVertexAttrib(
+          this.texCoordLocation,
+          gl.VERTEX_ATTRIB_ARRAY_SIZE,
+        ),
+        type: gl.getVertexAttrib(
+          this.texCoordLocation,
+          gl.VERTEX_ATTRIB_ARRAY_TYPE,
+        ),
+        normalized: gl.getVertexAttrib(
+          this.texCoordLocation,
+          gl.VERTEX_ATTRIB_ARRAY_NORMALIZED,
+        ),
+        stride: gl.getVertexAttrib(
+          this.texCoordLocation,
+          gl.VERTEX_ATTRIB_ARRAY_STRIDE,
+        ),
+        offset: gl.getVertexAttribOffset(
+          this.texCoordLocation,
+          gl.VERTEX_ATTRIB_ARRAY_POINTER,
+        ),
+      },
+      {
+        location: this.colorLocation,
+        enabled: gl.getVertexAttrib(
+          this.colorLocation,
+          gl.VERTEX_ATTRIB_ARRAY_ENABLED,
+        ),
+        buffer: gl.getVertexAttrib(
+          this.colorLocation,
+          gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING,
+        ),
+        size: gl.getVertexAttrib(
+          this.colorLocation,
+          gl.VERTEX_ATTRIB_ARRAY_SIZE,
+        ),
+        type: gl.getVertexAttrib(
+          this.colorLocation,
+          gl.VERTEX_ATTRIB_ARRAY_TYPE,
+        ),
+        normalized: gl.getVertexAttrib(
+          this.colorLocation,
+          gl.VERTEX_ATTRIB_ARRAY_NORMALIZED,
+        ),
+        stride: gl.getVertexAttrib(
+          this.colorLocation,
+          gl.VERTEX_ATTRIB_ARRAY_STRIDE,
+        ),
+        offset: gl.getVertexAttribOffset(
+          this.colorLocation,
+          gl.VERTEX_ATTRIB_ARRAY_POINTER,
+        ),
+      },
+    ];
 
     stashGlState({
       gl,
       vertexAttribState,
-      uniformState
+      uniformState,
     });
   }
 
   private restoreGlState() {
     const gl = this.gl;
 
-    restoreGlState({gl})
+    restoreGlState({ gl });
   }
 
   patchRender(p?: StashGlStateParam) {
@@ -651,10 +664,22 @@ class TinyUI {
     const positions = [0, 0, width, 0, width, height, 0, height];
     const texCoords = [0, 0, 1, 0, 1, 1, 0, 1];
     const colors = [
-      1, 0, 0, 1,  // 红色
-      1, 0, 0, 1,
-      1, 0, 0, 1,
-      1, 0, 0, 1
+      1,
+      0,
+      0,
+      1, // 红色
+      1,
+      0,
+      0,
+      1,
+      1,
+      0,
+      0,
+      1,
+      1,
+      0,
+      0,
+      1,
     ];
     const indices = [0, 1, 2, 0, 2, 3];
 
