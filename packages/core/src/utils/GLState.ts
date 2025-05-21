@@ -28,7 +28,7 @@ interface GlState {
   blendSrc?: any;
   blendDst?: any;
   viewport?: any;
-  vertexAttribState?:  VertexAttributeState[];
+  vertexAttribState?: VertexAttributeState[];
   uniformState?: UniformState[];
   scissorTestEnabled?: boolean;
   scissorBox?: any;
@@ -57,13 +57,13 @@ interface GlState {
 let savedState: GlState;
 
 interface StashGlStateParam {
-  gl: WebGLRenderingContext;
+  gl: WebGLRenderingContext | WebGL2RenderingContext;
   vertexAttribState?: VertexAttributeState[];
   uniformState?: UniformState[];
 }
 
 export function restoreUniformStates(
-  gl: WebGLRenderingContext,
+  gl: WebGLRenderingContext | WebGL2RenderingContext,
   states: UniformState[],
 ): void {
   states.forEach((state) => {
@@ -82,6 +82,15 @@ export function restoreUniformStates(
       case "1iv":
         gl.uniform1iv(location, value as Int32Array | number[]);
         break;
+      case "1ui":
+        (gl as WebGL2RenderingContext).uniform1ui(location, value as number);
+        break;
+      case "1uiv":
+        (gl as WebGL2RenderingContext).uniform1uiv(
+          location,
+          value as Uint32Array | number[],
+        );
+        break;
 
       case "2f":
         gl.uniform2f(location, (value as number[])[0], (value as number[])[1]);
@@ -94,6 +103,19 @@ export function restoreUniformStates(
         break;
       case "2iv":
         gl.uniform2iv(location, value as Int32Array | number[]);
+        break;
+      case "2ui":
+        (gl as WebGL2RenderingContext).uniform2ui(
+          location,
+          (value as number[])[0],
+          (value as number[])[1],
+        );
+        break;
+      case "2uiv":
+        (gl as WebGL2RenderingContext).uniform2uiv(
+          location,
+          value as Uint32Array | number[],
+        );
         break;
 
       case "3f":
@@ -117,6 +139,20 @@ export function restoreUniformStates(
         break;
       case "3iv":
         gl.uniform3iv(location, value as Int32Array | number[]);
+        break;
+      case "3ui":
+        (gl as WebGL2RenderingContext).uniform3ui(
+          location,
+          (value as number[])[0],
+          (value as number[])[1],
+          (value as number[])[2],
+        );
+        break;
+      case "3uiv":
+        (gl as WebGL2RenderingContext).uniform3uiv(
+          location,
+          value as Uint32Array | number[],
+        );
         break;
 
       case "4f":
@@ -143,6 +179,21 @@ export function restoreUniformStates(
       case "4iv":
         gl.uniform4iv(location, value as Int32Array | number[]);
         break;
+      case "4ui":
+        (gl as WebGL2RenderingContext).uniform4ui(
+          location,
+          (value as number[])[0],
+          (value as number[])[1],
+          (value as number[])[2],
+          (value as number[])[3],
+        );
+        break;
+      case "4uiv":
+        (gl as WebGL2RenderingContext).uniform4uiv(
+          location,
+          value as Uint32Array | number[],
+        );
+        break;
 
       case "Matrix2fv":
         gl.uniformMatrix2fv(location, false, value as Float32Array | number[]);
@@ -153,108 +204,149 @@ export function restoreUniformStates(
       case "Matrix4fv":
         gl.uniformMatrix4fv(location, false, value as Float32Array | number[]);
         break;
+      case "Matrix2x3fv":
+        (gl as WebGL2RenderingContext).uniformMatrix2x3fv(
+          location,
+          false,
+          value as Float32Array | number[],
+        );
+        break;
+      case "Matrix3x2fv":
+        (gl as WebGL2RenderingContext).uniformMatrix3x2fv(
+          location,
+          false,
+          value as Float32Array | number[],
+        );
+        break;
+      case "Matrix2x4fv":
+        (gl as WebGL2RenderingContext).uniformMatrix2x4fv(
+          location,
+          false,
+          value as Float32Array | number[],
+        );
+        break;
+      case "Matrix4x2fv":
+        (gl as WebGL2RenderingContext).uniformMatrix4x2fv(
+          location,
+          false,
+          value as Float32Array | number[],
+        );
+        break;
+      case "Matrix3x4fv":
+        (gl as WebGL2RenderingContext).uniformMatrix3x4fv(
+          location,
+          false,
+          value as Float32Array | number[],
+        );
+        break;
+      case "Matrix4x3fv":
+        (gl as WebGL2RenderingContext).uniformMatrix4x3fv(
+          location,
+          false,
+          value as Float32Array | number[],
+        );
+        break;
     }
   });
 }
 
+export const stashGlState = ({
+  gl,
+  vertexAttribState,
+  uniformState,
+}: StashGlStateParam) => {
+  // 保存关键状态
+  savedState = {
+    // 着色器程序
+    program: gl.getParameter(gl.CURRENT_PROGRAM),
 
-export const stashGlState = ({gl, vertexAttribState, uniformState}: StashGlStateParam) => {
+    // 纹理状态
+    activeTexture: gl.getParameter(gl.ACTIVE_TEXTURE),
+    texture2D: gl.getParameter(gl.TEXTURE_BINDING_2D),
 
-    // 保存关键状态
-    savedState = {
-      // 着色器程序
-      program: gl.getParameter(gl.CURRENT_PROGRAM),
+    // 缓冲区绑定
+    arrayBuffer: gl.getParameter(gl.ARRAY_BUFFER_BINDING),
+    elementArrayBuffer: gl.getParameter(gl.ELEMENT_ARRAY_BUFFER_BINDING),
 
-      // 纹理状态
-      activeTexture: gl.getParameter(gl.ACTIVE_TEXTURE),
-      texture2D: gl.getParameter(gl.TEXTURE_BINDING_2D),
+    // 混合状态
+    blendEnabled: gl.isEnabled(gl.BLEND),
+    blendSrc: gl.getParameter(gl.BLEND_SRC_RGB),
+    blendDst: gl.getParameter(gl.BLEND_DST_RGB),
 
-      // 缓冲区绑定
-      arrayBuffer: gl.getParameter(gl.ARRAY_BUFFER_BINDING),
-      elementArrayBuffer: gl.getParameter(gl.ELEMENT_ARRAY_BUFFER_BINDING),
+    // 视口
+    viewport: gl.getParameter(gl.VIEWPORT),
 
-      // 混合状态
-      blendEnabled: gl.isEnabled(gl.BLEND),
-      blendSrc: gl.getParameter(gl.BLEND_SRC_RGB),
-      blendDst: gl.getParameter(gl.BLEND_DST_RGB),
+    // 顶点属性状态（仅保存我们使用的属性）
+    vertexAttribState,
+    uniformState,
 
-      // 视口
-      viewport: gl.getParameter(gl.VIEWPORT),
+    // 添加剪裁状态
+    scissorTestEnabled: gl.isEnabled(gl.SCISSOR_TEST),
+    scissorBox: gl.getParameter(gl.SCISSOR_BOX),
 
-      // 顶点属性状态（仅保存我们使用的属性）
-      vertexAttribState,
-      uniformState,
+    // 添加深度测试状态
+    depthTestEnabled: gl.isEnabled(gl.DEPTH_TEST),
+    depthFunc: gl.getParameter(gl.DEPTH_FUNC),
+    depthMask: gl.getParameter(gl.DEPTH_WRITEMASK),
 
-      // 添加剪裁状态
-      scissorTestEnabled: gl.isEnabled(gl.SCISSOR_TEST),
-      scissorBox: gl.getParameter(gl.SCISSOR_BOX),
+    // 添加模板测试状态
+    stencilTestEnabled: gl.isEnabled(gl.STENCIL_TEST),
+    stencilMask: gl.getParameter(gl.STENCIL_WRITEMASK),
 
-      // 添加深度测试状态
-      depthTestEnabled: gl.isEnabled(gl.DEPTH_TEST),
-      depthFunc: gl.getParameter(gl.DEPTH_FUNC),
-      depthMask: gl.getParameter(gl.DEPTH_WRITEMASK),
+    // 保存颜色掩码
+    colorMask: gl.getParameter(gl.COLOR_WRITEMASK),
 
-      // 添加模板测试状态
-      stencilTestEnabled: gl.isEnabled(gl.STENCIL_TEST),
-      stencilMask: gl.getParameter(gl.STENCIL_WRITEMASK),
+    // 保存缓冲区清除值
+    clearColor: gl.getParameter(gl.COLOR_CLEAR_VALUE),
+    clearDepth: gl.getParameter(gl.DEPTH_CLEAR_VALUE),
+    clearStencil: gl.getParameter(gl.STENCIL_CLEAR_VALUE),
 
-      // 保存颜色掩码
-      colorMask: gl.getParameter(gl.COLOR_WRITEMASK),
+    // 保存混合颜色
+    blendColor: gl.getParameter(gl.BLEND_COLOR),
 
-      // 保存缓冲区清除值
-      clearColor: gl.getParameter(gl.COLOR_CLEAR_VALUE),
-      clearDepth: gl.getParameter(gl.DEPTH_CLEAR_VALUE),
-      clearStencil: gl.getParameter(gl.STENCIL_CLEAR_VALUE),
+    // 保存剔除面状态
+    cullFaceEnabled: gl.isEnabled(gl.CULL_FACE),
+    cullFaceMode: gl.getParameter(gl.CULL_FACE_MODE),
+    frontFace: gl.getParameter(gl.FRONT_FACE),
 
-      // 保存混合颜色
-      blendColor: gl.getParameter(gl.BLEND_COLOR),
+    // 保存抖动状态
+    ditherEnabled: gl.isEnabled(gl.DITHER),
 
-      // 保存剔除面状态
-      cullFaceEnabled: gl.isEnabled(gl.CULL_FACE),
-      cullFaceMode: gl.getParameter(gl.CULL_FACE_MODE),
-      frontFace: gl.getParameter(gl.FRONT_FACE),
+    // 保存多边形偏移
+    polygonOffsetFillEnabled: gl.isEnabled(gl.POLYGON_OFFSET_FILL),
+    polygonOffsetFactor: gl.getParameter(gl.POLYGON_OFFSET_FACTOR),
+    polygonOffsetUnits: gl.getParameter(gl.POLYGON_OFFSET_UNITS),
 
-      // 保存抖动状态
-      ditherEnabled: gl.isEnabled(gl.DITHER),
+    // 保存采样覆盖
+    sampleCoverageEnabled: gl.isEnabled(gl.SAMPLE_COVERAGE),
+    sampleCoverageValue: gl.getParameter(gl.SAMPLE_COVERAGE_VALUE),
+    sampleCoverageInvert: gl.getParameter(gl.SAMPLE_COVERAGE_INVERT),
 
-      // 保存多边形偏移
-      polygonOffsetFillEnabled: gl.isEnabled(gl.POLYGON_OFFSET_FILL),
-      polygonOffsetFactor: gl.getParameter(gl.POLYGON_OFFSET_FACTOR),
-      polygonOffsetUnits: gl.getParameter(gl.POLYGON_OFFSET_UNITS),
+    activeAttributes: [],
+  };
 
-      // 保存采样覆盖
-      sampleCoverageEnabled: gl.isEnabled(gl.SAMPLE_COVERAGE),
-      sampleCoverageValue: gl.getParameter(gl.SAMPLE_COVERAGE_VALUE),
-      sampleCoverageInvert: gl.getParameter(gl.SAMPLE_COVERAGE_INVERT),
-
-      activeAttributes: [],
-    };
-
-    // 获取活跃顶点属性的数量
-    const maxVertexAttribs = gl.getParameter(gl.MAX_VERTEX_ATTRIBS);
-    for (let i = 0; i < maxVertexAttribs; i++) {
-      if (gl.getVertexAttrib(i, gl.VERTEX_ATTRIB_ARRAY_ENABLED)) {
-        savedState.activeAttributes.push({
-          index: i,
-          enabled: true,
-          buffer: gl.getVertexAttrib(i, gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING),
-          size: gl.getVertexAttrib(i, gl.VERTEX_ATTRIB_ARRAY_SIZE),
-          type: gl.getVertexAttrib(i, gl.VERTEX_ATTRIB_ARRAY_TYPE),
-          normalized: gl.getVertexAttrib(i, gl.VERTEX_ATTRIB_ARRAY_NORMALIZED),
-          stride: gl.getVertexAttrib(i, gl.VERTEX_ATTRIB_ARRAY_STRIDE),
-          offset: gl.getVertexAttribOffset(i, gl.VERTEX_ATTRIB_ARRAY_POINTER),
-        });
-      }
+  // 获取活跃顶点属性的数量
+  const maxVertexAttribs = gl.getParameter(gl.MAX_VERTEX_ATTRIBS);
+  for (let i = 0; i < maxVertexAttribs; i++) {
+    if (gl.getVertexAttrib(i, gl.VERTEX_ATTRIB_ARRAY_ENABLED)) {
+      savedState.activeAttributes.push({
+        index: i,
+        enabled: true,
+        buffer: gl.getVertexAttrib(i, gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING),
+        size: gl.getVertexAttrib(i, gl.VERTEX_ATTRIB_ARRAY_SIZE),
+        type: gl.getVertexAttrib(i, gl.VERTEX_ATTRIB_ARRAY_TYPE),
+        normalized: gl.getVertexAttrib(i, gl.VERTEX_ATTRIB_ARRAY_NORMALIZED),
+        stride: gl.getVertexAttrib(i, gl.VERTEX_ATTRIB_ARRAY_STRIDE),
+        offset: gl.getVertexAttribOffset(i, gl.VERTEX_ATTRIB_ARRAY_POINTER),
+      });
     }
-
   }
-
+};
 
 interface RestoreGlStateParam {
-  gl: WebGLRenderingContext;
+  gl: WebGLRenderingContext | WebGL2RenderingContext;
 }
 export const restoreGlState = ({ gl }: RestoreGlStateParam) => {
-
   // 恢复着色器程序
   gl.useProgram(savedState.program);
 
@@ -431,4 +523,4 @@ export const restoreGlState = ({ gl }: RestoreGlStateParam) => {
   // 最后再次绑定原始数组缓冲区，确保一致性
   gl.bindBuffer(gl.ARRAY_BUFFER, savedState.arrayBuffer);
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, savedState.elementArrayBuffer);
-}
+};
