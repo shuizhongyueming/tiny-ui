@@ -4,7 +4,7 @@ import { Container } from "./Container";
 import { DisplayObject } from "./DisplayObject";
 import { Graphics } from "./Graphics";
 import { EventName, Size, type Color } from "./type";
-import { EventManager } from "./utils/EventManager";
+import { EventManager, TouchEventListeningHandler } from "./utils/EventManager";
 import { Matrix } from "./utils/Matrix";
 import { ShaderManager } from "./utils/ShaderManager";
 import { TextureManager } from "./utils/TextureManager";
@@ -78,6 +78,10 @@ interface StashGlStateParam {
   uniformState?: UniformState[];
 }
 
+interface TinyUIOption {
+  handleTouchEventListening?: TouchEventListeningHandler;
+}
+
 class TinyUI {
   static EventName = EventName;
   EventName = EventName;
@@ -120,20 +124,21 @@ class TinyUI {
 
   constructor(
     canvas: HTMLCanvasElement,
-    options: WebGLContextAttributes = {},
+    glContextArrtibutes: WebGLContextAttributes = {},
     contextId: "webgl" | "webgl2" = "webgl",
+    option: TinyUIOption = {},
   ) {
     this.canvas = canvas;
 
     // 创建WebGL上下文
     const contextOptions = {
-      stencil: options.stencil ?? true,
-      preserveDrawingBuffer: options.preserveDrawingBuffer ?? false,
-      premultipliedAlpha: options.premultipliedAlpha ?? true,
-      antialias: options.antialias ?? true,
-      depth: options.depth ?? false,
+      stencil: glContextArrtibutes.stencil ?? true,
+      preserveDrawingBuffer: glContextArrtibutes.preserveDrawingBuffer ?? false,
+      premultipliedAlpha: glContextArrtibutes.premultipliedAlpha ?? true,
+      antialias: glContextArrtibutes.antialias ?? true,
+      depth: glContextArrtibutes.depth ?? false,
       alpha: true,
-      ...options,
+      ...glContextArrtibutes,
     };
     this.contextOptions = contextOptions;
 
@@ -151,7 +156,7 @@ class TinyUI {
     // 初始化管理器
     this.shaderManager = new ShaderManager(this.gl);
     this.textureManager = new TextureManager(this.gl);
-    this.eventManager = new EventManager(this);
+    this.eventManager = new EventManager(this, option);
 
     // 初始化着色器
     this.initShaders();

@@ -4,32 +4,56 @@ import { DisplayObject } from "../DisplayObject";
 import { UIEvent } from "../utils/UIEvent";
 import { Container } from "../Container";
 
+export type TouchEventName = "touchstart" | "touchmove" | "touchend";
+export type TouchEventHandler = (event: TouchEvent) => void;
+export type TouchEventListeningHandler = (
+  eventName: TouchEventName,
+  handler: TouchEventHandler,
+) => void;
+
+export interface EventManagerOptions {
+  handleTouchEventListening?: TouchEventListeningHandler;
+}
+
 export class EventManager {
   private canvas: HTMLCanvasElement;
   private app: TinyUI;
   private eventListeners: Map<string, EventListener> = new Map();
 
-  constructor(app: TinyUI) {
+  constructor(app: TinyUI, options: EventManagerOptions = {}) {
     this.app = app;
     this.canvas = app.canvas;
-    this.setupEventListeners();
+    this.setupEventListeners(options);
   }
 
-  private setupEventListeners(): void {
+  private setupEventListeners(options: EventManagerOptions): void {
     // 触摸开始事件
     const touchStartListener = this.createTouchListener(EventName.TouchStart);
-    this.canvas.addEventListener('touchstart', touchStartListener);
-    this.eventListeners.set('touchstart', touchStartListener);
+
+    if (options.handleTouchEventListening) {
+      options.handleTouchEventListening("touchstart", touchStartListener);
+    } else {
+      this.canvas.addEventListener("touchstart", touchStartListener);
+    }
+    this.eventListeners.set("touchstart", touchStartListener);
 
     // 触摸移动事件
     const touchMoveListener = this.createTouchListener(EventName.TouchMove);
-    this.canvas.addEventListener('touchmove', touchMoveListener);
-    this.eventListeners.set('touchmove', touchMoveListener);
+    if (options.handleTouchEventListening) {
+      options.handleTouchEventListening("touchmove", touchMoveListener);
+    } else {
+      this.canvas.addEventListener("touchmove", touchMoveListener);
+    }
+    this.eventListeners.set("touchmove", touchMoveListener);
 
     // 触摸结束事件
     const touchEndListener = this.createTouchListener(EventName.TouchEnd);
-    this.canvas.addEventListener('touchend', touchEndListener);
-    this.eventListeners.set('touchend', touchEndListener);
+    if (options.handleTouchEventListening) {
+      options.handleTouchEventListening("touchend", touchEndListener);
+    } else {
+      this.canvas.addEventListener("touchend", touchEndListener);
+    }
+    this.eventListeners.set("touchend", touchEndListener);
   }
 
   private createTouchListener(eventName: EventName): EventListener {
@@ -76,7 +100,10 @@ export class EventManager {
     };
   }
 
-  private dispatchEventToNode(node: DisplayObject | Container, event: UIEvent): void {
+  private dispatchEventToNode(
+    node: DisplayObject | Container,
+    event: UIEvent,
+  ): void {
     if (!node || !node.visible) return;
 
     // 事件已阻止传播
@@ -92,7 +119,11 @@ export class EventManager {
     }
 
     // 检查点是否在节点内
-    if (node.hasEventListener(event.type) && node.hitTest && node.hitTest(event.x, event.y)) {
+    if (
+      node.hasEventListener(event.type) &&
+      node.hitTest &&
+      node.hitTest(event.x, event.y)
+    ) {
       // 设置事件目标
       event.target = node;
 
