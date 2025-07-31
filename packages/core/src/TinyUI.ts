@@ -131,20 +131,11 @@ class TinyUI {
     this.canvas = canvas;
 
     // 创建WebGL上下文
-    const contextOptions = {
-      stencil: glContextArrtibutes.stencil ?? true,
-      preserveDrawingBuffer: glContextArrtibutes.preserveDrawingBuffer ?? false,
-      premultipliedAlpha: glContextArrtibutes.premultipliedAlpha ?? true,
-      antialias: glContextArrtibutes.antialias ?? true,
-      depth: glContextArrtibutes.depth ?? false,
-      alpha: true,
-      ...glContextArrtibutes,
-    };
-    this.contextOptions = contextOptions;
+    this.contextOptions = glContextArrtibutes;
 
     this.gl = canvas.getContext(
       contextId,
-      contextOptions,
+      glContextArrtibutes,
     ) as WebGLRenderingContext;
 
     this.stashGlState();
