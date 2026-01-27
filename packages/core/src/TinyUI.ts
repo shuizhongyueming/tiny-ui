@@ -8,12 +8,7 @@ import { EventManager, TouchEventListeningHandler } from "./utils/EventManager";
 import { Matrix } from "./utils/Matrix";
 import { ShaderManager } from "./utils/ShaderManager";
 import { TextureManager } from "./utils/TextureManager";
-import {
-  restoreGlState,
-  stashGlState,
-  UniformState,
-  VertexAttributeState,
-} from "./utils/GLState";
+import { GLState } from "./utils/GLState";
 
 // WebGL基础着色器
 const VERTEX_SHADER_SOURCE = `
@@ -74,10 +69,6 @@ void main() {
 }
 `;
 
-interface StashGlStateParam {
-  uniformState?: UniformState[];
-}
-
 interface TinyUIOption {
   handleTouchEventListening?: TouchEventListeningHandler;
 }
@@ -88,6 +79,9 @@ class TinyUI {
   canvas: HTMLCanvasElement;
   gl: WebGLRenderingContext;
   contextOptions: WebGLContextAttributes;
+
+  // 状态管理
+  private glState: GLState;
 
   // 管理器
   shaderManager: ShaderManager;
@@ -138,11 +132,13 @@ class TinyUI {
       glContextArrtibutes,
     ) as WebGLRenderingContext;
 
-    this.stashGlState();
-
     if (!this.gl) {
       throw new Error("WebGL not supported");
     }
+
+    // 初始化状态管理
+    this.glState = new GLState(this.gl);
+    this.glState.install();
 
     // 初始化管理器
     this.shaderManager = new ShaderManager(this.gl);
@@ -302,133 +298,30 @@ class TinyUI {
     this._renderTree(this.root);
   }
 
-  private stashGlState({ uniformState }: StashGlStateParam = {}) {
-    const gl = this.gl;
-
-    const vertexAttribState: VertexAttributeState[] = [
-      {
-        location: this.positionLocation,
-        enabled: gl.getVertexAttrib(
-          this.positionLocation,
-          gl.VERTEX_ATTRIB_ARRAY_ENABLED,
-        ),
-        buffer: gl.getVertexAttrib(
-          this.positionLocation,
-          gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING,
-        ),
-        size: gl.getVertexAttrib(
-          this.positionLocation,
-          gl.VERTEX_ATTRIB_ARRAY_SIZE,
-        ),
-        type: gl.getVertexAttrib(
-          this.positionLocation,
-          gl.VERTEX_ATTRIB_ARRAY_TYPE,
-        ),
-        normalized: gl.getVertexAttrib(
-          this.positionLocation,
-          gl.VERTEX_ATTRIB_ARRAY_NORMALIZED,
-        ),
-        stride: gl.getVertexAttrib(
-          this.positionLocation,
-          gl.VERTEX_ATTRIB_ARRAY_STRIDE,
-        ),
-        offset: gl.getVertexAttribOffset(
-          this.positionLocation,
-          gl.VERTEX_ATTRIB_ARRAY_POINTER,
-        ),
-      },
-      {
-        location: this.texCoordLocation,
-        enabled: gl.getVertexAttrib(
-          this.texCoordLocation,
-          gl.VERTEX_ATTRIB_ARRAY_ENABLED,
-        ),
-        buffer: gl.getVertexAttrib(
-          this.texCoordLocation,
-          gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING,
-        ),
-        size: gl.getVertexAttrib(
-          this.texCoordLocation,
-          gl.VERTEX_ATTRIB_ARRAY_SIZE,
-        ),
-        type: gl.getVertexAttrib(
-          this.texCoordLocation,
-          gl.VERTEX_ATTRIB_ARRAY_TYPE,
-        ),
-        normalized: gl.getVertexAttrib(
-          this.texCoordLocation,
-          gl.VERTEX_ATTRIB_ARRAY_NORMALIZED,
-        ),
-        stride: gl.getVertexAttrib(
-          this.texCoordLocation,
-          gl.VERTEX_ATTRIB_ARRAY_STRIDE,
-        ),
-        offset: gl.getVertexAttribOffset(
-          this.texCoordLocation,
-          gl.VERTEX_ATTRIB_ARRAY_POINTER,
-        ),
-      },
-      {
-        location: this.colorLocation,
-        enabled: gl.getVertexAttrib(
-          this.colorLocation,
-          gl.VERTEX_ATTRIB_ARRAY_ENABLED,
-        ),
-        buffer: gl.getVertexAttrib(
-          this.colorLocation,
-          gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING,
-        ),
-        size: gl.getVertexAttrib(
-          this.colorLocation,
-          gl.VERTEX_ATTRIB_ARRAY_SIZE,
-        ),
-        type: gl.getVertexAttrib(
-          this.colorLocation,
-          gl.VERTEX_ATTRIB_ARRAY_TYPE,
-        ),
-        normalized: gl.getVertexAttrib(
-          this.colorLocation,
-          gl.VERTEX_ATTRIB_ARRAY_NORMALIZED,
-        ),
-        stride: gl.getVertexAttrib(
-          this.colorLocation,
-          gl.VERTEX_ATTRIB_ARRAY_STRIDE,
-        ),
-        offset: gl.getVertexAttribOffset(
-          this.colorLocation,
-          gl.VERTEX_ATTRIB_ARRAY_POINTER,
-        ),
-      },
-    ];
-
-    stashGlState({
-      gl,
-      vertexAttribState,
-      uniformState,
-    });
+  private stashGlState() {
+    this.glState.snapshot();
   }
 
   private restoreGlState() {
-    const gl = this.gl;
-
-    restoreGlState({ gl });
+    this.glState.restore();
   }
 
-  patchRender(p?: StashGlStateParam) {
-    this.stashGlState(p);
+  patchRender() {
+    this.stashGlState();
+    try {
+      // // 启用正确的混合模式
+      this.gl.enable(this.gl.BLEND);
+      if (this.contextOptions.premultipliedAlpha) {
+        this.gl.blendFunc(this.gl.ONE, this.gl.ONE_MINUS_SRC_ALPHA);
+      } else {
+        this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+      }
 
-    // // 启用正确的混合模式
-    this.gl.enable(this.gl.BLEND);
-    if (this.contextOptions.premultipliedAlpha) {
-      this.gl.blendFunc(this.gl.ONE, this.gl.ONE_MINUS_SRC_ALPHA);
-    } else {
-      this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+      // 执行UI渲染
+      this.render(true);
+    } finally {
+      this.restoreGlState();
     }
-
-    // 执行UI渲染
-    this.render(true);
-
-    this.restoreGlState();
   }
 
   _renderTree(
@@ -601,6 +494,7 @@ class TinyUI {
     // 销毁根容器及所有子节点
     this.root.destroy();
 
+    // 恢复GL状态
     this.restoreGlState();
   }
 

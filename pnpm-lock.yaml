@@ -1,17 +1,28 @@
 lockfileVersion: '9.0'
 
 settings:
-  autoInstallPeers: false
+  autoInstallPeers: true
   excludeLinksFromLockfile: false
+
+overrides:
+  '@shuizhongyueming/tiny-ui-components': link:packages/components
+  '@shuizhongyueming/tiny-ui-core': link:packages/core
 
 importers:
 
-  .: {}
+  .:
+    dependencies:
+      '@shuizhongyueming/tiny-ui-components':
+        specifier: link:packages/components
+        version: link:packages/components
+      '@shuizhongyueming/tiny-ui-core':
+        specifier: link:packages/core
+        version: link:packages/core
 
   packages/components:
     dependencies:
       '@shuizhongyueming/tiny-ui-core':
-        specifier: workspace:^
+        specifier: link:../core
         version: link:../core
     devDependencies:
       '@fal-works/esbuild-plugin-global-externals':
