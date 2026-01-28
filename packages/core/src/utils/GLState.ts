@@ -290,9 +290,12 @@ export class GLState {
     });
 
     wrap("bindBuffer", (target: number, buffer: WebGLBuffer | null) => {
-      if (target === this.gl.ARRAY_BUFFER) this.state.arrayBuffer = buffer;
-      if (target === this.gl.ELEMENT_ARRAY_BUFFER)
+      if (target === this.gl.ARRAY_BUFFER) {
+        this.state.arrayBuffer = buffer;
+      }
+      if (target === this.gl.ELEMENT_ARRAY_BUFFER) {
         this.state.elementArrayBuffer = buffer;
+      }
     });
 
     wrap("enableVertexAttribArray", (index: number) => {
@@ -596,6 +599,8 @@ export class GLState {
         }
       }
     }
+
+    this.ensureSyncedFromGL();
   }
 
   hasVAO(): boolean {
@@ -621,49 +626,10 @@ export class GLState {
   }
 
   snapshot() {
+    // 依赖跟踪的状态，不再查询 GL（性能优化）
+    // 状态通过包装的 GL 函数调用自动跟踪更新
     this.setTrackingEnabled(false);
-    // this.state.uniformState = this.snapshotUniforms(this.currentProgram);
-    // return this.cloneState(this.state);
   }
-
-  // private cloneState(s: GLInnerState): GLInnerState {
-  //   const attribs: Record<number, AttribPointerState> = {};
-  //   for (const k of Object.keys(s.attribs)) {
-  //     const idx = parseInt(k);
-  //     const a = s.attribs[idx];
-  //     if (a) attribs[idx] = { ...a };
-  //   }
-
-  //   const uniformState = s.uniformState.map((u) => ({
-  //     ...u,
-  //     value: this.cloneUniformValue(u.value),
-  //   }));
-
-  //   return {
-  //     ...s,
-  //     viewport: [...s.viewport],
-  //     scissorBox: [...s.scissorBox],
-  //     colorMask: [...s.colorMask],
-  //     clearColor: [...s.clearColor],
-  //     blendColor: [...s.blendColor],
-  //     texture2DByUnit: s.texture2DByUnit.slice(),
-  //     attribs,
-  //     uniformState,
-  //   };
-  // }
-
-  // private cloneUniformValue(
-  //   value: UniformValue | UniformValue[],
-  // ): UniformValue | UniformValue[] {
-  //   // TODO: UniformValue 应该都是只读的，不会去修改的。所以不需要 clone，应该也没关系吧～
-  //   // if (Array.isArray(value)) {
-  //   //   return value.map((v) => this.cloneUniformValue(v) as UniformValue);
-  //   // }
-  //   // if (value instanceof Float32Array) return new Float32Array(value);
-  //   // if (value instanceof Int32Array) return new Int32Array(value);
-  //   // if (value instanceof Uint32Array) return new Uint32Array(value);
-  //   return value;
-  // }
 
   restore(): void {
     const snapshot = this.state;
@@ -708,7 +674,9 @@ export class GLState {
         orig.activeTexture(snapshot.activeTexture);
       }
 
-      if (!this.hasVAO() && orig.disableVertexAttribArray) {
+      // 修复：即使没有绑定 VAO，也应该恢复顶点属性
+      const shouldRestoreAttribs = !this.hasVAO() || snapshot.vao === null;
+      if (shouldRestoreAttribs && orig.disableVertexAttribArray) {
         let max = this.maxAttribIndexSeen + 1;
         for (const k of Object.keys(snapshot.attribs)) {
           const idx = parseInt(k);
@@ -856,14 +824,6 @@ export class GLState {
 
     this.setTrackingEnabled(true);
   }
-
-  // snapshotUniforms(
-  //   program: WebGLProgram | null = this.currentProgram,
-  // ): UniformState[] {
-  //   if (!program) return [];
-  //   const states = this.programUniformStates.get(program);
-  //   return states ? Array.from(states.values()) : [];
-  // }
 
   restoreUniforms(): void {
     const states = this.programUniformStates.get(this.currentProgram);
@@ -1149,7 +1109,10 @@ export class GLState {
       }
 
       const attribs: Record<number, AttribPointerState> = {};
-      if (!this.hasVAO()) {
+      // 修复：即使支持 VAO，如果当前没有绑定 VAO，也应该查询顶点属性
+      const shouldQueryAttribs = !this.hasVAO() || vao === null;
+
+      if (shouldQueryAttribs) {
         const maxAttribs =
           (orig.getParameter
             ? orig.getParameter(gl.MAX_VERTEX_ATTRIBS)

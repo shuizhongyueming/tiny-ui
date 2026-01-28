@@ -71,10 +71,12 @@ void main() {
 
 interface TinyUIOption {
   handleTouchEventListening?: TouchEventListeningHandler;
+  glState?: GLState;
 }
 
 class TinyUI {
   static EventName = EventName;
+  static GLState = GLState;
   EventName = EventName;
   canvas: HTMLCanvasElement;
   gl: WebGLRenderingContext;
@@ -136,8 +138,11 @@ class TinyUI {
       throw new Error("WebGL not supported");
     }
 
-    // 初始化状态管理
-    this.glState = new GLState(this.gl);
+    if (option.glState) {
+      this.glState = option.glState;
+    } else {
+      this.glState = new GLState(this.gl);
+    }
     this.glState.install();
 
     // 初始化管理器
@@ -547,7 +552,6 @@ class TinyUI {
 
     // 创建一个简单矩阵，仅包含位移
     const matrix = new Matrix().translate(x, y);
-    console.log("matrix:", matrix);
     this.gl.uniformMatrix3fv(this.matrixLocation, false, matrix.toArray());
 
     // 创建简单的红色矩形
