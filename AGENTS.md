@@ -64,6 +64,11 @@ This is a monorepo managed by **pnpm** using **just** as a task runner.
   - Display tree structure with `Container` and `DisplayObject`.
 - **GL State Management**:
   - `stashGlState` and `restoreGlState` are critical for playing nice with other WebGL contexts.
+  - **Important**: The `GLState` class tracks WebGL state by wrapping GL functions. Key implementation details:
+    - **VAO Handling**: When VAO extension is available but no VAO is currently bound (`vao === null`), vertex attributes must still be tracked and restored. The condition should be `!this.hasVAO() || snapshot.vao === null`.
+    - **Platform Differences**: Some platforms (e.g., certain mini-game platforms) may call GL functions before `GLState.install()` wraps them. Ensure `install()` is called at the right time in the initialization sequence.
+    - **State Tracking**: The class uses `trackingEnabled` flag to control whether state changes are recorded. This is disabled during `snapshot()` and `restore()` operations.
+    - **Performance**: Avoid calling `readFromGL()` in hot paths (like `snapshot()`) as it queries the actual GL state which can be slow (~10ms on some platforms). Rely on the wrapped function tracking instead.
 - **Dependency Injection**: `TinyUI` instance is passed to children (e.g., `new Bitmap(this)`).
 - **Async Loading**: Asset loading returns Promises (e.g., `loadTexture`).
 
