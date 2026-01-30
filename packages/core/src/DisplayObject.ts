@@ -91,6 +91,10 @@ export class DisplayObject {
   dispatchEvent(eventName: EventName, event: UIEvent): void {
     if (this.eventListeners.has(eventName)) {
       for (const handler of this.eventListeners.get(eventName)!) {
+        // 如果事件已触发 stopImmediatePropagation，停止执行后续监听器
+        if (event.immediatePropagationStopped) {
+          break;
+        }
         handler(event);
         event.markHandled();
       }

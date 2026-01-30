@@ -20,6 +20,7 @@ export class UIEvent {
   target: null | DisplayObject;
 
   private _propagationStopped: boolean;
+  private _immediatePropagationStopped: boolean;
   private _handled: boolean;
   private _identifier: number;
 
@@ -37,6 +38,7 @@ export class UIEvent {
     }
 
     this._propagationStopped = false;
+    this._immediatePropagationStopped = false;
     this._handled = false;
   }
 
@@ -48,6 +50,10 @@ export class UIEvent {
     return this._propagationStopped;
   }
 
+  get immediatePropagationStopped() {
+    return this._immediatePropagationStopped;
+  }
+
   get handled() {
     return this._handled;
   }
@@ -57,6 +63,10 @@ export class UIEvent {
     this.originalEvent.stopPropagation();
   }
 
+  stopImmediatePropagation() {
+    this._immediatePropagationStopped = true;
+    this.originalEvent.stopImmediatePropagation();
+  }
   markHandled() {
     this._handled = true;
   }
