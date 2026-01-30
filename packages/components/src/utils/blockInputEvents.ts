@@ -5,7 +5,7 @@ export const blockInputEvents = (node: DisplayObject) => {
   const eventHandler = (e: UIEvent) => {
     e.stopPropagation();
     e.stopImmediatePropagation();
-    console.log("[TinyUI:blockInputEvents] input event blocked");
+    console.log(`[TinyUI:blockInputEvents] input event(${e.type}) blocked`);
   };
   node.addEventListener(TinyUI.EventName.TouchStart, eventHandler);
   node.addEventListener(TinyUI.EventName.TouchMove, eventHandler);
