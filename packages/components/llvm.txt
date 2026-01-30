@@ -1,0 +1,795 @@
+# Tiny UI Components 通用接口说明与 Demo
+
+> 目标：让第一次接触 Tiny UI Components 的人能在 5 分钟内知道"有哪些组件、怎么用"。  
+> 版本：对应代码库 v1.0.3  
+> 依赖：@shuizhongyueming/tiny-ui-core
+
+---
+
+## 1. Intro / 为什么需要 Tiny UI Components
+
+Tiny UI Components 是 Tiny UI Core 的高阶组件库，提供：
+
+- **开箱即用的 UI 组件**：按钮、弹窗、对话框等
+- **布局工具函数**：自适应、对齐、缩放等常用操作
+- **输入阻断**：透明遮罩层，用于模态交互
+- **零样式依赖**：组件外观完全由参数控制
+
+---
+
+## 2. Quick Start（5 分钟）
+
+### 2.1 HTML 基础设置
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; }
+    canvas { width: 100%; height: 100%; touch-action: none; }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <script src="tiny-ui-core.js"></script>
+  <script src="tiny-ui-components.js"></script>
+  <script>
+    // 代码写在这里
+  </script>
+</body>
+</html>
+```
+
+### 2.2 初始化
+
+```javascript
+const canvas = document.getElementById('game');
+const tinyUI = new TinyUI(canvas);
+```
+
+### 2.3 三个闭环 Demo
+
+**Demo 1：创建按钮**
+```javascript
+const btn = TextBtn({
+  app: tinyUI,
+  text: 'Click Me',
+  bgColor: '#6584cd',
+  textColor: '#ffffff',
+  fontSize: 32,
+  onClick: () => console.log('Clicked!')
+});
+btn.x = tinyUI.stageWidth / 2;
+btn.y = tinyUI.stageHeight / 2;
+tinyUI.root.addChild(btn);
+tinyUI.render();
+```
+
+**Demo 2：创建弹窗**
+```javascript
+const popup = Popup({
+  app: tinyUI,
+  bgColor: '#000000',
+  alpha: 0.7
+});
+
+const msg = tinyUI.createText('Hello Popup!');
+msg.color = '#ffffff';
+msg.fontSize = 36;
+msg.x = tinyUI.stageWidth / 2;
+msg.y = tinyUI.stageHeight / 2;
+popup.addChild(msg);
+
+tinyUI.render();
+```
+
+**Demo 3：确认对话框**
+```javascript
+function showConfirm(message, onYes, onNo) {
+  const popup = Popup({ app: tinyUI, alpha: 0.8 });
+  
+  const msg = tinyUI.createText(message);
+  msg.color = '#ffffff';
+  msg.fontSize = 28;
+  msg.x = tinyUI.stageWidth / 2;
+  msg.y = tinyUI.stageHeight / 2 - 60;
+  popup.addChild(msg);
+  
+  const yesBtn = TextBtn({
+    app: tinyUI,
+    text: 'Yes',
+    bgColor: '#4caf50',
+    width: 120,
+    height: 60,
+    onClick: () => {
+      popup.destroy();
+      tinyUI.render();
+      onYes();
+    }
+  });
+  yesBtn.x = tinyUI.stageWidth / 2 - 80;
+  yesBtn.y = tinyUI.stageHeight / 2 + 20;
+  popup.addChild(yesBtn);
+  
+  const noBtn = TextBtn({
+    app: tinyUI,
+    text: 'No',
+    bgColor: '#f44336',
+    width: 120,
+    height: 60,
+    onClick: () => {
+      popup.destroy();
+      tinyUI.render();
+      onNo();
+    }
+  });
+  noBtn.x = tinyUI.stageWidth / 2 + 80;
+  noBtn.y = tinyUI.stageHeight / 2 + 20;
+  popup.addChild(noBtn);
+  
+  tinyUI.render();
+}
+
+showConfirm(
+  'Are you sure?',
+  () => console.log('Yes clicked'),
+  () => console.log('No clicked')
+);
+```
+
+---
+
+## 3. API Index
+
+| Feature | Exports | Summary | Demo |
+|---------|---------|---------|------|
+| Popup | `Popup` | 全屏遮罩弹窗容器 | complex |
+| Button | `TextBtn` | 响应式/固定尺寸文本按钮 | minimal |
+| Shape | `ShapeRect` | 纯色矩形背景 | - |
+| Dialog | `Confirm` | 确认对话框（含是/否按钮）| complex |
+| Close | `CloseBtn` | 关闭按钮组件 | - |
+| Overlay | `TransparentRect` | 透明点击层 | - |
+| Layout | `utils.adjustTo` | 相对容器对齐元素 | complex |
+| Layout | `utils.placeCorner` | 角落定位 | complex |
+| Layout | `utils.fitSize` | 等比缩放适应尺寸 | - |
+| Layout | `utils.scaleToSize` | 强制缩放到尺寸 | - |
+| Layout | `utils.scaleSize` | 按比例缩放尺寸对象 | - |
+| Layout | `utils.blockInputEvents` | 阻断输入事件 | - |
+
+---
+
+## 4. Feature Details
+
+### Feature：Popup（弹窗容器）
+
+**What**：创建全屏或指定尺寸的半透明遮罩弹窗。
+
+**API**：
+```typescript
+interface PopupParams {
+  app: TinyUI;
+  parent?: Container;          // 父容器，默认挂载到 root
+  size?: Size;                 // 尺寸，默认全屏
+  bgColor?: string;            // 背景色，默认 '#000'
+  bg?: DisplayObject;          // 自定义背景节点
+  alpha?: number;              // 背景透明度 [0-1]，默认 0.7
+}
+
+function Popup(params: PopupParams): Container;
+```
+
+**语义约定**：
+1. 返回的是 Container，可继续 `addChild` 添加内容
+2. 背景默认是 ShapeRect，可通过 `bg` 参数自定义
+3. 点击背景不自动关闭，需自行实现关闭逻辑
+
+**常见坑**：
+- 记得调用 `tinyUI.render()` 才能显示
+- 关闭时使用 `popup.destroy()` 会自动清理子节点
+
+**最小 demo**：
+```javascript
+const popup = Popup({
+  app: tinyUI,
+  bgColor: '#000000',
+  alpha: 0.7
+});
+
+const text = tinyUI.createText('Popup Content');
+text.color = '#ffffff';
+text.x = tinyUI.stageWidth / 2;
+text.y = tinyUI.stageHeight / 2;
+popup.addChild(text);
+
+tinyUI.render();
+```
+
+---
+
+### Feature：TextBtn（文本按钮）
+
+**What**：带背景和文本的按钮组件，支持响应式或固定尺寸。
+
+**API**：
+```typescript
+interface TextBtnProps {
+  app: TinyUI;
+  text: string;
+  bgColor?: string;            // 默认 '#6584cd'
+  textColor?: string;          // 默认 '#ffffff'
+  fontSize?: number;           // 默认 28
+  width?: number;              // 固定宽度（与 responsive 互斥）
+  height?: number;             // 固定高度（与 responsive 互斥）
+  responsive?: boolean;        // 自适应尺寸，默认 false
+  onClick?: Callback;          // 点击回调
+}
+
+function TextBtn(props: TextBtnProps): Container;
+```
+
+**语义约定**：
+1. `responsive = true` 时，按钮尺寸根据文字内容自动计算
+2. `responsive = false` 时，需指定 `width/height`，或使用默认尺寸 (180×68)
+3. 返回的是 Container，包含背景和文本两个子节点
+
+**常见坑**：
+- 点击事件绑定在背景节点上，透明区域不响应点击
+- 修改文字后不会自动调整尺寸（如需动态文字，建议销毁重建）
+
+**最小 demo**：
+```javascript
+// 固定尺寸按钮
+const fixedBtn = TextBtn({
+  app: tinyUI,
+  text: 'Fixed',
+  width: 150,
+  height: 60,
+  bgColor: '#2196f3',
+  onClick: () => console.log('Fixed clicked')
+});
+
+// 响应式按钮
+const respBtn = TextBtn({
+  app: tinyUI,
+  text: 'Responsive Button',
+  responsive: true,
+  bgColor: '#4caf50'
+});
+respBtn.y = 100;
+
+tinyUI.root.addChild(fixedBtn);
+tinyUI.root.addChild(respBtn);
+tinyUI.render();
+```
+
+---
+
+### Feature：ShapeRect（矩形背景）
+
+**What**：创建纯色填充的矩形节点。
+
+**API**：
+```typescript
+function ShapeRect(
+  app: TinyUI,
+  size: Size,
+  color: string
+): Graphics;
+```
+
+**最小 demo**：
+```javascript
+const rect = ShapeRect(tinyUI, { width: 200, height: 100 }, '#ff0000');
+rect.x = tinyUI.stageWidth / 2;
+rect.y = tinyUI.stageHeight / 2;
+tinyUI.root.addChild(rect);
+tinyUI.render();
+```
+
+---
+
+### Feature：Confirm（确认对话框）
+
+**What**：预设的确认对话框，包含消息文本、是/否按钮。
+
+**API**：
+```typescript
+interface ConfirmParams {
+  app: TinyUI;
+  title?: string;              // 标题文本
+  message?: string;            // 消息文本
+  yesText?: string;            // 确认按钮文本，默认 '是'
+  noText?: string;             // 取消按钮文本，默认 '否'
+  onYes?: () => void;
+  onNo?: () => void;
+  onClose?: () => void;        // 关闭回调（无论点击是/否都会触发）
+}
+
+function Confirm(params: ConfirmParams): Container;
+```
+
+**语义约定**：
+1. 对话框自动居中显示
+2. 点击任意按钮后自动销毁对话框
+3. 返回 Container，可继续添加自定义内容
+
+**最小 demo**：
+```javascript
+Confirm({
+  app: tinyUI,
+  title: 'Warning',
+  message: 'Do you want to continue?',
+  yesText: 'Continue',
+  noText: 'Cancel',
+  onYes: () => console.log('Continuing...'),
+  onNo: () => console.log('Cancelled')
+});
+
+tinyUI.render();
+```
+
+---
+
+### Feature：CloseBtn（关闭按钮）
+
+**What**：带有 X 图标的圆形关闭按钮。
+
+**API**：
+```typescript
+interface CloseBtnParams {
+  app: TinyUI;
+  size?: number;               // 按钮直径，默认 60
+  color?: string;              // 背景色，默认 '#ff4444'
+  onClick?: Callback;
+}
+
+function CloseBtn(params: CloseBtnParams): Container;
+```
+
+**最小 demo**：
+```javascript
+const closeBtn = CloseBtn({
+  app: tinyUI,
+  size: 50,
+  color: '#ff0000',
+  onClick: () => console.log('Close clicked')
+});
+closeBtn.x = tinyUI.stageWidth - 50;
+closeBtn.y = 50;
+tinyUI.root.addChild(closeBtn);
+tinyUI.render();
+```
+
+---
+
+### Feature：TransparentRect（透明点击层）
+
+**What**：完全透明但可接收点击事件的矩形区域，用于阻断下层交互。
+
+**API**：
+```typescript
+function TransparentRect(
+  app: TinyUI,
+  width: number,
+  height: number
+): Container;
+```
+
+**语义约定**：
+1. 视觉上完全透明（alpha = 0）
+2. 但 `visible = true`，可以接收点击事件
+3. 常用于弹窗的背景遮罩，阻断对下层 UI 的点击
+
+**最小 demo**：
+```javascript
+// 创建弹窗时，透明层阻止点击穿透到游戏
+const overlay = TransparentRect(tinyUI, tinyUI.stageWidth, tinyUI.stageHeight);
+overlay.addEventListener(tinyUI.EventName.TouchStart, () => {
+  // 点击背景关闭弹窗
+  popup.destroy();
+  tinyUI.render();
+});
+
+const popup = tinyUI.createContainer();
+popup.addChild(overlay);
+// ... 添加弹窗内容
+tinyUI.root.addChild(popup);
+tinyUI.render();
+```
+
+---
+
+## 5. Utils（布局工具函数）
+
+### 5.1 adjustTo（相对容器对齐）
+
+**What**：将元素对齐到容器的指定位置。
+
+**API**：
+```typescript
+function adjustTo(
+  container: Container,
+  centerFirst?: boolean        // 是否先居中再调整，默认 false
+): (
+  target: DisplayObject,
+  position: {
+    h?: 'left' | 'center' | 'right';
+    v?: 'top' | 'center' | 'bottom';
+  }
+) => void;
+```
+
+**最小 demo**：
+```javascript
+const container = tinyUI.createContainer();
+container.width = 400;
+container.height = 300;
+container.x = tinyUI.stageWidth / 2;
+container.y = tinyUI.stageHeight / 2;
+
+const child = tinyUI.createText('Centered');
+container.addChild(child);
+
+// 将 child 在 container 内居中对齐
+const adjust = adjustTo(container, true);
+adjust(child, { h: 'center', v: 'center' });
+
+tinyUI.root.addChild(container);
+tinyUI.render();
+```
+
+---
+
+### 5.2 placeCorner（角落定位）
+
+**What**：将元素定位到容器的某个角落。
+
+**API**：
+```typescript
+function placeCorner(
+  container: Container,
+  target: DisplayObject,
+  corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right',
+  offset?: { x?: number; y?: number }    // 偏移量，默认 { x: 0, y: 0 }
+): void;
+```
+
+**最小 demo**：
+```javascript
+const container = tinyUI.createContainer();
+container.width = 600;
+container.height = 400;
+
+const closeBtn = CloseBtn({ app: tinyUI });
+container.addChild(closeBtn);
+
+// 将关闭按钮放在右上角，向内偏移 10 像素
+placeCorner(container, closeBtn, 'top-right', { x: -10, y: 10 });
+
+tinyUI.root.addChild(container);
+tinyUI.render();
+```
+
+---
+
+### 5.3 fitSize（等比缩放适应）
+
+**What**：按比例缩放元素，使其适应目标尺寸（可能留空边）。
+
+**API**：
+```typescript
+function fitSize(
+  target: DisplayObject,
+  maxSize: Size,
+  scaleUp?: boolean             // 是否允许放大，默认 true
+): void;
+```
+
+**最小 demo**：
+```javascript
+tinyUI.createBitmapFromUrl('large-image.png').then(bitmap => {
+  // 将图片缩放到 200×200 区域内，保持比例
+  fitSize(bitmap, { width: 200, height: 200 });
+  bitmap.x = tinyUI.stageWidth / 2;
+  bitmap.y = tinyUI.stageHeight / 2;
+  tinyUI.root.addChild(bitmap);
+  tinyUI.render();
+});
+```
+
+---
+
+### 5.4 scaleToSize（强制缩放到尺寸）
+
+**What**：强制将元素缩放到指定尺寸（不保持比例）。
+
+**API**：
+```typescript
+function scaleToSize(
+  target: DisplayObject,
+  width: number,
+  height: number
+): void;
+```
+
+**最小 demo**：
+```javascript
+const bitmap = await tinyUI.createBitmapFromUrl('img.png');
+// 强制缩放到 100×100（可能变形）
+scaleToSize(bitmap, 100, 100);
+```
+
+---
+
+### 5.5 scaleSize（按比例缩放尺寸对象）
+
+**What**：返回按比例缩放后的尺寸对象。
+
+**API**：
+```typescript
+function scaleSize(size: Size, scale: number): Size;
+```
+
+**最小 demo**：
+```javascript
+const original = { width: 100, height: 200 };
+const doubled = scaleSize(original, 2);
+// doubled = { width: 200, height: 400 }
+```
+
+---
+
+### 5.6 blockInputEvents（阻断输入事件）
+
+**What**：阻止事件继续传播到下层节点。
+
+**API**：
+```typescript
+function blockInputEvents(target: DisplayObject): void;
+```
+
+**语义约定**：
+1. 在目标节点上添加 touch 事件监听器并标记已处理
+2. 阻止事件冒泡到父节点
+
+**最小 demo**：
+```javascript
+const modal = Popup({ app: tinyUI });
+blockInputEvents(modal);  // 阻止点击穿透到下层
+```
+
+---
+
+## 6. Complex Demos
+
+### Demo A：完整弹窗系统
+
+展示如何组合使用 Popup、TextBtn、CloseBtn 和布局工具。
+
+```javascript
+function createSettingsDialog(tinyUI) {
+  // 1. 创建弹窗容器
+  const dialog = Popup({
+    app: tinyUI,
+    bgColor: '#1a1a1a',
+    alpha: 0.95
+  });
+  
+  // 2. 添加标题
+  const title = tinyUI.createText('Settings');
+  title.color = '#ffffff';
+  title.fontSize = 36;
+  dialog.addChild(title);
+  adjustTo(dialog)(title, { h: 'center', v: 'top' });
+  title.y = 40;
+  
+  // 3. 添加关闭按钮
+  const closeBtn = CloseBtn({
+    app: tinyUI,
+    size: 40,
+    onClick: () => {
+      dialog.destroy();
+      tinyUI.render();
+    }
+  });
+  dialog.addChild(closeBtn);
+  placeCorner(dialog, closeBtn, 'top-right', { x: -20, y: 20 });
+  
+  // 4. 添加设置项
+  const musicLabel = tinyUI.createText('Music:');
+  musicLabel.color = '#cccccc';
+  musicLabel.fontSize = 24;
+  musicLabel.x = 60;
+  musicLabel.y = 120;
+  dialog.addChild(musicLabel);
+  
+  const musicToggle = TextBtn({
+    app: tinyUI,
+    text: 'ON',
+    bgColor: '#4caf50',
+    width: 80,
+    height: 40,
+    onClick: function() {
+      const isOn = this.text === 'ON';
+      this.text = isOn ? 'OFF' : 'ON';
+      this.children[0].children[0].color = isOn ? '#f44336' : '#4caf50';
+      tinyUI.render();
+    }
+  });
+  musicToggle.x = 200;
+  musicToggle.y = 110;
+  dialog.addChild(musicToggle);
+  
+  // 5. 添加确认按钮
+  const confirmBtn = TextBtn({
+    app: tinyUI,
+    text: 'Save',
+    bgColor: '#2196f3',
+    width: 120,
+    height: 50,
+    onClick: () => {
+      console.log('Settings saved');
+      dialog.destroy();
+      tinyUI.render();
+    }
+  });
+  dialog.addChild(confirmBtn);
+  adjustTo(dialog)(confirmBtn, { h: 'center', v: 'bottom' });
+  confirmBtn.y = dialog.height - 80;
+  
+  tinyUI.render();
+  return dialog;
+}
+
+createSettingsDialog(tinyUI);
+```
+
+---
+
+### Demo B：响应式布局
+
+展示如何使用布局工具实现自适应界面。
+
+```javascript
+function createResponsiveUI(tinyUI) {
+  const root = tinyUI.root;
+  
+  // 顶部栏
+  const header = tinyUI.createContainer();
+  header.width = tinyUI.stageWidth;
+  header.height = 80;
+  root.addChild(header);
+  
+  const headerBg = ShapeRect(tinyUI, { width: header.width, height: 80 }, '#333333');
+  header.addChild(headerBg);
+  
+  // 标题居中
+  const title = tinyUI.createText('My Game');
+  title.color = '#ffffff';
+  title.fontSize = 32;
+  header.addChild(title);
+  adjustTo(header)(title, { h: 'center', v: 'center' });
+  
+  // 设置按钮在右上角
+  const settingsBtn = CloseBtn({
+    app: tinyUI,
+    size: 40,
+    color: '#666666',
+    onClick: () => console.log('Settings')
+  });
+  header.addChild(settingsBtn);
+  placeCorner(header, settingsBtn, 'top-right', { x: -20, y: 20 });
+  
+  // 主内容区（自适应高度）
+  const content = tinyUI.createContainer();
+  content.width = tinyUI.stageWidth;
+  content.height = tinyUI.stageHeight - 160;
+  content.y = 80;
+  root.addChild(content);
+  
+  // 加载图片并自适应显示
+  tinyUI.createBitmapFromUrl('hero.png').then(hero => {
+    content.addChild(hero);
+    
+    // 等比缩放以适应内容区，留出边距
+    fitSize(hero, {
+      width: content.width * 0.8,
+      height: content.height * 0.8
+    });
+    
+    // 居中
+    adjustTo(content)(hero, { h: 'center', v: 'center' });
+    tinyUI.render();
+  });
+  
+  // 底部按钮栏
+  const footer = tinyUI.createContainer();
+  footer.width = tinyUI.stageWidth;
+  footer.height = 80;
+  footer.y = tinyUI.stageHeight - 80;
+  root.addChild(footer);
+  
+  const footerBg = ShapeRect(tinyUI, { width: footer.width, height: 80 }, '#444444');
+  footer.addChild(footerBg);
+  
+  // 左右两个按钮
+  const playBtn = TextBtn({
+    app: tinyUI,
+    text: 'Play',
+    bgColor: '#4caf50',
+    width: 150,
+    height: 50
+  });
+  footer.addChild(playBtn);
+  adjustTo(footer)(playBtn, { h: 'left', v: 'center' });
+  playBtn.x = 40;
+  
+  const shopBtn = TextBtn({
+    app: tinyUI,
+    text: 'Shop',
+    bgColor: '#ff9800',
+    width: 150,
+    height: 50
+  });
+  footer.addChild(shopBtn);
+  adjustTo(footer)(shopBtn, { h: 'right', v: 'center' });
+  shopBtn.x = footer.width - 190;
+  
+  tinyUI.render();
+}
+
+createResponsiveUI(tinyUI);
+```
+
+---
+
+## 7. Compatibility & Performance Notes
+
+### 7.1 依赖要求
+
+| 依赖 | 版本 | 说明 |
+|------|------|------|
+| tiny-ui-core | workspace:^ | 必须 |
+
+### 7.2 性能建议
+
+1. **组件复用**：频繁显示的弹窗可创建一次后重复使用（通过 `visible` 控制）
+2. **延迟加载**：大图资源在使用时再加载，避免启动时阻塞
+3. **批量布局**：使用 `adjustTo` 时，先完成所有子节点添加再统一对齐
+
+### 7.3 已知限制
+
+1. 组件尺寸在创建后无法动态调整（如需动态尺寸，建议销毁重建）
+2. 文本按钮的文字修改后不会自动调整背景尺寸
+3. 复杂布局需要手动计算位置，暂无自动布局系统
+
+---
+
+## 8. Appendix
+
+### 8.1 术语表
+
+| 术语 | 说明 |
+|------|------|
+| 响应式按钮 | 根据文字内容自动计算尺寸的按钮 |
+| 固定尺寸按钮 | 指定 width/height 的按钮 |
+| 透明层 | 视觉上透明但可接收事件的遮罩 |
+| 对齐函数 | adjustTo, placeCorner 等布局工具 |
+
+### 8.2 常见问题
+
+**Q：如何修改已创建按钮的文字？**  
+A：按钮组件不支持动态修改文字，建议销毁后重新创建。
+
+**Q：弹窗如何居中显示？**  
+A：Popup 默认全屏，内部元素使用 `adjustTo` 对齐到中心。
+
+**Q：如何阻止点击穿透到游戏？**  
+A：在弹窗最底层添加 `TransparentRect` 或使用 `blockInputEvents`。
+
+**Q：组件样式可以自定义吗？**  
+A：组件外观完全由参数控制（颜色、尺寸等），无外部样式依赖。

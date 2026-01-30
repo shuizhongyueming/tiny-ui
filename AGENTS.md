@@ -83,6 +83,28 @@
 2. **构建**：修改后运行 `just build` 或 `just tsc`，确保能编译通过。
 3. **提交**：提交信息要清晰；使用 `just commit` 时前缀会自动处理。
 
+### 接口文档维护（llvm.txt）
+每个 package 都包含一份 `llvm.txt` 接口文档，用于描述对外 API：
+
+- **Core 包**：`packages/core/llvm.txt`
+- **Components 包**：`packages/components/llvm.txt`
+
+**何时需要更新 llvm.txt**：
+- 新增、修改或删除对外导出的类/接口/函数
+- 修改方法签名（参数、返回值、类型）
+- 修改接口语义（锚点规则、坐标系、事件机制等）
+- 新增或修改 Complex Demos
+
+**更新规范**：
+1. 保持与代码实现一致，文档描述必须以实际代码为准
+2. 新增接口必须补充到 API Index 和 Feature Details
+3. 破坏性变更必须在文档中标注 "⚠️ Breaking Change"
+4. 版本号更新时，同步更新 llvm.txt 头部的版本声明
+
+**验证方法**：
+- 修改后搜索 `export` 关键字，确认所有导出都有文档说明
+- 检查 Demo 代码是否可以直接复制到 HTML 中运行
+
 ---
 
 ## 3. 坐标系与变换（必读）

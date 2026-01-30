@@ -25,6 +25,8 @@
   },
   "files": [
     "dist",
-    "types"
-  ]
+    "types",
+    "llvm.txt"
+  ],
+  "document": "llvm.txt"
 }

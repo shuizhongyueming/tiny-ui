@@ -1,0 +1,593 @@
+# Tiny UI Core 通用接口说明与 Demo
+
+> 目标：让第一次接触 Tiny UI Core 的人能在 5 分钟内知道"有哪些接口、怎么用"。  
+> 版本：对应代码库 v1.3.1
+
+---
+
+## 1. Intro / 为什么需要 Tiny UI Core
+
+Tiny UI Core 是 Tiny UI 的 WebGL 渲染核心，提供：
+
+- **自研渲染管线**：基于 WebGL，不依赖 DOM，适合游戏场景
+- **显示树架构**：父子嵌套、层级变换、事件冒泡
+- **与外部 WebGL 共存**：支持在现有 WebGL 渲染中叠加 UI（`patchRender`）
+- **零依赖**：仅依赖原生 WebGL API
+
+---
+
+## 2. Quick Start（5 分钟）
+
+### 2.1 HTML 基础设置
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; }
+    canvas { width: 100%; height: 100%; touch-action: none; }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <script src="tiny-ui-core.js"></script>
+  <script>
+    // 代码写在这里
+  </script>
+</body>
+</html>
+```
+
+### 2.2 初始化
+
+```javascript
+const canvas = document.getElementById('game');
+const tinyUI = new TinyUI(canvas);
+```
+
+### 2.3 三个闭环 Demo
+
+**Demo 1：显示文本**
+```javascript
+const text = tinyUI.createText('Hello, Tiny UI!');
+text.color = '#ff0000';
+text.fontSize = 48;
+text.x = tinyUI.stageWidth / 2;
+text.y = tinyUI.stageHeight / 2;
+tinyUI.root.addChild(text);
+tinyUI.render();
+```
+
+**Demo 2：点击交互**
+```javascript
+const btn = tinyUI.createText('Click Me');
+btn.color = '#ffffff';
+btn.fontSize = 32;
+btn.x = tinyUI.stageWidth / 2;
+btn.y = tinyUI.stageHeight / 2 + 100;
+tinyUI.root.addChild(btn);
+
+let count = 0;
+btn.addEventListener('touchstart', () => {
+  count++;
+  btn.text = `Clicked: ${count}`;
+  tinyUI.render();
+});
+tinyUI.render();
+```
+
+**Demo 3：加载图片**
+```javascript
+tinyUI.createBitmapFromUrl('img.png').then(bitmap => {
+  bitmap.x = tinyUI.stageWidth / 2;
+  bitmap.y = tinyUI.stageHeight / 2;
+  tinyUI.root.addChild(bitmap);
+  tinyUI.render();
+});
+```
+
+---
+
+## 3. API Index
+
+| Feature | Exports | Summary | Demo |
+|---------|---------|---------|------|
+| TinyUI | `TinyUI` (default) | 渲染引擎主类 | minimal |
+| DisplayObject | `DisplayObject` | 显示对象基类 | - |
+| Container | `Container` | 容器节点 | minimal |
+| Bitmap | `Bitmap` | 图片显示节点 | minimal |
+| Text | `Text` | 文本显示节点 | complex |
+| Graphics | `Graphics` | 矢量图形节点 | minimal |
+| Events | `EventManager`, `UIEvent`, `EventName` | 触控事件系统 | complex |
+| Math | `Matrix` | 2D 变换矩阵 | - |
+| Resource | `TextureManager`, `ShaderManager` | 资源管理（高级） | - |
+| GL State | `GLState*`, `StatePreservationStrategy` | WebGL 状态管理 | complex |
+
+---
+
+## 4. Feature Details
+
+### Feature：TinyUI（渲染引擎）
+
+**What**：WebGL 渲染引擎入口，管理整个 UI 系统的生命周期。
+
+**API**：
+```typescript
+class TinyUI {
+  constructor(
+    canvas: HTMLCanvasElement,
+    glContextAttributes?: WebGLContextAttributes,
+    contextId?: 'webgl' | 'webgl2',
+    option?: TinyUIOption
+  );
+
+  root: Container;
+  stageWidth: number;
+  stageHeight: number;
+  stageSize: Size;
+  
+  shaderManager: ShaderManager;
+  textureManager: TextureManager;
+  eventManager: EventManager;
+  
+  createContainer(name?: string): Container;
+  createText(text: string, name?: string): Text;
+  createGraphics(name?: string): Graphics;
+  createBitmapFromUrl(url: string): Promise<Bitmap>;
+  createBitmapFromImage(image: HTMLImageElement): Bitmap;
+  createBitmapFromCanvas(canvas: HTMLCanvasElement, resize?: boolean): Bitmap;
+  
+  render(): void;
+  patchRender(): void;
+  destroy(): void;
+}
+```
+
+**语义约定**：
+1. DPR 自动处理：`canvas.width = clientWidth * devicePixelRatio`
+2. `stageWidth/Height` 返回物理像素
+3. `render()` 会清空画布；`patchRender()` 不清空，用于叠加渲染
+
+**常见坑**：
+- WebGL 上下文创建失败会抛出 `Error("WebGL not supported")`
+- 销毁后不可复用，需要重新 `new TinyUI()`
+
+---
+
+### Feature：DisplayObject（显示对象基类）
+
+**What**：所有可视元素的基类。
+
+**API**：
+```typescript
+class DisplayObject {
+  x: number;
+  y: number;
+  width: number;                // 只读
+  height: number;               // 只读
+  scaleX: number;
+  scaleY: number;
+  rotation: number;             // 角度（0-360）
+  anchorX: number;              // 0-1，默认 0.5
+  anchorY: number;              // 0-1，默认 0.5
+  alpha: number;
+  visible: boolean;
+  
+  moveTo(x: number, y: number): void;
+  moveToPoint(p: Point): void;
+  scaleTo(scale: number): void;
+  scaleToFit(width: number, height?: number): void;
+  scaleToFitSize(size: Size): void;
+  
+  addEventListener(eventName: EventName, handler: Callback<UIEvent>): void;
+  removeEventListener(eventName: EventName, handler: Callback<UIEvent>): void;
+  hasEventListener(eventName: EventName): boolean;
+  
+  getLocalTransformMatrix(): Matrix;
+  getGlobalTransformMatrix(): Matrix;
+  hitTest(x: number, y: number): boolean;
+  getBounds(): Rect;
+  getSize(): Size;
+  destroy(): void;
+}
+```
+
+**语义约定**：
+1. `width/height` 是**只读**的，通过 `scaleTo()` 调整显示尺寸
+2. 锚点 `(0,0)` 表示左上角，`(0.5,0.5)` 表示中心（默认）
+3. 变换顺序：锚点偏移 → 位移 → （锚点回移 → 旋转/缩放 → 锚点回移）
+
+**常见坑**：
+- 直接修改 `width/height` 无效（无 setter），需用 `scaleX/scaleY` 或 `scaleTo()`
+- 设置 `visible = false` 或 `alpha <= 0` 的节点不响应事件
+
+---
+
+### Feature：Container（容器）
+
+**What**：可包含子节点的容器，用于组织显示层级。
+
+**API**：
+```typescript
+class Container extends DisplayObject {
+  children: DisplayObject[];
+  
+  width: number;                // 可读可写
+  height: number;               // 可读可写
+  
+  setSize(size: Size): void;
+  addChild(child: DisplayObject): void;
+  removeChild(child: DisplayObject): void;
+}
+```
+
+**语义约定**：
+1. 子节点按数组顺序渲染，后添加的在上方
+2. 事件冒泡：从最后一个子节点开始检测（上层优先）
+3. 容器尺寸可手动设置，用于 hitTest 和子节点定位
+
+**最小 demo**：
+```javascript
+const container = tinyUI.createContainer();
+container.width = 400;
+container.height = 300;
+container.x = tinyUI.stageWidth / 2;
+container.y = tinyUI.stageHeight / 2;
+
+const child = tinyUI.createText('In Container');
+child.y = 100;
+container.addChild(child);
+
+tinyUI.root.addChild(container);
+tinyUI.render();
+```
+
+---
+
+### Feature：Bitmap（图片）
+
+**What**：显示图片的节点。
+
+**API**：
+```typescript
+class Bitmap extends DisplayObject {
+  src: string;
+  texture: WebGLTexture | null;
+  imgLoadPromise: Promise<Bitmap> | null;
+  
+  loadFromUrl(url: string, resize?: boolean): Promise<Bitmap>;
+  loadFromImage(image: HTMLImageElement, resize?: boolean): Bitmap;
+  loadFromCanvas(canvas: HTMLCanvasElement, resize?: boolean): Bitmap;
+}
+```
+
+**语义约定**：
+1. `resize = true` 时，加载后自动设置 `width/height` 为图片尺寸
+2. `createBitmapFromUrl()` 是异步的，返回 Promise
+3. 纹理在 `destroy()` 时自动释放
+
+**常见坑**：
+- 跨域图片需要设置 `crossOrigin`，否则 WebGL 报错
+- 使用 `createBitmapFromImage()` 时需确保图片已加载完成
+
+**最小 demo**：
+```javascript
+tinyUI.createBitmapFromUrl('img.png').then(bitmap => {
+  bitmap.x = tinyUI.stageWidth / 2;
+  bitmap.y = tinyUI.stageHeight / 2;
+  tinyUI.root.addChild(bitmap);
+  tinyUI.render();
+});
+```
+
+---
+
+### Feature：Text（文本）
+
+**What**：渲染文本的节点，支持样式、换行和对齐。
+
+**API**：
+```typescript
+class Text extends DisplayObject {
+  text: string;
+  color: string | number;
+  fontFamily: string;
+  fontSize: number;
+  fontWeight: 'normal' | 'bold';
+  lineHeight: number;           // 0 表示自动
+  maxWidth: number;             // 0 表示无限制
+  align: 'left' | 'center' | 'right';
+}
+```
+
+**语义约定**：
+1. 修改任意样式属性后，下次渲染自动重绘纹理
+2. `maxWidth > 0` 时自动换行（按空格分词）
+3. 支持手动换行符 `\n`
+
+**常见坑**：
+- 每帧修改文本会导致频繁重绘纹理，影响性能
+- 颜色数字格式 `0xff0000` 会被转换为 `#ff0000`
+
+**最小 demo**：
+```javascript
+const text = tinyUI.createText('Hello\nWorld!');
+text.color = '#ff0000';
+text.fontSize = 48;
+text.maxWidth = 200;
+text.align = 'center';
+text.x = tinyUI.stageWidth / 2;
+text.y = tinyUI.stageHeight / 2;
+tinyUI.root.addChild(text);
+tinyUI.render();
+```
+
+---
+
+### Feature：Graphics（矢量图形）
+
+**What**：绘制矢量图形（矩形、圆形）的节点。
+
+**API**：
+```typescript
+class Graphics extends DisplayObject {
+  commands: GraphicsCommand[];
+  
+  drawRect(x: number, y: number, width: number, height: number, fillColor: string): Graphics;
+  drawCircle(x: number, y: number, radius: number, fillColor: string): Graphics;
+  clear(): Graphics;
+}
+```
+
+**最小 demo**：
+```javascript
+const graphics = tinyUI.createGraphics();
+graphics.drawRect(0, 0, 100, 100, '#ff0000');
+graphics.drawCircle(50, 50, 30, '#00ff00');
+graphics.x = tinyUI.stageWidth / 2;
+graphics.y = tinyUI.stageHeight / 2;
+tinyUI.root.addChild(graphics);
+tinyUI.render();
+```
+
+---
+
+### Feature：Events（事件系统）
+
+**What**：触控事件处理系统，支持 touch/mouse 自动适配。
+
+**API**：
+```typescript
+enum EventName {
+  TouchMove = 'touchmove',
+  TouchStart = 'touchstart',
+  TouchEnd = 'touchend',
+}
+
+class UIEvent {
+  type: EventName;
+  x: number;
+  y: number;
+  originalEvent: Event;
+  target: DisplayObject | null;
+  propagationStopped: boolean;
+  markHandled(): void;
+}
+```
+
+**语义约定**：
+1. 事件冒泡：从后向前遍历子节点（上层优先接收）
+2. 坐标已自动转换为 canvas 像素坐标（考虑 DPR）
+3. 只有 `visible = true` 且 `alpha > 0` 的节点接收事件
+
+**最小 demo**：
+```javascript
+const box = tinyUI.createGraphics();
+box.drawRect(0, 0, 200, 100, '#6584cd');
+box.x = tinyUI.stageWidth / 2;
+box.y = tinyUI.stageHeight / 2;
+
+box.addEventListener('touchstart', (e) => {
+  console.log('Touch at:', e.x, e.y);
+  box.alpha = 0.5;
+  tinyUI.render();
+});
+
+tinyUI.root.addChild(box);
+tinyUI.render();
+```
+
+---
+
+### Feature：Matrix（变换矩阵）
+
+**What**：2D 仿射变换矩阵。
+
+**API**：
+```typescript
+class Matrix {
+  constructor(a?: number, b?: number, c?: number, d?: number, tx?: number, ty?: number);
+  
+  translate(x: number, y: number): Matrix;
+  rotate(angle: number): Matrix;        // 弧度
+  scale(x: number, y: number): Matrix;
+  multiply(matrix: Matrix): Matrix;
+  invert(): Matrix | null;
+  clone(): Matrix;
+  transformPoint(x: number, y: number): Point;
+  toArray(): number[];
+}
+```
+
+---
+
+## 5. Complex Demos
+
+### Demo A：嵌套容器与变换
+
+```javascript
+const tinyUI = new TinyUI(canvas);
+
+const parent = tinyUI.createContainer('parent');
+parent.width = 300;
+parent.height = 300;
+parent.x = tinyUI.stageWidth / 2;
+parent.y = tinyUI.stageHeight / 2;
+parent.anchorX = 0.5;
+parent.anchorY = 0.5;
+
+const bg = tinyUI.createGraphics();
+bg.drawRect(0, 0, 300, 300, '#eeeeee');
+parent.addChild(bg);
+
+const child1 = tinyUI.createGraphics();
+child1.drawRect(0, 0, 100, 100, '#ff0000');
+child1.anchorX = 0.5;
+child1.anchorY = 0.5;
+child1.x = 50;
+child1.y = 50;
+parent.addChild(child1);
+
+tinyUI.root.addChild(parent);
+
+let rotation = 0;
+function animate() {
+  rotation += 1;
+  parent.rotation = rotation;
+  tinyUI.render();
+  requestAnimationFrame(animate);
+}
+animate();
+```
+
+---
+
+### Demo B：与外部 WebGL 共存
+
+```javascript
+const canvas = document.getElementById('game');
+
+// 1. 初始化游戏渲染器
+const gameRenderer = new YourGameRenderer(canvas);
+
+// 2. 初始化 Tiny UI（共享 WebGL 上下文）
+const gl = canvas.getContext('webgl', { preserveDrawingBuffer: true });
+const tinyUI = new TinyUI(canvas, { preserveDrawingBuffer: true }, 'webgl', {
+  glState: new TinyUI.GLState(gl)
+});
+
+// 3. 创建 UI
+const uiText = tinyUI.createText('Score: 0');
+uiText.color = '#ffffff';
+uiText.fontSize = 24;
+uiText.x = 20;
+uiText.y = 20;
+tinyUI.root.addChild(uiText);
+
+// 4. 渲染循环
+function gameLoop() {
+  gameRenderer.render();
+  tinyUI.patchRender();  // 不清理画布，保存/恢复 GL 状态
+  requestAnimationFrame(gameLoop);
+}
+gameLoop();
+```
+
+---
+
+## 6. Coordinate & Transform Semantics
+
+### 6.1 坐标系
+
+| 属性 | 说明 |
+|------|------|
+| 原点 | 左上角 `(0, 0)` |
+| X 方向 | 向右为正 |
+| Y 方向 | 向下为正 |
+| 单位 | 物理像素（已考虑 DPR）|
+
+### 6.2 DPR 处理
+
+```javascript
+const dpr = window.devicePixelRatio;
+canvas.width = canvas.clientWidth * dpr;
+canvas.height = canvas.clientHeight * dpr;
+```
+
+### 6.3 锚点（Anchor）
+
+| anchorX | anchorY | (x, y) 对应位置 |
+|---------|---------|-----------------|
+| 0 | 0 | 左上角 |
+| 0.5 | 0.5 | 中心（默认）|
+| 1 | 1 | 右下角 |
+
+变换（旋转/缩放）围绕锚点进行。
+
+### 6.4 父子变换
+
+子节点的最终位置 = 父节点矩阵 × 子节点本地矩阵
+
+### 6.5 尺寸规则
+
+| 节点类型 | width/height | 调整方式 |
+|----------|--------------|----------|
+| Bitmap | 只读 | `scaleTo()` |
+| Text | 只读 | `scaleTo()` |
+| Graphics | 只读 | `scaleTo()` |
+| Container | 可读可写 | 直接赋值或 `setSize()` |
+
+---
+
+## 7. Compatibility & Performance Notes
+
+### 7.1 浏览器兼容性
+
+| 特性 | 要求 |
+|------|------|
+| WebGL 1.0 | 必需 |
+| WebGL 2.0 | 可选 |
+| Canvas 2D | 必需（用于文本渲染）|
+| Touch 事件 | 移动端必需，桌面端自动适配鼠标 |
+
+### 7.2 性能建议
+
+1. 避免每帧修改文本属性（触发纹理重绘）
+2. 批量渲染：一次性修改多个节点后调用一次 `render()`
+3. 使用 `visible = false` 替代频繁 `addChild/removeChild`
+4. 图片纹理自动对齐到 2 的幂次
+
+### 7.3 已知限制
+
+1. 文本渲染依赖离屏 Canvas 2D
+2. 圆形使用 40 分段近似
+3. Graphics 仅支持矩形和圆形
+4. 不支持遮罩、裁剪、滤镜
+
+---
+
+## 8. Appendix
+
+### 8.1 术语表
+
+| 术语 | 说明 |
+|------|------|
+| 显示树 | 层级化的节点结构 |
+| 锚点 | 节点变换的参考点（0-1）|
+| DPR | 设备像素比 |
+| patchRender | 补丁式渲染，用于叠加 |
+
+### 8.2 常见问题
+
+**Q：为什么修改了属性但没有效果？**  
+A：需要调用 `tinyUI.render()`。
+
+**Q：为什么图片显示为黑色？**  
+A：跨域问题，需设置 `crossOrigin = 'anonymous'`。
+
+**Q：如何设置背景色？**  
+A：创建全屏 Graphics 绘制矩形作为背景。
