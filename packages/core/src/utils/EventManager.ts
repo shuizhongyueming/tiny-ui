@@ -1,24 +1,49 @@
 import { EventName } from "../type";
 import type TinyUI from "../TinyUI";
 import { DisplayObject } from "../DisplayObject";
-import { UIEvent } from "../utils/UIEvent";
+import { UIEvent, type StopType } from "../utils/UIEvent";
 import { Container } from "../Container";
 
 export type TouchEventName = "touchstart" | "touchmove" | "touchend";
+export type MouseEventName = "mousedown" | "mousemove" | "mouseup";
 export type TouchEventHandler = (event: TouchEvent) => void;
 export type TouchEventListeningHandler = (
   eventName: TouchEventName,
   handler: TouchEventHandler,
 ) => void;
 
+type TouchRecord = {
+  stopTypes: StopType[];
+  time: number;
+};
+
 export interface EventManagerOptions {
   handleTouchEventListening?: TouchEventListeningHandler;
 }
+
+// touch 到 mouse 的事件映射
+const TOUCH_TO_MOUSE_MAP: Record<string, EventName> = {
+  [EventName.TouchStart]: EventName.MouseDown,
+  [EventName.TouchMove]: EventName.MouseMove,
+  [EventName.TouchEnd]: EventName.MouseUp,
+};
+
+// mouse 到 touch 的反向映射
+const MOUSE_TO_TOUCH_MAP: Record<string, EventName> = {
+  [EventName.MouseDown]: EventName.TouchStart,
+  [EventName.MouseMove]: EventName.TouchMove,
+  [EventName.MouseUp]: EventName.TouchEnd,
+};
 
 export class EventManager {
   private canvas: HTMLCanvasElement;
   private app: TinyUI;
   private eventListeners: Map<string, EventListener> = new Map();
+  
+  // 记录被拦截的 touch 事件
+  private touchEventRecords: Map<EventName, TouchRecord> = new Map();
+  // 时间窗口（毫秒）
+  private readonly TIME_WINDOW_MS: number = 300;
 
   constructor(app: TinyUI, options: EventManagerOptions = {}) {
     this.app = app;
@@ -27,11 +52,12 @@ export class EventManager {
   }
 
   private setupEventListeners(options: EventManagerOptions): void {
+    console.log("[TinyUI:EventManager] Setting up event listeners");
+
     // 触摸开始事件
     const touchStartListener = this.createTouchListener(EventName.TouchStart);
-
     if (options.handleTouchEventListening) {
-      options.handleTouchEventListening("touchstart", touchStartListener);
+      options.handleTouchEventListening("touchstart", touchStartListener as TouchEventHandler);
     } else {
       this.canvas.addEventListener("touchstart", touchStartListener);
     }
@@ -40,7 +66,7 @@ export class EventManager {
     // 触摸移动事件
     const touchMoveListener = this.createTouchListener(EventName.TouchMove);
     if (options.handleTouchEventListening) {
-      options.handleTouchEventListening("touchmove", touchMoveListener);
+      options.handleTouchEventListening("touchmove", touchMoveListener as TouchEventHandler);
     } else {
       this.canvas.addEventListener("touchmove", touchMoveListener);
     }
@@ -49,11 +75,24 @@ export class EventManager {
     // 触摸结束事件
     const touchEndListener = this.createTouchListener(EventName.TouchEnd);
     if (options.handleTouchEventListening) {
-      options.handleTouchEventListening("touchend", touchEndListener);
+      options.handleTouchEventListening("touchend", touchEndListener as TouchEventHandler);
     } else {
       this.canvas.addEventListener("touchend", touchEndListener);
     }
     this.eventListeners.set("touchend", touchEndListener);
+
+    // Mouse 事件 - 不使用 handleTouchEventListening
+    const mouseDownListener = this.createMouseListener(EventName.MouseDown);
+    this.canvas.addEventListener("mousedown", mouseDownListener);
+    this.eventListeners.set("mousedown", mouseDownListener);
+
+    const mouseMoveListener = this.createMouseListener(EventName.MouseMove);
+    this.canvas.addEventListener("mousemove", mouseMoveListener);
+    this.eventListeners.set("mousemove", mouseMoveListener);
+
+    const mouseUpListener = this.createMouseListener(EventName.MouseUp);
+    this.canvas.addEventListener("mouseup", mouseUpListener);
+    this.eventListeners.set("mouseup", mouseUpListener);
   }
 
   private createTouchListener(eventName: EventName): EventListener {
@@ -69,10 +108,7 @@ export class EventManager {
       const canvasRect = this.canvas.getBoundingClientRect();
       let x: number, y: number;
 
-      if (event instanceof MouseEvent) {
-        x = event.clientX - canvasRect.left;
-        y = event.clientY - canvasRect.top;
-      } else if (event instanceof TouchEvent) {
+      if (event instanceof TouchEvent) {
         const touch = event.touches[0] || event.changedTouches[0];
         x = touch.clientX - canvasRect.left;
         y = touch.clientY - canvasRect.top;
@@ -95,9 +131,80 @@ export class EventManager {
         target: null,
       });
 
-      // 将事件传递给UI树，直接使用app.root
+      // 将事件传递给UI树
       this.dispatchEventToNode(this.app.root, uiEvent);
+
+      // 分发完成后，如果被拦截，记录该事件
+      const stopTypes = uiEvent.getStopTypes();
+      if (stopTypes.length > 0) {
+        this.touchEventRecords.set(eventName, {
+          stopTypes,
+          time: Date.now(),
+        });
+      }
     };
+  }
+
+  private createMouseListener(eventName: EventName): EventListener {
+    return (event: Event) => {
+      // 查找对应的 touch 事件记录
+      const touchEventName = MOUSE_TO_TOUCH_MAP[eventName];
+      const record = this.touchEventRecords.get(touchEventName);
+
+      if (record) {
+        // 先清理记录，避免潜在问题
+        this.touchEventRecords.delete(touchEventName);
+        // 检查时间窗口
+        const timeDiff = Date.now() - record.time;
+        if (timeDiff <= this.TIME_WINDOW_MS) {
+          // 在有效期内，执行同样的 stop 操作
+          for (const stopType of record.stopTypes) {
+            if (stopType === 'stopImmediatePropagation') {
+              event.stopImmediatePropagation();
+            } else if (stopType === 'stopPropagation') {
+              event.stopPropagation();
+            }
+          }
+        } else {
+          // 过期，继续处理 mouse 事件
+          this.processMouseEvent(eventName, event);
+        }
+      } else {
+        // 没有记录，正常处理 mouse 事件
+        this.processMouseEvent(eventName, event);
+      }
+    };
+  }
+
+  private processMouseEvent(eventName: EventName, event: Event): void {
+    // 转换事件坐标到canvas坐标系
+    const canvasRect = this.canvas.getBoundingClientRect();
+    let x: number, y: number;
+
+    if (event instanceof MouseEvent) {
+      x = event.clientX - canvasRect.left;
+      y = event.clientY - canvasRect.top;
+    } else {
+      return;
+    }
+
+    // 缩放坐标以适应canvas的实际尺寸
+    const scaleX = this.canvas.width / canvasRect.width;
+    const scaleY = this.canvas.height / canvasRect.height;
+    x *= scaleX;
+    y *= scaleY;
+
+    // 创建自定义事件对象
+    const uiEvent = new UIEvent({
+      type: eventName,
+      x,
+      y,
+      originalEvent: event,
+      target: null,
+    });
+
+    // 将事件传递给UI树
+    this.dispatchEventToNode(this.app.root, uiEvent);
   }
 
   private dispatchEventToNode(
@@ -139,5 +246,6 @@ export class EventManager {
     }
 
     this.eventListeners.clear();
+    this.touchEventRecords.clear();
   }
 }

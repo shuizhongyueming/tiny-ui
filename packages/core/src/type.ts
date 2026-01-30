@@ -12,6 +12,9 @@ export enum EventName {
   TouchMove = 'touchmove',
   TouchStart = 'touchstart',
   TouchEnd = 'touchend',
+  MouseMove = 'mousemove',
+  MouseDown = 'mousedown',
+  MouseUp = 'mouseup',
 }
 
 export interface Color { r: number, g: number, b: number, a: number }
