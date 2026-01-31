@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { page } from 'vitest/browser';
 
 describe('Engine Coexistence', () => {
   beforeEach(async () => {
-    // Load test page
+    // Navigate to test page
     await page.goto('http://localhost:8080/pixi-scene.html');
     await page.waitForTimeout(1000); // Wait for initialization
   });
