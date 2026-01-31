@@ -9,14 +9,25 @@
     "url": "https://github.com/shuizhongyueming/tiny-ui.git"
   },
   "scripts": {
-    "test": "vitest"
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration --browser.name=chromium",
+    "test:visual": "vitest run tests/visual --browser.name=chromium",
+    "test:coexistence": "playwright test tests/integration/engine-coexistence",
+    "test:ui": "vitest --ui",
+    "test:watch": "vitest"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "packageManager": "pnpm@10.6.5",
   "devDependencies": {
+    "@vitest/browser": "^4.0.18",
+    "canvas": "^3.2.1",
     "esbuild": "^0.25.1",
+    "phaser": "^3.80.0",
+    "pixi.js": "^8.1.0",
+    "playwright": "^1.58.1",
     "typescript": "^5.8.2",
     "vitest": "^4.0.18"
   },

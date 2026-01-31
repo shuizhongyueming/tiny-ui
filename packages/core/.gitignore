@@ -1,0 +1,11 @@
+# Test outputs
+tests/visual/snapshots/
+playwright-report/
+test-results/
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Vitest
+.vitest/

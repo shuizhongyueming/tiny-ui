@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Pixi + TinyUI Coexistence Test</title>
+  <script src="https://cdn.jsdelivr.net/npm/pixi.js@8/dist/pixi.min.js"></script>
+  <script src="../../../dist/tiny-ui-core.js"></script>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+(async () => {
+  const canvas = document.getElementById('game');
+  canvas.width = 800;
+  canvas.height = 600;
+  
+  // 1. Pixi initializes first
+  const pixiApp = new PIXI.Application({
+    canvas: canvas,
+    resizeTo: canvas,
+    backgroundColor: 0x1099bb,
+    antialias: true,
+  });
+  
+  // Pixi draws a rotating rectangle
+  const pixiRect = new PIXI.Graphics();
+  pixiRect.beginFill(0xFF0000);
+  pixiRect.drawRect(0, 0, 100, 100);
+  pixiRect.endFill();
+  pixiRect.x = 200;
+  pixiRect.y = 200;
+  pixiRect.rotation = 0.5;
+  pixiApp.stage.addChild(pixiRect);
+  
+  // Initial Pixi render
+  pixiApp.render();
+  
+  // 2. TinyUI uses GLState to coexist
+  const glState = new TinyUI.GLState(pixiApp.renderer.gl);
+  glState.ensureSyncedFromGL();
+  
+  const tinyUI = new TinyUI(
+    canvas,
+    {},
+    'webgl',
+    { glState }
+  );
+  
+  // 3. TinyUI adds UI elements
+  const uiText = tinyUI.createText('UI Overlay');
+  uiText.x = 400;
+  uiText.y = 300;
+  uiText.color = '#00FF00';
+  uiText.fontSize = 32;
+  tinyUI.root.addChild(uiText);
+  
+  const uiRect = tinyUI.createGraphics();
+  uiRect.drawRect(0, 0, 80, 40, '#FFFF00');
+  uiRect.x = 500;
+  uiRect.y = 400;
+  tinyUI.root.addChild(uiRect);
+  
+  // 4. Animation loop: Pixi tick -> TinyUI patchRender
+  let frameCount = 0;
+  pixiApp.ticker.add(() => {
+    pixiRect.rotation += 0.01;
+    pixiApp.render();
+    tinyUI.patchRender();
+    frameCount++;
+  });
+  
+  // Export for testing
+  window.testScenario = { 
+    pixiApp, 
+    tinyUI, 
+    pixiRect, 
+    uiText,
+    getFrameCount: () => frameCount
+  };
+})();
+</script>
+</body>
+</html>

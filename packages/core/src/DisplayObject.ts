@@ -54,6 +54,9 @@ export class DisplayObject extends Emitter {
       this.emit("resize", { width: value, height: this._height });
     }
   }
+  _setWidth(value: number): void {
+    this.setWidth(value);
+  }
 
   protected setHeight(value: number): void {
     const oldValue = this._height;
@@ -61,6 +64,9 @@ export class DisplayObject extends Emitter {
     if (oldValue !== value) {
       this.emit("resize", { width: this._width, height: value });
     }
+  }
+  _setHeight(value: number): void {
+    this.setHeight(value);
   }
 
   scaleToFit(width: number, height?: number): void {
@@ -122,8 +128,10 @@ export class DisplayObject extends Emitter {
   }
 
   hasEventListener(eventName: EventName): boolean {
-    return this.eventListeners.has(eventName) &&
-      this.eventListeners.get(eventName)!.size > 0;
+    return (
+      this.eventListeners.has(eventName) &&
+      this.eventListeners.get(eventName)!.size > 0
+    );
   }
 
   // 返回对象自身的本地变换矩阵
@@ -143,7 +151,8 @@ export class DisplayObject extends Emitter {
       matrix.translate(anchorOffsetX, anchorOffsetY);
 
       // 应用旋转和缩放
-      matrix.rotate(this.rotation * Math.PI / 180)
+      matrix
+        .rotate((this.rotation * Math.PI) / 180)
         .scale(this.scaleX, this.scaleY);
 
       // 移回原位置
@@ -171,22 +180,26 @@ export class DisplayObject extends Emitter {
   // 计算全局边界框
   getBounds(): Rect {
     // 获取元素自身的宽高（考虑scale是否影响尺寸）
-    const finalWidth = this.isScaleAffectedSize ? this.width * this.scaleX : this.width;
-    const finalHeight = this.isScaleAffectedSize ? this.height * this.scaleY : this.height;
+    const finalWidth = this.isScaleAffectedSize
+      ? this.width * this.scaleX
+      : this.width;
+    const finalHeight = this.isScaleAffectedSize
+      ? this.height * this.scaleY
+      : this.height;
 
     // 创建元素四个角的本地坐标
     const localPoints = [
-      { x: 0, y: 0 },                    // 左上
-      { x: finalWidth, y: 0 },           // 右上
+      { x: 0, y: 0 }, // 左上
+      { x: finalWidth, y: 0 }, // 右上
       { x: finalWidth, y: finalHeight }, // 右下
-      { x: 0, y: finalHeight }           // 左下
+      { x: 0, y: finalHeight }, // 左下
     ];
 
     // 获取全局变换矩阵
     const matrix = this.getGlobalTransformMatrix();
 
     // 应用变换矩阵到所有点
-    const globalPoints = localPoints.map(point => {
+    const globalPoints = localPoints.map((point) => {
       const transformed = matrix.transformPoint(point.x, point.y);
       return { x: transformed.x, y: transformed.y };
     });
@@ -208,14 +221,14 @@ export class DisplayObject extends Emitter {
       x: minX,
       y: minY,
       width: maxX - minX,
-      height: maxY - minY
+      height: maxY - minY,
     };
   }
 
   getSize(): Size {
     return {
       width: this.width,
-      height: this.height
+      height: this.height,
     };
   }
 
@@ -234,8 +247,12 @@ export class DisplayObject extends Emitter {
     const localPoint = invertMatrix.transformPoint(x, y);
 
     // 检查本地坐标是否在对象的边界内
-    return localPoint.x >= 0 && localPoint.x <= this.width &&
-      localPoint.y >= 0 && localPoint.y <= this.height;
+    return (
+      localPoint.x >= 0 &&
+      localPoint.x <= this.width &&
+      localPoint.y >= 0 &&
+      localPoint.y <= this.height
+    );
   }
 
   render(_matrix: Matrix): void {

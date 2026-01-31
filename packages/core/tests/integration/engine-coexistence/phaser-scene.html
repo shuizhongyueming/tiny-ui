@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Phaser + TinyUI Coexistence Test</title>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.0/dist/phaser.min.js"></script>
+  <script src="../../../dist/tiny-ui-core.js"></script>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+<script>
+class MainScene extends Phaser.Scene {
+  constructor() {
+    super({ key: 'MainScene' });
+  }
+  
+  create() {
+    // Phaser creates a rectangle
+    this.rect = this.add.rectangle(200, 200, 100, 100, 0xFF0000);
+    this.rect.rotation = 0.5;
+    
+    // Initialize TinyUI after Phaser
+    const canvas = this.game.canvas;
+    const glState = new TinyUI.GLState(this.game.renderer.gl);
+    glState.ensureSyncedFromGL();
+    
+    this.tinyUI = new TinyUI(
+      canvas,
+      {},
+      'webgl',
+      { glState }
+    );
+    
+    // Add TinyUI overlay
+    this.uiText = this.tinyUI.createText('Phaser + TinyUI');
+    this.uiText.x = 400;
+    this.uiText.y = 300;
+    this.uiText.color = '#00FF00';
+    this.uiText.fontSize = 24;
+    this.tinyUI.root.addChild(this.uiText);
+    
+    // Store for testing
+    window.testScenario = {
+      phaserGame: this.game,
+      tinyUI: this.tinyUI,
+      rect: this.rect,
+      uiText: this.uiText
+    };
+  }
+  
+  update() {
+    this.rect.rotation += 0.01;
+    // Phaser renders, then TinyUI patches
+    this.tinyUI.patchRender();
+  }
+}
+
+const config = {
+  type: Phaser.WEBGL,
+  width: 800,
+  height: 600,
+  parent: 'game-container',
+  backgroundColor: '#1099bb',
+  scene: MainScene,
+};
+
+const game = new Phaser.Game(config);
+</script>
+</body>
+</html>
