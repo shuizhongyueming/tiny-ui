@@ -3,27 +3,27 @@ import type TinyUI from "./TinyUI";
 import { type Matrix } from "./utils/Matrix";
 import { nextPowerOfTwo } from "./utils/Power2";
 
-type FontWeight = 'normal' | 'bold';
-type TextAlign = 'left' | 'center' | 'right';
+type FontWeight = "normal" | "bold";
+type TextAlign = "left" | "center" | "right";
 
 export class Text extends DisplayObject {
-  private _text: string = '';
-  private _color: string = '#000000';
-  private _fontFamily: string = 'Arial';
+  private _text: string = "";
+  private _color: string = "#000000";
+  private _fontFamily: string = "Arial";
   private _fontSize: number = 16;
   private _lineHeight: number = 0; // 0 表示自动计算
-  private _fontWeight: FontWeight = 'normal';
+  private _fontWeight: FontWeight = "normal";
   private _maxWidth: number = 0; // 0 表示无限制
-  private _align: TextAlign = 'left';
+  private _align: TextAlign = "left";
 
   texture: WebGLTexture | null = null;
   textureNeedsUpdate: boolean = true;
   private textureWidth: number = 0;
   private textureHeight: number = 0;
-  private previousText: string = '';
+  private previousText: string = "";
   private canvas: HTMLCanvasElement | null = null;
 
-  constructor(app: TinyUI, name: string = 'Text') {
+  constructor(app: TinyUI, name: string = "Text") {
     super(app, name);
   }
 
@@ -70,9 +70,9 @@ export class Text extends DisplayObject {
 
   // 添加一个私有方法来处理颜色格式转换
   private _formatColor(color: string | number): string {
-    if (typeof color === 'number') {
+    if (typeof color === "number") {
       // 处理 0xRRGGBB 格式，转换为 #RRGGBB
-      return `#${color.toString(16).padStart(6, '0')}`;
+      return `#${color.toString(16).padStart(6, "0")}`;
     }
 
     // 如果已经是字符串格式，直接返回
@@ -142,7 +142,7 @@ export class Text extends DisplayObject {
       this.setWidth(0);
       this.setHeight(0);
       this.textureNeedsUpdate = false;
-      this.previousText = '';
+      this.previousText = "";
       return;
     }
 
@@ -152,15 +152,15 @@ export class Text extends DisplayObject {
     }
 
     if (!this.canvas) {
-      this.canvas = document.createElement('canvas');
+      this.canvas = document.createElement("canvas");
     }
 
     // 创建离屏canvas
     const canvas = this.canvas;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
 
     if (!ctx) {
-      console.error('Failed to create 2D context for canvas');
+      console.error("Failed to create 2D context for canvas");
       return;
     }
 
@@ -176,33 +176,67 @@ export class Text extends DisplayObject {
     let lines: string[] = [];
 
     // 首先处理换行符
-    const linesFromBreaks = this._text.split('\n');
+    const linesFromBreaks = this._text.split("\n");
 
     if (this._maxWidth > 0) {
       // 多行文本处理 - 需要考虑手动换行和自动换行
       for (const lineText of linesFromBreaks) {
         if (lineText.length === 0) {
           // 空行直接添加
-          lines.push('');
+          lines.push("");
           continue;
         }
 
-        const words = lineText.split(' ');
-        let currentLine = words[0];
+        const words = lineText.split(" ");
+        let currentLine = "";
 
-        for (let i = 1; i < words.length; i++) {
+        for (let i = 0; i < words.length; i++) {
           const word = words[i];
-          const width = ctx.measureText(currentLine + ' ' + word).width;
+          const testLine =
+            currentLine.length === 0 ? word : currentLine + " " + word;
+          const width = ctx.measureText(testLine).width;
 
-          if (width < this._maxWidth) {
-            currentLine += ' ' + word;
+          if (width <= this._maxWidth) {
+            currentLine = testLine;
           } else {
-            lines.push(currentLine);
-            currentLine = word;
+            // 如果当前行不为空，先推入当前行
+            if (currentLine.length > 0) {
+              lines.push(currentLine);
+              currentLine = "";
+            }
+
+            // 处理单个超长单词 - 按字符强制换行
+            const wordWidth = ctx.measureText(word).width;
+            if (wordWidth > this._maxWidth) {
+              let charLine = "";
+              for (let j = 0; j < word.length; j++) {
+                const char = word[j];
+                const testCharLine = charLine + char;
+                const charWidth = ctx.measureText(testCharLine).width;
+
+                if (charWidth <= this._maxWidth) {
+                  charLine = testCharLine;
+                } else {
+                  if (charLine.length > 0) {
+                    lines.push(charLine);
+                  }
+                  charLine = char;
+                }
+              }
+              if (charLine.length > 0) {
+                currentLine = charLine;
+              }
+            } else {
+              // 单词未超长，作为新行开始
+              currentLine = word;
+            }
           }
         }
 
-        lines.push(currentLine);
+        // 推入最后一行
+        if (currentLine.length > 0) {
+          lines.push(currentLine);
+        }
       }
 
       textWidth = this._maxWidth;
@@ -238,15 +272,15 @@ export class Text extends DisplayObject {
 
     // 重新设置字体 (因为canvas尺寸改变后会重置字体)
     ctx.font = `${this._fontWeight} ${this._fontSize}px ${this._fontFamily}`;
-    ctx.textBaseline = 'top';
+    ctx.textBaseline = "top";
     ctx.fillStyle = this._color;
     ctx.textAlign = this._align;
 
     // 计算对齐位置
     let x = 2;
-    if (this._align === 'center') {
+    if (this._align === "center") {
       x = originalWidth / 2;
-    } else if (this._align === 'right') {
+    } else if (this._align === "right") {
       x = originalWidth - 2;
     }
 
@@ -300,10 +334,14 @@ export class Text extends DisplayObject {
 
     // 顶点位置 (矩形)
     const positions = [
-      0, 0,
-      this.width, 0,
-      this.width, this.height,
-      0, this.height,
+      0,
+      0,
+      this.width,
+      0,
+      this.width,
+      this.height,
+      0,
+      this.height,
     ];
 
     // 计算纹理坐标比例 - 实际内容与Power-of-2尺寸的比例
@@ -311,19 +349,26 @@ export class Text extends DisplayObject {
     const texCoordY = this.height / this.textureHeight;
 
     // 纹理坐标 (矩形) - 只使用纹理的一部分
-    const texCoords = [
-      0, 0,
-      texCoordX, 0,
-      texCoordX, texCoordY,
-      0, texCoordY,
-    ];
+    const texCoords = [0, 0, texCoordX, 0, texCoordX, texCoordY, 0, texCoordY];
 
     // 顶点颜色 (应用透明度)
     const colors = [
-      1, 1, 1, this.alpha,
-      1, 1, 1, this.alpha,
-      1, 1, 1, this.alpha,
-      1, 1, 1, this.alpha,
+      1,
+      1,
+      1,
+      this.alpha,
+      1,
+      1,
+      1,
+      this.alpha,
+      1,
+      1,
+      1,
+      this.alpha,
+      1,
+      1,
+      1,
+      this.alpha,
     ];
 
     // 索引 (两个三角形)

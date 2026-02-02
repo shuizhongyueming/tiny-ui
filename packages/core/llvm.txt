@@ -330,7 +330,7 @@ tinyUI.render();
 
 ### Feature：Graphics（矢量图形）
 
-**What**：绘制矢量图形（矩形、圆形）的节点。
+**What**：绘制矢量图形（矩形、圆形、圆角矩形）的节点。
 
 **API**：
 ```typescript
@@ -339,19 +339,52 @@ class Graphics extends DisplayObject {
   
   drawRect(x: number, y: number, width: number, height: number, fillColor: string): Graphics;
   drawCircle(x: number, y: number, radius: number, fillColor: string): Graphics;
+  drawRoundedRect(
+    x: number, 
+    y: number, 
+    width: number, 
+    height: number, 
+    radius: number | { tl: number; tr: number; br: number; bl: number }, 
+    fillColor: string
+  ): Graphics;
   clear(): Graphics;
 }
 ```
 
+**语义约定**：
+1. 坐标 `(x, y)` 相对于 Graphics 节点的锚点
+2. `drawRoundedRect` 支持统一半径或四角独立半径
+3. 半径自动限制为 `min(width, height) / 2`
+4. 四角顺序：`tl` (左上), `tr` (右上), `br` (右下), `bl` (左下)
+
 **最小 demo**：
 ```javascript
 const graphics = tinyUI.createGraphics();
+// 矩形
 graphics.drawRect(0, 0, 100, 100, '#ff0000');
+// 圆形
 graphics.drawCircle(50, 50, 30, '#00ff00');
+// 圆角矩形 - 统一半径
+graphics.drawRoundedRect(120, 0, 100, 80, 15, '#0000ff');
+// 圆角矩形 - 四角独立
+graphics.drawRoundedRect(240, 0, 100, 80, {tl: 20, tr: 5, br: 20, bl: 5}, '#ff00ff');
+
 graphics.x = tinyUI.stageWidth / 2;
 graphics.y = tinyUI.stageHeight / 2;
 tinyUI.root.addChild(graphics);
 tinyUI.render();
+```
+
+**常见用法**：
+```javascript
+// 卡片头部（顶部圆角）
+graphics.drawRoundedRect(0, 0, 200, 60, {tl: 12, tr: 12, br: 0, bl: 0}, '#3b82f6');
+
+// 药丸按钮
+graphics.drawRoundedRect(0, 70, 120, 40, 20, '#10b981');
+
+// 完全圆形效果
+graphics.drawRoundedRect(0, 120, 80, 80, 40, '#ec4899');
 ```
 
 ---
@@ -565,7 +598,7 @@ canvas.height = canvas.clientHeight * dpr;
 
 1. 文本渲染依赖离屏 Canvas 2D
 2. 圆形使用 40 分段近似
-3. Graphics 仅支持矩形和圆形
+3. Graphics 支持矩形、圆形、圆角矩形
 4. 不支持遮罩、裁剪、滤镜
 
 ---

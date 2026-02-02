@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Wrapping Test - Tiny UI</title>
+    <style>
+    * {
+      padding: 0;
+      margin: 0;
+    }
+    html,body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+      background: #2d3748;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    </style>
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+    <script src="../dist/tiny-ui-core.js"></script>
+    <script>
+    const canvas = document.getElementById('game');
+    const tinyUI = new TinyUI(canvas);
+
+    // 辅助函数：强制更新纹理以获取正确尺寸
+    function forceUpdateTexture(text) {
+      text.updateTexture();
+      return text;
+    }
+
+    // 标题
+    const title = tinyUI.createText('Text Wrapping & MaxWidth Test');
+    title.color = '#ffffff';
+    title.fontSize = 40;
+    title.anchorX = 0;
+    title.anchorY = 0;
+    title.x = 50;
+    title.y = 30;
+    tinyUI.root.addChild(title);
+
+    let yOffset = 120;
+    const xBase = 50;
+    const testWidth = 350;
+    const columnSpacing = 150; // 列间距
+
+    // 测试 1: 普通英文段落
+    const label1 = tinyUI.createText('Test 1: Normal English Paragraph (maxWidth=350)');
+    label1.color = '#cbd5e0';
+    label1.fontSize = 18;
+    label1.anchorX = 0;
+    label1.anchorY = 0;
+    label1.x = xBase;
+    label1.y = yOffset;
+    tinyUI.root.addChild(label1);
+
+    const text1 = tinyUI.createText('This is a normal paragraph with regular English words. It should wrap correctly based on word boundaries when reaching the maximum width limit.');
+    text1.color = '#ffffff';
+    text1.fontSize = 20;
+    text1.maxWidth = testWidth;
+    text1.anchorX = 0;
+    text1.anchorY = 0;
+    text1.x = xBase;
+    text1.y = yOffset + 30;
+    text1.align = 'left';
+    forceUpdateTexture(text1);
+    tinyUI.root.addChild(text1);
+
+    // 背景框参考线
+    const bg1 = tinyUI.createGraphics();
+    bg1.anchorX = 0;
+    bg1.anchorY = 0;
+    bg1.drawRect(0, 0, testWidth, text1.height, 'rgba(74, 85, 104, 0.3)');
+    bg1.x = xBase;
+    bg1.y = yOffset + 30;
+    tinyUI.root.addChild(bg1);
+
+    yOffset += text1.height + 100;
+
+    // 测试 2: 超长无空格字符串
+    const label2 = tinyUI.createText('Test 2: Very Long String Without Spaces (maxWidth=350)');
+    label2.color = '#cbd5e0';
+    label2.fontSize = 18;
+    label2.anchorX = 0;
+    label2.anchorY = 0;
+    label2.x = xBase;
+    label2.y = yOffset;
+    tinyUI.root.addChild(label2);
+
+    const text2 = tinyUI.createText('verylooooongwordwithoutanyspacesatallthisshouldstillbedisplayedbutwillexceedthemaxwidthlimitbecauseitcannotbewrapped');
+    text2.color = '#fbbf24';
+    text2.fontSize = 20;
+    text2.maxWidth = testWidth;
+    text2.anchorX = 0;
+    text2.anchorY = 0;
+    text2.x = xBase;
+    text2.y = yOffset + 30;
+    forceUpdateTexture(text2);
+    tinyUI.root.addChild(text2);
+
+    const bg2 = tinyUI.createGraphics();
+    bg2.anchorX = 0;
+    bg2.anchorY = 0;
+    bg2.drawRect(0, 0, testWidth, text2.height, 'rgba(251, 191, 36, 0.2)');
+    bg2.x = xBase;
+    bg2.y = yOffset + 30;
+    tinyUI.root.addChild(bg2);
+
+    yOffset += text2.height + 80;
+
+    // 测试 3: 混合场景（普通单词 + 超长单词）
+    const label3 = tinyUI.createText('Test 3: Mixed (Normal + Super Long Word) (maxWidth=350)');
+    label3.color = '#cbd5e0';
+    label3.fontSize = 18;
+    label3.anchorX = 0;
+    label3.anchorY = 0;
+    label3.x = xBase;
+    label3.y = yOffset;
+    tinyUI.root.addChild(label3);
+
+    const text3 = tinyUI.createText('Normal words here superlongunbreakablewordwithoutanyspacesatall and some more normal text after that.');
+    text3.color = '#ec4899';
+    text3.fontSize = 20;
+    text3.maxWidth = testWidth;
+    text3.anchorX = 0;
+    text3.anchorY = 0;
+    text3.x = xBase;
+    text3.y = yOffset + 30;
+    forceUpdateTexture(text3);
+    tinyUI.root.addChild(text3);
+
+    const bg3 = tinyUI.createGraphics();
+    bg3.anchorX = 0;
+    bg3.anchorY = 0;
+    bg3.drawRect(0, 0, testWidth, text3.height, 'rgba(236, 72, 153, 0.2)');
+    bg3.x = xBase;
+    bg3.y = yOffset + 30;
+    tinyUI.root.addChild(bg3);
+
+    yOffset += text3.height + 80;
+
+    // 测试 4: URL 场景
+    const label4 = tinyUI.createText('Test 4: URL String (maxWidth=350)');
+    label4.color = '#cbd5e0';
+    label4.fontSize = 18;
+    label4.anchorX = 0;
+    label4.anchorY = 0;
+    label4.x = xBase;
+    label4.y = yOffset;
+    tinyUI.root.addChild(label4);
+
+    const text4 = tinyUI.createText('Visit https://github.com/username/repository-name/issues/1234567890 for more information');
+    text4.color = '#60a5fa';
+    text4.fontSize = 20;
+    text4.maxWidth = testWidth;
+    text4.anchorX = 0;
+    text4.anchorY = 0;
+    text4.x = xBase;
+    text4.y = yOffset + 30;
+    forceUpdateTexture(text4);
+    tinyUI.root.addChild(text4);
+
+    const bg4 = tinyUI.createGraphics();
+    bg4.anchorX = 0;
+    bg4.anchorY = 0;
+    bg4.drawRect(0, 0, testWidth, text4.height, 'rgba(96, 165, 250, 0.2)');
+    bg4.x = xBase;
+    bg4.y = yOffset + 30;
+    tinyUI.root.addChild(bg4);
+
+    // 计算第一列最大宽度
+    forceUpdateTexture(label1);
+    forceUpdateTexture(label2);
+    forceUpdateTexture(label3);
+    forceUpdateTexture(label4);
+    
+    const col1MaxWidth = Math.max(
+      testWidth,
+      label1.width, label2.width, label3.width, label4.width
+    );
+    
+    yOffset = 120;
+    const xBase2 = xBase + col1MaxWidth + columnSpacing;
+
+    // 测试 5: 手动换行符 + maxWidth
+    const label5 = tinyUI.createText('Test 5: Manual Line Breaks + maxWidth (maxWidth=350)');
+    label5.color = '#cbd5e0';
+    label5.fontSize = 18;
+    label5.anchorX = 0;
+    label5.anchorY = 0;
+    label5.x = xBase2;
+    label5.y = yOffset;
+    tinyUI.root.addChild(label5);
+
+    const text5 = tinyUI.createText('First line with manual break\nSecond line also with some longer text that might wrap\nThird line');
+    text5.color = '#10b981';
+    text5.fontSize = 20;
+    text5.maxWidth = testWidth;
+    text5.anchorX = 0;
+    text5.anchorY = 0;
+    text5.x = xBase2;
+    text5.y = yOffset + 30;
+    forceUpdateTexture(text5);
+    tinyUI.root.addChild(text5);
+
+    const bg5 = tinyUI.createGraphics();
+    bg5.anchorX = 0;
+    bg5.anchorY = 0;
+    bg5.drawRect(0, 0, testWidth, text5.height, 'rgba(16, 185, 129, 0.2)');
+    bg5.x = xBase2;
+    bg5.y = yOffset + 30;
+    tinyUI.root.addChild(bg5);
+
+    yOffset += text5.height + 100;
+
+    // 测试 6: 边界情况 - 单词刚好等于 maxWidth
+    const label6 = tinyUI.createText('Test 6: Single Short Word (maxWidth=100)');
+    label6.color = '#cbd5e0';
+    label6.fontSize = 18;
+    label6.anchorX = 0;
+    label6.anchorY = 0;
+    label6.x = xBase2;
+    label6.y = yOffset;
+    tinyUI.root.addChild(label6);
+
+    const text6 = tinyUI.createText('Short');
+    text6.color = '#a78bfa';
+    text6.fontSize = 20;
+    text6.maxWidth = 100;
+    text6.anchorX = 0;
+    text6.anchorY = 0;
+    text6.x = xBase2;
+    text6.y = yOffset + 30;
+    forceUpdateTexture(text6);
+    tinyUI.root.addChild(text6);
+
+    const bg6 = tinyUI.createGraphics();
+    bg6.anchorX = 0;
+    bg6.anchorY = 0;
+    bg6.drawRect(0, 0, 100, text6.height, 'rgba(167, 139, 250, 0.2)');
+    bg6.x = xBase2;
+    bg6.y = yOffset + 30;
+    tinyUI.root.addChild(bg6);
+
+    yOffset += text6.height + 80;
+
+    // 测试 7: 多个空格
+    const label7 = tinyUI.createText('Test 7: Multiple Spaces (maxWidth=350)');
+    label7.color = '#cbd5e0';
+    label7.fontSize = 18;
+    label7.anchorX = 0;
+    label7.anchorY = 0;
+    label7.x = xBase2;
+    label7.y = yOffset;
+    tinyUI.root.addChild(label7);
+
+    const text7 = tinyUI.createText('Word1    Word2     Word3   Word4 with multiple spaces between them should still work fine');
+    text7.color = '#f59e0b';
+    text7.fontSize = 20;
+    text7.maxWidth = testWidth;
+    text7.anchorX = 0;
+    text7.anchorY = 0;
+    text7.x = xBase2;
+    text7.y = yOffset + 30;
+    forceUpdateTexture(text7);
+    tinyUI.root.addChild(text7);
+
+    const bg7 = tinyUI.createGraphics();
+    bg7.anchorX = 0;
+    bg7.anchorY = 0;
+    bg7.drawRect(0, 0, testWidth, text7.height, 'rgba(245, 158, 11, 0.2)');
+    bg7.x = xBase2;
+    bg7.y = yOffset + 30;
+    tinyUI.root.addChild(bg7);
+
+    yOffset += text7.height + 80;
+
+    // 测试 8: 空字符串
+    const label8 = tinyUI.createText('Test 8: Empty String (maxWidth=350)');
+    label8.color = '#cbd5e0';
+    label8.fontSize = 18;
+    label8.anchorX = 0;
+    label8.anchorY = 0;
+    label8.x = xBase2;
+    label8.y = yOffset;
+    tinyUI.root.addChild(label8);
+
+    const text8 = tinyUI.createText('');
+    text8.color = '#ef4444';
+    text8.fontSize = 20;
+    text8.maxWidth = testWidth;
+    text8.anchorX = 0;
+    text8.anchorY = 0;
+    text8.x = xBase2;
+    text8.y = yOffset + 30;
+    forceUpdateTexture(text8);
+    tinyUI.root.addChild(text8);
+
+    const bg8 = tinyUI.createGraphics();
+    bg8.anchorX = 0;
+    bg8.anchorY = 0;
+    bg8.drawRect(0, 0, testWidth, Math.max(text8.height, 30), 'rgba(239, 68, 68, 0.2)');
+    bg8.x = xBase2;
+    bg8.y = yOffset + 30;
+    tinyUI.root.addChild(bg8);
+
+    const emptyLabel = tinyUI.createText('(Empty - should render nothing)');
+    emptyLabel.color = '#94a3b8';
+    emptyLabel.fontSize = 14;
+    emptyLabel.anchorX = 0;
+    emptyLabel.anchorY = 0;
+    emptyLabel.x = xBase2;
+    emptyLabel.y = yOffset + 35;
+    tinyUI.root.addChild(emptyLabel);
+
+    // 图例说明
+    yOffset += Math.max(text8.height, 30) + 80;
+
+    // 测试 9: 中文段落（无空格分词）
+    const label9 = tinyUI.createText('Test 9: Chinese Paragraph (No Space Delimiters) (maxWidth=350)');
+    label9.color = '#cbd5e0';
+    label9.fontSize = 18;
+    label9.anchorX = 0;
+    label9.anchorY = 0;
+    label9.x = xBase2;
+    label9.y = yOffset;
+    tinyUI.root.addChild(label9);
+
+    const text9 = tinyUI.createText('这是一段中文测试文本，用于验证没有空格分隔的语言是否能够正确处理。中文不像英文有明确的单词边界。');
+    text9.color = '#34d399';
+    text9.fontSize = 20;
+    text9.maxWidth = testWidth;
+    text9.anchorX = 0;
+    text9.anchorY = 0;
+    text9.x = xBase2;
+    text9.y = yOffset + 30;
+    forceUpdateTexture(text9);
+    tinyUI.root.addChild(text9);
+
+    const bg9 = tinyUI.createGraphics();
+    bg9.anchorX = 0;
+    bg9.anchorY = 0;
+    bg9.drawRect(0, 0, testWidth, text9.height, 'rgba(52, 211, 153, 0.2)');
+    bg9.x = xBase2;
+    bg9.y = yOffset + 30;
+    tinyUI.root.addChild(bg9);
+
+    const notice9 = tinyUI.createText('✅ Chinese NOW wraps (char by char)');
+    notice9.color = '#4ade80';
+    notice9.fontSize = 14;
+    notice9.anchorX = 0;
+    notice9.anchorY = 0;
+    notice9.x = xBase2;
+    notice9.y = yOffset + 35 + text9.height;
+    forceUpdateTexture(notice9);
+    tinyUI.root.addChild(notice9);
+
+    // 计算第二列最大宽度
+    forceUpdateTexture(label5);
+    forceUpdateTexture(label6);
+    forceUpdateTexture(label7);
+    forceUpdateTexture(label8);
+    forceUpdateTexture(label9);
+    
+    const col2MaxWidth = Math.max(
+      testWidth,
+      label5.width, label6.width, label7.width, label8.width, label9.width
+    );
+    
+    yOffset = 120;
+    const xBase3 = xBase2 + col2MaxWidth + columnSpacing;
+
+    // 测试 10: 中英文混合
+    const label10 = tinyUI.createText('Test 10: Mixed Chinese & English (maxWidth=350)');
+    label10.color = '#cbd5e0';
+    label10.fontSize = 18;
+    label10.anchorX = 0;
+    label10.anchorY = 0;
+    label10.x = xBase3;
+    label10.y = yOffset;
+    tinyUI.root.addChild(label10);
+
+    const text10 = tinyUI.createText('这是中文 with English words 混合的文本内容，应该在英文单词边界处换行。');
+    text10.color = '#fb7185';
+    text10.fontSize = 20;
+    text10.maxWidth = testWidth;
+    text10.anchorX = 0;
+    text10.anchorY = 0;
+    text10.x = xBase3;
+    text10.y = yOffset + 30;
+    forceUpdateTexture(text10);
+    tinyUI.root.addChild(text10);
+
+    const bg10 = tinyUI.createGraphics();
+    bg10.anchorX = 0;
+    bg10.anchorY = 0;
+    bg10.drawRect(0, 0, testWidth, text10.height, 'rgba(251, 113, 133, 0.2)');
+    bg10.x = xBase3;
+    bg10.y = yOffset + 30;
+    tinyUI.root.addChild(bg10);
+
+    yOffset += text10.height + 100;
+
+    // 测试 11: 带标点的中文
+    const label11 = tinyUI.createText('Test 11: Chinese with Punctuation (maxWidth=350)');
+    label11.color = '#cbd5e0';
+    label11.fontSize = 18;
+    label11.anchorX = 0;
+    label11.anchorY = 0;
+    label11.x = xBase3;
+    label11.y = yOffset;
+    tinyUI.root.addChild(label11);
+
+    const text11 = tinyUI.createText('中文标点测试：逗号，句号。问号？感叹号！这些标点符号不会触发换行。');
+    text11.color = '#c084fc';
+    text11.fontSize = 20;
+    text11.maxWidth = testWidth;
+    text11.anchorX = 0;
+    text11.anchorY = 0;
+    text11.x = xBase3;
+    text11.y = yOffset + 30;
+    forceUpdateTexture(text11);
+    tinyUI.root.addChild(text11);
+
+    const bg11 = tinyUI.createGraphics();
+    bg11.anchorX = 0;
+    bg11.anchorY = 0;
+    bg11.drawRect(0, 0, testWidth, text11.height, 'rgba(192, 132, 252, 0.2)');
+    bg11.x = xBase3;
+    bg11.y = yOffset + 30;
+    tinyUI.root.addChild(bg11);
+
+    yOffset += text11.height + 80;
+
+    // 测试 12: 日文假名（无空格）
+    const label12 = tinyUI.createText('Test 12: Japanese Hiragana (No Spaces) (maxWidth=350)');
+    label12.color = '#cbd5e0';
+    label12.fontSize = 18;
+    label12.anchorX = 0;
+    label12.anchorY = 0;
+    label12.x = xBase3;
+    label12.y = yOffset;
+    tinyUI.root.addChild(label12);
+
+    const text12 = tinyUI.createText('これはひらがなのテストです。スペースがないので改行されません。日本語も同じ問題があります。');
+    text12.color = '#22d3ee';
+    text12.fontSize = 20;
+    text12.maxWidth = testWidth;
+    text12.anchorX = 0;
+    text12.anchorY = 0;
+    text12.x = xBase3;
+    text12.y = yOffset + 30;
+    forceUpdateTexture(text12);
+    tinyUI.root.addChild(text12);
+
+    const bg12 = tinyUI.createGraphics();
+    bg12.anchorX = 0;
+    bg12.anchorY = 0;
+    bg12.drawRect(0, 0, testWidth, text12.height, 'rgba(34, 211, 238, 0.2)');
+    bg12.x = xBase3;
+    bg12.y = yOffset + 30;
+    tinyUI.root.addChild(bg12);
+
+    const notice12 = tinyUI.createText('✅ Japanese NOW wraps (char by char)');
+    notice12.color = '#4ade80';
+    notice12.fontSize = 14;
+    notice12.anchorX = 0;
+    notice12.anchorY = 0;
+    notice12.x = xBase3;
+    notice12.y = yOffset + 35 + text12.height;
+    forceUpdateTexture(notice12);
+    tinyUI.root.addChild(notice12);
+
+    yOffset += text12.height + 80;
+
+    // 测试 13: 用空格分隔的中文（人为添加）
+    const label13 = tinyUI.createText('Test 13: Chinese with Spaces (Manually Added) (maxWidth=350)');
+    label13.color = '#cbd5e0';
+    label13.fontSize = 18;
+    label13.anchorX = 0;
+    label13.anchorY = 0;
+    label13.x = xBase3;
+    label13.y = yOffset;
+    tinyUI.root.addChild(label13);
+
+    const text13 = tinyUI.createText('这是 一段 人为 添加 空格 的 中文 文本 应该 可以 正确 换行 因为 有 空格 分隔');
+    text13.color = '#4ade80';
+    text13.fontSize = 20;
+    text13.maxWidth = testWidth;
+    text13.anchorX = 0;
+    text13.anchorY = 0;
+    text13.x = xBase3;
+    text13.y = yOffset + 30;
+    forceUpdateTexture(text13);
+    tinyUI.root.addChild(text13);
+
+    const bg13 = tinyUI.createGraphics();
+    bg13.anchorX = 0;
+    bg13.anchorY = 0;
+    bg13.drawRect(0, 0, testWidth, text13.height, 'rgba(74, 222, 128, 0.2)');
+    bg13.x = xBase3;
+    bg13.y = yOffset + 30;
+    tinyUI.root.addChild(bg13);
+
+    const notice13 = tinyUI.createText('✅ This WILL wrap (has spaces)');
+    notice13.color = '#4ade80';
+    notice13.fontSize = 14;
+    notice13.anchorX = 0;
+    notice13.anchorY = 0;
+    notice13.x = xBase3;
+    notice13.y = yOffset + 35 + text13.height;
+    forceUpdateTexture(notice13);
+    tinyUI.root.addChild(notice13);
+
+    // 图例说明
+    const legend = tinyUI.createText('Legend: Colored backgrounds show maxWidth boundary | ✅ All text now wraps (char-level for CJK)');
+    legend.color = '#94a3b8';
+    legend.fontSize = 16;
+    legend.anchorX = 0;
+    legend.anchorY = 0;
+    legend.x = 50;
+    legend.y = tinyUI.stageHeight - 40;
+    forceUpdateTexture(legend);
+    tinyUI.root.addChild(legend);
+
+    tinyUI.render();
+    </script>
+  </body>
+</html>

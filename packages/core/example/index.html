@@ -45,7 +45,7 @@
   </head>
   <body>
     <canvas id="game"></canvas>
-    <script src="../dist/tiny-ui.js"></script>
+    <script src="../dist/tiny-ui-core.js"></script>
     <script>
     const canvas = document.getElementById('game');
     const tinyUI = new TinyUI(canvas);
@@ -85,6 +85,26 @@
     const circle = tinyUI.createGraphics();
     circle.drawCircle(250, 250, 50, '#00ff00');
     tinyUI.root.addChild(circle);
+
+    // 圆角矩形 - 统一半径
+    const roundedRect1 = tinyUI.createGraphics();
+    roundedRect1.drawRoundedRect(400, 200, 150, 100, 20, '#ff00ff');
+    tinyUI.root.addChild(roundedRect1);
+
+    // 圆角矩形 - 四角独立半径
+    const roundedRect2 = tinyUI.createGraphics();
+    roundedRect2.drawRoundedRect(600, 200, 150, 100, {tl: 30, tr: 10, br: 30, bl: 10}, '#00ffff');
+    tinyUI.root.addChild(roundedRect2);
+
+    // 圆角矩形 - 部分圆角为0
+    const roundedRect3 = tinyUI.createGraphics();
+    roundedRect3.drawRoundedRect(400, 350, 150, 80, {tl: 25, tr: 0, br: 25, bl: 0}, '#ffff00');
+    tinyUI.root.addChild(roundedRect3);
+
+    // 圆角矩形 - 大圆角（半圆效果）
+    const roundedRect4 = tinyUI.createGraphics();
+    roundedRect4.drawRoundedRect(600, 350, 100, 100, 50, '#ff8800');
+    tinyUI.root.addChild(roundedRect4);
 
     tinyUI.textureManager.loadImage('img.png').then(img => {
       // tinyUI.drawSimpleBitmap(bitmap, 0, 0);

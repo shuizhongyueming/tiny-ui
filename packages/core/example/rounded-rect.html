@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rounded Rectangle Examples - Tiny UI</title>
+    <style>
+    * {
+      padding: 0;
+      margin: 0;
+    }
+    html,body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+      background: #1a1a1a;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    </style>
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+    <script src="../dist/tiny-ui-core.js"></script>
+    <script>
+    const canvas = document.getElementById('game');
+    const tinyUI = new TinyUI(canvas);
+
+    // 辅助函数：强制更新纹理以获取正确尺寸
+    function forceUpdateTexture(text) {
+      text.updateTexture();
+      return text;
+    }
+
+    // 标题
+    const title = tinyUI.createText('Rounded Rectangle Showcase');
+    title.color = '#ffffff';
+    title.fontSize = 48;
+    title.anchorX = 0;
+    title.anchorY = 0;
+    title.x = 50;
+    title.y = 50;
+    tinyUI.root.addChild(title);
+
+    let yOffset = 150;
+    const xBase = 50;
+    const rectWidth = 140;
+    const rectHeight = 100;
+
+    // 1. 统一圆角 - 小半径
+    const label1 = tinyUI.createText('Uniform radius: 15');
+    label1.color = '#aaaaaa';
+    label1.fontSize = 20;
+    label1.anchorX = 0;
+    label1.anchorY = 0;
+    label1.x = xBase;
+    label1.y = yOffset;
+    forceUpdateTexture(label1);
+    tinyUI.root.addChild(label1);
+
+    const rect1 = tinyUI.createGraphics();
+    rect1.anchorX = 0;
+    rect1.anchorY = 0;
+    rect1.drawRoundedRect(0, 0, rectWidth, rectHeight, 15, '#3b82f6');
+    rect1.x = xBase;
+    rect1.y = yOffset + 30;
+    tinyUI.root.addChild(rect1);
+
+    // 2. 统一圆角 - 大半径
+    const label2 = tinyUI.createText('Uniform radius: 30');
+    label2.color = '#aaaaaa';
+    label2.fontSize = 20;
+    label2.anchorX = 0;
+    label2.anchorY = 0;
+    forceUpdateTexture(label2);
+    tinyUI.root.addChild(label2);
+
+    const rect2 = tinyUI.createGraphics();
+    rect2.anchorX = 0;
+    rect2.anchorY = 0;
+    rect2.drawRoundedRect(0, 0, rectWidth, rectHeight, 30, '#8b5cf6');
+    tinyUI.root.addChild(rect2);
+
+    // 3. 完全圆形（半径 = min(w,h)/2）
+    const label3 = tinyUI.createText('Circle (r=50)');
+    label3.color = '#aaaaaa';
+    label3.fontSize = 20;
+    label3.anchorX = 0;
+    label3.anchorY = 0;
+    forceUpdateTexture(label3);
+    tinyUI.root.addChild(label3);
+
+    const rect3 = tinyUI.createGraphics();
+    rect3.anchorX = 0;
+    rect3.anchorY = 0;
+    rect3.drawRoundedRect(0, 0, 100, 100, 50, '#ec4899');
+    tinyUI.root.addChild(rect3);
+
+    // 4. 药丸形状
+    const label4 = tinyUI.createText('Pill shape');
+    label4.color = '#aaaaaa';
+    label4.fontSize = 20;
+    label4.anchorX = 0;
+    label4.anchorY = 0;
+    forceUpdateTexture(label4);
+    tinyUI.root.addChild(label4);
+
+    const rect4 = tinyUI.createGraphics();
+    rect4.anchorX = 0;
+    rect4.anchorY = 0;
+    rect4.drawRoundedRect(0, 0, rectWidth, 60, 30, '#10b981');
+    tinyUI.root.addChild(rect4);
+
+    // 计算第一行最大宽度并设置列位置
+    const row1MaxWidth = Math.max(rectWidth, label1.width, label2.width, label3.width, label4.width);
+    const columnSpacing = 80;
+
+    label2.x = xBase + row1MaxWidth + columnSpacing;
+    label2.y = yOffset;
+    rect2.x = label2.x;
+    rect2.y = yOffset + 30;
+
+    label3.x = label2.x + row1MaxWidth + columnSpacing;
+    label3.y = yOffset;
+    rect3.x = label3.x;
+    rect3.y = yOffset + 30;
+
+    label4.x = label3.x + row1MaxWidth + columnSpacing;
+    label4.y = yOffset;
+    rect4.x = label4.x;
+    rect4.y = yOffset + 30;
+
+    yOffset += 180;
+
+    // 5. 四角独立 - 对角圆角
+    const label5 = tinyUI.createText('Diagonal: tl=30, br=30');
+    label5.color = '#aaaaaa';
+    label5.fontSize = 20;
+    label5.anchorX = 0;
+    label5.anchorY = 0;
+    label5.x = xBase;
+    label5.y = yOffset;
+    forceUpdateTexture(label5);
+    tinyUI.root.addChild(label5);
+
+    const rect5 = tinyUI.createGraphics();
+    rect5.anchorX = 0;
+    rect5.anchorY = 0;
+    rect5.drawRoundedRect(0, 0, rectWidth, rectHeight, {tl: 30, tr: 0, br: 30, bl: 0}, '#f59e0b');
+    rect5.x = xBase;
+    rect5.y = yOffset + 30;
+    tinyUI.root.addChild(rect5);
+
+    // 6. 四角独立 - 渐变圆角
+    const label6 = tinyUI.createText('Gradient: 5, 15, 25, 35');
+    label6.color = '#aaaaaa';
+    label6.fontSize = 20;
+    label6.anchorX = 0;
+    label6.anchorY = 0;
+    forceUpdateTexture(label6);
+    tinyUI.root.addChild(label6);
+
+    const rect6 = tinyUI.createGraphics();
+    rect6.anchorX = 0;
+    rect6.anchorY = 0;
+    rect6.drawRoundedRect(0, 0, rectWidth, rectHeight, {tl: 5, tr: 15, br: 25, bl: 35}, '#ef4444');
+    tinyUI.root.addChild(rect6);
+
+    // 7. 顶部圆角（卡片头部）
+    const label7 = tinyUI.createText('Card header: top only');
+    label7.color = '#aaaaaa';
+    label7.fontSize = 20;
+    label7.anchorX = 0;
+    label7.anchorY = 0;
+    forceUpdateTexture(label7);
+    tinyUI.root.addChild(label7);
+
+    const rect7 = tinyUI.createGraphics();
+    rect7.anchorX = 0;
+    rect7.anchorY = 0;
+    rect7.drawRoundedRect(0, 0, rectWidth, rectHeight, {tl: 20, tr: 20, br: 0, bl: 0}, '#06b6d4');
+    tinyUI.root.addChild(rect7);
+
+    // 8. 底部圆角（卡片底部）
+    const label8 = tinyUI.createText('Card footer: bottom only');
+    label8.color = '#aaaaaa';
+    label8.fontSize = 20;
+    label8.anchorX = 0;
+    label8.anchorY = 0;
+    forceUpdateTexture(label8);
+    tinyUI.root.addChild(label8);
+
+    const rect8 = tinyUI.createGraphics();
+    rect8.anchorX = 0;
+    rect8.anchorY = 0;
+    rect8.drawRoundedRect(0, 0, rectWidth, rectHeight, {tl: 0, tr: 0, br: 20, bl: 20}, '#6366f1');
+    tinyUI.root.addChild(rect8);
+
+    // 计算第二行最大宽度并设置列位置
+    const row2MaxWidth = Math.max(rectWidth, label5.width, label6.width, label7.width, label8.width);
+
+    label6.x = xBase + row2MaxWidth + columnSpacing;
+    label6.y = yOffset;
+    rect6.x = label6.x;
+    rect6.y = yOffset + 30;
+
+    label7.x = label6.x + row2MaxWidth + columnSpacing;
+    label7.y = yOffset;
+    rect7.x = label7.x;
+    rect7.y = yOffset + 30;
+
+    label8.x = label7.x + row2MaxWidth + columnSpacing;
+    label8.y = yOffset;
+    rect8.x = label8.x;
+    rect8.y = yOffset + 30;
+
+    yOffset += 180;
+
+    // 9. 混合图形 - 圆角矩形 + 圆形
+    const label9 = tinyUI.createText('Mixed: rect + circle');
+    label9.color = '#aaaaaa';
+    label9.fontSize = 20;
+    label9.anchorX = 0;
+    label9.anchorY = 0;
+    label9.x = xBase;
+    label9.y = yOffset;
+    forceUpdateTexture(label9);
+    tinyUI.root.addChild(label9);
+
+    const mixed1 = tinyUI.createGraphics();
+    mixed1.anchorX = 0;
+    mixed1.anchorY = 0;
+    mixed1.drawRoundedRect(0, 0, rectWidth, rectHeight, 20, '#a855f7');
+    mixed1.drawCircle(70, 80, 20, '#fbbf24');
+    mixed1.x = xBase;
+    mixed1.y = yOffset + 30;
+    tinyUI.root.addChild(mixed1);
+
+    // 10. 半透明叠加
+    const label10 = tinyUI.createText('Alpha overlay');
+    label10.color = '#aaaaaa';
+    label10.fontSize = 20;
+    label10.anchorX = 0;
+    label10.anchorY = 0;
+    forceUpdateTexture(label10);
+    tinyUI.root.addChild(label10);
+
+    const rect10a = tinyUI.createGraphics();
+    rect10a.anchorX = 0;
+    rect10a.anchorY = 0;
+    rect10a.drawRoundedRect(0, 0, rectWidth, rectHeight, 25, '#3b82f6');
+    tinyUI.root.addChild(rect10a);
+
+    const rect10b = tinyUI.createGraphics();
+    rect10b.anchorX = 0;
+    rect10b.anchorY = 0;
+    rect10b.alpha = 0.6;
+    rect10b.drawRoundedRect(0, 0, 100, 80, 20, '#ec4899');
+    tinyUI.root.addChild(rect10b);
+
+    // 11. 极小半径
+    const label11 = tinyUI.createText('Tiny radius: 3');
+    label11.color = '#aaaaaa';
+    label11.fontSize = 20;
+    label11.anchorX = 0;
+    label11.anchorY = 0;
+    forceUpdateTexture(label11);
+    tinyUI.root.addChild(label11);
+
+    const rect11 = tinyUI.createGraphics();
+    rect11.anchorX = 0;
+    rect11.anchorY = 0;
+    rect11.drawRoundedRect(0, 0, rectWidth, rectHeight, 3, '#14b8a6');
+    tinyUI.root.addChild(rect11);
+
+    // 12. 复杂组合
+    const label12 = tinyUI.createText('Multiple shapes');
+    label12.color = '#aaaaaa';
+    label12.fontSize = 20;
+    label12.anchorX = 0;
+    label12.anchorY = 0;
+    forceUpdateTexture(label12);
+    tinyUI.root.addChild(label12);
+
+    const complex = tinyUI.createGraphics();
+    complex.anchorX = 0;
+    complex.anchorY = 0;
+    complex.drawRoundedRect(0, 0, rectWidth, rectHeight, 15, '#64748b');
+    complex.drawRoundedRect(20, 20, 100, 60, {tl: 10, tr: 25, br: 10, bl: 25}, '#f97316');
+    complex.drawRect(50, 40, 40, 20, '#fde047');
+    tinyUI.root.addChild(complex);
+
+    // 计算第三行最大宽度并设置列位置
+    const row3MaxWidth = Math.max(rectWidth, label9.width, label10.width, label11.width, label12.width);
+
+    label10.x = xBase + row3MaxWidth + columnSpacing;
+    label10.y = yOffset;
+    rect10a.x = label10.x;
+    rect10a.y = yOffset + 30;
+    rect10b.x = label10.x + 40;
+    rect10b.y = yOffset + 50;
+
+    label11.x = label10.x + row3MaxWidth + columnSpacing;
+    label11.y = yOffset;
+    rect11.x = label11.x;
+    rect11.y = yOffset + 30;
+
+    label12.x = label11.x + row3MaxWidth + columnSpacing;
+    label12.y = yOffset;
+    complex.x = label12.x;
+    complex.y = yOffset + 30;
+
+    tinyUI.render();
+    </script>
+  </body>
+</html>
