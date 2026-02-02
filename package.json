@@ -26,6 +26,8 @@
     "@shuizhongyueming/tiny-ui-core": "link:packages/core"
   },
   "devDependencies": {
-    "@vitest/browser-playwright": "^4.0.18"
+    "@playwright/test": "^1.58.1",
+    "@vitest/browser-playwright": "^4.0.18",
+    "serve": "^14.2.5"
   }
 }

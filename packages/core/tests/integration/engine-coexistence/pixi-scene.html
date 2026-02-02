@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>Pixi + TinyUI Coexistence Test</title>
   <script src="https://cdn.jsdelivr.net/npm/pixi.js@8/dist/pixi.min.js"></script>
-  <script src="../../../dist/tiny-ui-core.js"></script>
+  <script src="/dist/tiny-ui-core.js"></script>
   <style>
     body { margin: 0; overflow: hidden; }
     canvas { display: block; }
@@ -14,73 +14,92 @@
 <canvas id="game"></canvas>
 <script>
 (async () => {
-  const canvas = document.getElementById('game');
-  canvas.width = 800;
-  canvas.height = 600;
-  
-  // 1. Pixi initializes first
-  const pixiApp = new PIXI.Application({
-    canvas: canvas,
-    resizeTo: canvas,
-    backgroundColor: 0x1099bb,
-    antialias: true,
-  });
-  
-  // Pixi draws a rotating rectangle
-  const pixiRect = new PIXI.Graphics();
-  pixiRect.beginFill(0xFF0000);
-  pixiRect.drawRect(0, 0, 100, 100);
-  pixiRect.endFill();
-  pixiRect.x = 200;
-  pixiRect.y = 200;
-  pixiRect.rotation = 0.5;
-  pixiApp.stage.addChild(pixiRect);
-  
-  // Initial Pixi render
-  pixiApp.render();
-  
-  // 2. TinyUI uses GLState to coexist
-  const glState = new TinyUI.GLState(pixiApp.renderer.gl);
-  glState.ensureSyncedFromGL();
-  
-  const tinyUI = new TinyUI(
-    canvas,
-    {},
-    'webgl',
-    { glState }
-  );
-  
-  // 3. TinyUI adds UI elements
-  const uiText = tinyUI.createText('UI Overlay');
-  uiText.x = 400;
-  uiText.y = 300;
-  uiText.color = '#00FF00';
-  uiText.fontSize = 32;
-  tinyUI.root.addChild(uiText);
-  
-  const uiRect = tinyUI.createGraphics();
-  uiRect.drawRect(0, 0, 80, 40, '#FFFF00');
-  uiRect.x = 500;
-  uiRect.y = 400;
-  tinyUI.root.addChild(uiRect);
-  
-  // 4. Animation loop: Pixi tick -> TinyUI patchRender
-  let frameCount = 0;
-  pixiApp.ticker.add(() => {
-    pixiRect.rotation += 0.01;
-    pixiApp.render();
-    tinyUI.patchRender();
-    frameCount++;
-  });
-  
-  // Export for testing
-  window.testScenario = { 
-    pixiApp, 
-    tinyUI, 
-    pixiRect, 
-    uiText,
-    getFrameCount: () => frameCount
-  };
+  try {
+    const canvas = document.getElementById('game');
+    canvas.width = 800;
+    canvas.height = 600;
+
+    // 1. Pixi initializes first (v8 API)
+    const pixiApp = new PIXI.Application();
+    await pixiApp.init({
+      canvas: canvas,
+      width: 800,
+      height: 600,
+      backgroundColor: 0x1099bb,
+      antialias: true,
+      // 确保使用 WebGL 而不是 WebGPU
+      preference: 'webgl',
+    });
+
+    console.log('Pixi initialized, renderer:', pixiApp.renderer);
+
+    // Pixi draws a rotating rectangle
+    const pixiRect = new PIXI.Graphics();
+    pixiRect.rect(0, 0, 100, 100);
+    pixiRect.fill(0xFF0000);
+    pixiRect.x = 200;
+    pixiRect.y = 200;
+    pixiRect.rotation = 0.5;
+    pixiApp.stage.addChild(pixiRect);
+
+    // 2. TinyUI uses GLState to coexist
+    // 获取 Pixi 的 WebGL 上下文
+    const gl = pixiApp.renderer.gl;
+    console.log('WebGL context:', gl);
+
+    if (!gl) {
+      throw new Error('Pixi WebGL context not available');
+    }
+
+    const glState = new TinyUI.GLState(gl);
+    glState.ensureSyncedFromGL();
+
+    // 使用已有的 canvas 和 GL 上下文创建 TinyUI
+    const tinyUI = new TinyUI(
+      canvas,
+      {},
+      'webgl',
+      { glState }
+    );
+
+    console.log('TinyUI initialized');
+
+    // 3. TinyUI adds UI elements
+    const uiText = tinyUI.createText('UI Overlay');
+    uiText.x = 400;
+    uiText.y = 300;
+    uiText.color = '#00FF00';
+    uiText.fontSize = 32;
+    tinyUI.root.addChild(uiText);
+
+    const uiRect = tinyUI.createGraphics();
+    uiRect.drawRect(0, 0, 80, 40, '#FFFF00');
+    uiRect.x = 500;
+    uiRect.y = 400;
+    tinyUI.root.addChild(uiRect);
+
+    // 4. Animation loop: Pixi tick -> TinyUI patchRender
+    let frameCount = 0;
+    pixiApp.ticker.add(() => {
+      pixiRect.rotation += 0.01;
+      tinyUI.patchRender();
+      frameCount++;
+    });
+
+    // Export for testing
+    window.testScenario = {
+      pixiApp,
+      tinyUI,
+      pixiRect,
+      uiText,
+      getFrameCount: () => frameCount
+    };
+
+    console.log('Test scenario initialized successfully');
+  } catch (error) {
+    console.error('Initialization error:', error);
+    window.testScenario = null;
+  }
 })();
 </script>
 </body>
