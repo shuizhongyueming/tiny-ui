@@ -14,7 +14,7 @@ export interface GraphicsCommandRect extends GraphicsCommandBase {
   y: number;
   width: number;
   height: number;
-  fillColor: string;
+  fillColor: string | number;
 }
 
 // 圆形命令接口
@@ -23,7 +23,7 @@ export interface GraphicsCommandCircle extends GraphicsCommandBase {
   x: number;
   y: number;
   radius: number;
-  fillColor: string;
+  fillColor: string | number;
 }
 
 // 圆角矩形命令接口
@@ -34,7 +34,7 @@ export interface GraphicsCommandRoundedRect extends GraphicsCommandBase {
   width: number;
   height: number;
   radius: number | { tl: number; tr: number; br: number; bl: number };
-  fillColor: string;
+  fillColor: string | number;
 }
 
 // 图形命令联合类型
@@ -59,7 +59,7 @@ export class Graphics extends DisplayObject {
     x: number,
     y: number,
     radius: number,
-    fillColor: string,
+    fillColor: string | number,
   ): Graphics {
     // 相对坐标 - x和y是相对于当前图形的锚点
     this.commands.push({
@@ -100,7 +100,7 @@ export class Graphics extends DisplayObject {
     y: number,
     width: number,
     height: number,
-    fillColor: string,
+    fillColor: string | number,
   ): Graphics {
     // 相对坐标 - x和y是相对于当前图形的锚点
     this.commands.push({
@@ -143,7 +143,7 @@ export class Graphics extends DisplayObject {
     width: number,
     height: number,
     radius: number | { tl: number; tr: number; br: number; bl: number },
-    fillColor: string,
+    fillColor: string | number,
   ): Graphics {
     // 标准化 radius
     const r =

@@ -337,15 +337,15 @@ tinyUI.render();
 class Graphics extends DisplayObject {
   commands: GraphicsCommand[];
   
-  drawRect(x: number, y: number, width: number, height: number, fillColor: string): Graphics;
-  drawCircle(x: number, y: number, radius: number, fillColor: string): Graphics;
+  drawRect(x: number, y: number, width: number, height: number, fillColor: string | number): Graphics;
+  drawCircle(x: number, y: number, radius: number, fillColor: string | number): Graphics;
   drawRoundedRect(
     x: number, 
     y: number, 
     width: number, 
     height: number, 
     radius: number | { tl: number; tr: number; br: number; bl: number }, 
-    fillColor: string
+    fillColor: string | number
   ): Graphics;
   clear(): Graphics;
 }
