@@ -30,7 +30,7 @@ export class Container extends DisplayObject {
     this.setHeight(size.height);
   }
 
-  constructor(app: TinyUI, name: string = 'Container') {
+  constructor(app: TinyUI, name: string = "Container") {
     super(app, name);
   }
 
@@ -51,19 +51,6 @@ export class Container extends DisplayObject {
     }
   }
 
-  override hitTest(x: number, y: number): boolean {
-    if (!super.hitTest(x, y)) return false;
-
-    // 从后向前检查子节点（渲染顺序的逆序）
-    for (let i = this.children.length - 1; i >= 0; i--) {
-      const child = this.children[i];
-      if (child.visible && child.hitTest(x, y)) {
-        return true;
-      }
-    }
-
-    return true;
-  }
 
   override destroy(): void {
     super.destroy();
@@ -83,5 +70,4 @@ export class Container extends DisplayObject {
     //   this.app._renderNode(child);
     // }
   }
-
 }

@@ -39,7 +39,7 @@ export class EventManager {
   private canvas: HTMLCanvasElement;
   private app: TinyUI;
   private eventListeners: Map<string, EventListener> = new Map();
-  
+
   // 记录被拦截的 touch 事件
   private touchEventRecords: Map<EventName, TouchRecord> = new Map();
   // 时间窗口（毫秒）
@@ -57,7 +57,10 @@ export class EventManager {
     // 触摸开始事件
     const touchStartListener = this.createTouchListener(EventName.TouchStart);
     if (options.handleTouchEventListening) {
-      options.handleTouchEventListening("touchstart", touchStartListener as TouchEventHandler);
+      options.handleTouchEventListening(
+        "touchstart",
+        touchStartListener as TouchEventHandler,
+      );
     } else {
       this.canvas.addEventListener("touchstart", touchStartListener);
     }
@@ -66,7 +69,10 @@ export class EventManager {
     // 触摸移动事件
     const touchMoveListener = this.createTouchListener(EventName.TouchMove);
     if (options.handleTouchEventListening) {
-      options.handleTouchEventListening("touchmove", touchMoveListener as TouchEventHandler);
+      options.handleTouchEventListening(
+        "touchmove",
+        touchMoveListener as TouchEventHandler,
+      );
     } else {
       this.canvas.addEventListener("touchmove", touchMoveListener);
     }
@@ -75,7 +81,10 @@ export class EventManager {
     // 触摸结束事件
     const touchEndListener = this.createTouchListener(EventName.TouchEnd);
     if (options.handleTouchEventListening) {
-      options.handleTouchEventListening("touchend", touchEndListener as TouchEventHandler);
+      options.handleTouchEventListening(
+        "touchend",
+        touchEndListener as TouchEventHandler,
+      );
     } else {
       this.canvas.addEventListener("touchend", touchEndListener);
     }
@@ -159,9 +168,9 @@ export class EventManager {
         if (timeDiff <= this.TIME_WINDOW_MS) {
           // 在有效期内，执行同样的 stop 操作
           for (const stopType of record.stopTypes) {
-            if (stopType === 'stopImmediatePropagation') {
+            if (stopType === "stopImmediatePropagation") {
               event.stopImmediatePropagation();
-            } else if (stopType === 'stopPropagation') {
+            } else if (stopType === "stopPropagation") {
               event.stopPropagation();
             }
           }
@@ -225,18 +234,20 @@ export class EventManager {
       }
     }
 
-    // 检查点是否在节点内
-    if (
-      node.hasEventListener(event.type) &&
-      node.hitTest &&
-      node.hitTest(event.x, event.y)
-    ) {
-      // 设置事件目标
-      event.target = node;
+    // 如果没有监听器，直接跳过
+    if (!node.hasEventListener(event.type)) return;
 
-      // 调用节点的事件处理方法
-      node.dispatchEvent(event.type, event);
+    // 性能优化：如果子节点已处理事件，说明点击在子节点范围内
+    // 子节点在父节点内，所以父节点的 hitTest 必然通过，可以跳过
+    const needsHitTest = !event.handled;
+
+    if (needsHitTest && node.hitTest && !node.hitTest(event.x, event.y)) {
+      return; // hitTest 失败，不触发事件
     }
+
+    // 设置事件目标并触发
+    event.target = node;
+    node.dispatchEvent(event.type, event);
   }
 
   destroy(): void {

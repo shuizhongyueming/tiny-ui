@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event System Demo - Tiny UI</title>
+    <style>
+    * {
+      padding: 0;
+      margin: 0;
+    }
+    html,body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+      -ms-touch-action: none;
+      touch-action: none;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+    canvas {
+      -ms-touch-action: none;
+      touch-action: none;
+      touch-action-delay: none;
+      -webkit-tap-highlight-color: rgba(0,0,0,0);
+      -moz-tap-highlight-color: rgba(0,0,0,0);
+      user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      outline: none;
+      border: none;
+      width: 100%;
+      height: 100%;
+    }
+    #info {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 12px 15px;
+      font-size: 13px;
+      border-radius: 8px;
+      pointer-events: none;
+      z-index: 1000;
+      max-width: 280px;
+      line-height: 1.5;
+    }
+    #info h3 {
+      margin: 0 0 8px 0;
+      font-size: 15px;
+      color: #4ade80;
+    }
+    #info div {
+      font-size: 12px;
+    }
+    #log {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.9);
+      color: #10b981;
+      padding: 12px;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      border-radius: 8px;
+      pointer-events: none;
+      z-index: 1000;
+      max-width: 350px;
+      max-height: 250px;
+      overflow-y: auto;
+    }
+    #log div {
+      margin: 2px 0;
+      white-space: nowrap;
+    }
+    .event-bubble { color: #60a5fa; }
+    .event-stop { color: #f87171; }
+    .event-child { color: #fbbf24; }
+    </style>
+  </head>
+  <body>
+    <div id="info">
+      <h3>🎯 Event System Demo</h3>
+      <div><strong>Blue:</strong> Normal bubbling</div>
+      <div><strong>Green:</strong> stopPropagation</div>
+      <div><strong>Purple:</strong> Child outside</div>
+      <div><strong>Orange:</strong> Nested</div>
+    </div>
+    <div id="log"></div>
+    <canvas id="game"></canvas>
+    <script src="../dist/tiny-ui-core.js"></script>
+    <script>
+    const canvas = document.getElementById('game');
+    const tinyUI = new TinyUI(canvas);
+    const logEl = document.getElementById('log');
+
+    let logCount = 0;
+    const maxLogs = 15;
+
+    function log(message, className = '') {
+      const div = document.createElement('div');
+      div.textContent = `[${logCount++}] ${message}`;
+      if (className) div.className = className;
+      logEl.insertBefore(div, logEl.firstChild);
+
+      // 限制日志数量
+      while (logEl.children.length > maxLogs) {
+        logEl.removeChild(logEl.lastChild);
+      }
+    }
+
+    // 计算居中位置
+    const centerX = tinyUI.stageWidth / 2;
+    const centerY = tinyUI.stageHeight / 2;
+    const boxWidth = 400;
+    const boxHeight = 250;
+    const gap = 50;
+
+    // ========== 场景1：正常事件冒泡 (左上) ==========
+    const bubbleContainer = tinyUI.createContainer('BubbleContainer');
+    bubbleContainer.width = boxWidth;
+    bubbleContainer.height = boxHeight;
+    // 容器 anchor 默认 0.5，所以 x/y 是容器中心点
+    bubbleContainer.x = centerX - boxWidth / 2 - gap / 2;
+    bubbleContainer.y = centerY - boxHeight / 2 - gap / 2;
+    tinyUI.root.addChild(bubbleContainer);
+
+    // 容器背景 (子节点坐标从0,0开始，即父容器左上角)
+    const bubbleBg = tinyUI.createGraphics();
+    bubbleBg.drawRoundedRect(0, 0, boxWidth, boxHeight, 20, '#3b82f6');
+    bubbleBg.x = 0;
+    bubbleBg.y = 0;
+    bubbleBg.anchorX = 0;
+    bubbleBg.anchorY = 0;
+    bubbleContainer.addChild(bubbleBg);
+
+    // 容器标题
+    const bubbleTitle = tinyUI.createText('Normal Bubbling');
+    bubbleTitle.fontSize = 28;
+    bubbleTitle.color = '#ffffff';
+    bubbleTitle.updateTexture();
+    bubbleTitle.x = boxWidth / 2;
+    bubbleTitle.y = 40;
+    bubbleContainer.addChild(bubbleTitle);
+
+    // 子按钮
+    const bubbleBtn = tinyUI.createGraphics();
+    bubbleBtn.drawRoundedRect(0, 0, 180, 70, 15, '#1e40af');
+    bubbleBtn.x = boxWidth / 2;
+    bubbleBtn.y = 110;
+    bubbleContainer.addChild(bubbleBtn);
+
+    const bubbleBtnText = tinyUI.createText('Click Me');
+    bubbleBtnText.fontSize = 24;
+    bubbleBtnText.color = '#ffffff';
+    bubbleBtnText.updateTexture();
+    bubbleBtnText.x = boxWidth / 2;
+    bubbleBtnText.y = 145;
+    bubbleContainer.addChild(bubbleBtnText);
+
+    // 事件监听
+    bubbleBtn.addEventListener('touchstart', (e) => {
+      log('Button clicked', 'event-child');
+      bubbleBtn.alpha = 0.7;
+      tinyUI.render();
+    });
+
+    bubbleContainer.addEventListener('touchstart', (e) => {
+      log('Container bubbled (normal)', 'event-bubble');
+    });
+
+    bubbleBtn.addEventListener('touchend', () => {
+      bubbleBtn.alpha = 1;
+      tinyUI.render();
+    });
+
+
+    // ========== 场景2：stopPropagation 阻止冒泡 (右上) ==========
+    const stopContainer = tinyUI.createContainer('StopContainer');
+    stopContainer.width = boxWidth;
+    stopContainer.height = boxHeight;
+    stopContainer.x = centerX + boxWidth / 2 + gap / 2;
+    stopContainer.y = centerY - boxHeight / 2 - gap / 2;
+    tinyUI.root.addChild(stopContainer);
+
+    const stopBg = tinyUI.createGraphics();
+    stopBg.drawRoundedRect(0, 0, boxWidth, boxHeight, 20, '#10b981');
+    stopBg.x = 0;
+    stopBg.y = 0;
+    stopBg.anchorX = 0;
+    stopBg.anchorY = 0;
+    stopContainer.addChild(stopBg);
+
+    const stopTitle = tinyUI.createText('stopPropagation');
+    stopTitle.fontSize = 28;
+    stopTitle.color = '#ffffff';
+    stopTitle.updateTexture();
+    stopTitle.x = boxWidth / 2;
+    stopTitle.y = 40;
+    stopContainer.addChild(stopTitle);
+
+    const stopBtn = tinyUI.createGraphics();
+    stopBtn.drawRoundedRect(0, 0, 180, 70, 15, '#047857');
+    stopBtn.x = boxWidth / 2;
+    stopBtn.y = 110;
+    stopContainer.addChild(stopBtn);
+
+    const stopBtnText = tinyUI.createText('Click Me');
+    stopBtnText.fontSize = 24;
+    stopBtnText.color = '#ffffff';
+    stopBtnText.updateTexture();
+    stopBtnText.x = boxWidth / 2;
+    stopBtnText.y = 145;
+    stopContainer.addChild(stopBtnText);
+
+    // 事件监听（阻止冒泡）
+    stopBtn.addEventListener('touchstart', (e) => {
+      log('Button clicked', 'event-child');
+      log('stopPropagation() called', 'event-stop');
+      e.stopPropagation();
+      stopBtn.alpha = 0.7;
+      tinyUI.render();
+    });
+
+    stopContainer.addEventListener('touchstart', (e) => {
+      log('❌ Container should NOT bubble!', 'event-stop');
+    });
+
+    stopBtn.addEventListener('touchend', () => {
+      stopBtn.alpha = 1;
+      tinyUI.render();
+    });
+
+
+    // ========== 场景3：子节点超出容器范围 (左下) ==========
+    const outContainer = tinyUI.createContainer('OutContainer');
+    outContainer.width = boxWidth;
+    outContainer.height = boxHeight;
+    outContainer.x = centerX - boxWidth / 2 - gap / 2;
+    outContainer.y = centerY + boxHeight / 2 + gap / 2;
+    tinyUI.root.addChild(outContainer);
+
+    const outBg = tinyUI.createGraphics();
+    outBg.drawRoundedRect(0, 0, boxWidth, boxHeight, 20, '#8b5cf6');
+    outBg.x = 0;
+    outBg.y = 0;
+    outBg.anchorX = 0;
+    outBg.anchorY = 0;
+    outContainer.addChild(outBg);
+
+    const outTitle = tinyUI.createText('Child Outside Bounds');
+    outTitle.fontSize = 28;
+    outTitle.color = '#ffffff';
+    outTitle.updateTexture();
+    outTitle.x = boxWidth / 2;
+    outTitle.y = 40;
+    outContainer.addChild(outTitle);
+
+    // 主区域按钮（在容器内）
+    const insideBtn = tinyUI.createGraphics();
+    insideBtn.drawRoundedRect(0, 0, 140, 60, 12, '#6d28d9');
+    insideBtn.x = 110;
+    insideBtn.y = 110;
+    outContainer.addChild(insideBtn);
+
+    const insideBtnText = tinyUI.createText('Inside');
+    insideBtnText.fontSize = 22;
+    insideBtnText.color = '#ffffff';
+    insideBtnText.updateTexture();
+    insideBtnText.x = 110;
+    insideBtnText.y = 140;
+    outContainer.addChild(insideBtnText);
+
+    // 超出容器边界的按钮（右侧溢出）
+    const outsideBtn = tinyUI.createGraphics();
+    outsideBtn.drawRoundedRect(0, 0, 160, 60, 12, '#c026d3');
+    outsideBtn.x = 400; // 超出容器右边界
+    outsideBtn.y = 110;
+    outContainer.addChild(outsideBtn);
+
+    const outsideBtnText = tinyUI.createText('Outside →');
+    outsideBtnText.fontSize = 22;
+    outsideBtnText.color = '#ffffff';
+    outsideBtnText.updateTexture();
+    outsideBtnText.x = 400;
+    outsideBtnText.y = 140;
+    outContainer.addChild(outsideBtnText);
+
+    // 事件监听
+    insideBtn.addEventListener('touchstart', (e) => {
+      log('Inside button clicked', 'event-child');
+      insideBtn.alpha = 0.7;
+      tinyUI.render();
+    });
+
+    outsideBtn.addEventListener('touchstart', (e) => {
+      log('Outside button clicked (works!)', 'event-child');
+      outsideBtn.alpha = 0.7;
+      tinyUI.render();
+    });
+
+    outContainer.addEventListener('touchstart', (e) => {
+      log('Container bubbled', 'event-bubble');
+    });
+
+    insideBtn.addEventListener('touchend', () => {
+      insideBtn.alpha = 1;
+      tinyUI.render();
+    });
+
+    outsideBtn.addEventListener('touchend', () => {
+      outsideBtn.alpha = 1;
+      tinyUI.render();
+    });
+
+
+    // ========== 场景4：嵌套容器冒泡 (右下) ==========
+    const nestedOuter = tinyUI.createContainer('NestedOuter');
+    nestedOuter.width = boxWidth;
+    nestedOuter.height = boxHeight;
+    nestedOuter.x = centerX + boxWidth / 2 + gap / 2;
+    nestedOuter.y = centerY + boxHeight / 2 + gap / 2;
+    tinyUI.root.addChild(nestedOuter);
+
+    const nestedOuterBg = tinyUI.createGraphics();
+    nestedOuterBg.drawRoundedRect(0, 0, boxWidth, boxHeight, 20, '#f59e0b');
+    nestedOuterBg.x = 0;
+    nestedOuterBg.y = 0;
+    nestedOuterBg.anchorX = 0;
+    nestedOuterBg.anchorY = 0;
+    nestedOuter.addChild(nestedOuterBg);
+
+    const nestedTitle = tinyUI.createText('Nested Bubbling');
+    nestedTitle.fontSize = 28;
+    nestedTitle.color = '#ffffff';
+    nestedTitle.updateTexture();
+    nestedTitle.x = boxWidth / 2;
+    nestedTitle.y = 40;
+    nestedOuter.addChild(nestedTitle);
+
+    // 内层容器
+    const nestedInner = tinyUI.createContainer('NestedInner');
+    nestedInner.width = 280;
+    nestedInner.height = 130;
+    nestedInner.x = boxWidth / 2;
+    nestedInner.y = 90;
+    nestedOuter.addChild(nestedInner);
+
+    const nestedInnerBg = tinyUI.createGraphics();
+    nestedInnerBg.drawRoundedRect(0, 0, 280, 130, 15, '#d97706');
+    nestedInnerBg.x = 0;
+    nestedInnerBg.y = 0;
+    nestedInnerBg.anchorX = 0;
+    nestedInnerBg.anchorY = 0;
+    nestedInner.addChild(nestedInnerBg);
+
+    // 最内层按钮
+    const nestedBtn = tinyUI.createGraphics();
+    nestedBtn.drawRoundedRect(0, 0, 120, 60, 12, '#92400e');
+    nestedBtn.x = 140;
+    nestedBtn.y = 35;
+    nestedInner.addChild(nestedBtn);
+
+    const nestedBtnText = tinyUI.createText('Deep');
+    nestedBtnText.fontSize = 22;
+    nestedBtnText.color = '#ffffff';
+    nestedBtnText.updateTexture();
+    nestedBtnText.x = 140;
+    nestedBtnText.y = 65;
+    nestedInner.addChild(nestedBtnText);
+
+    // 三层事件监听
+    nestedBtn.addEventListener('touchstart', (e) => {
+      log('Level 3: Button clicked', 'event-child');
+      nestedBtn.alpha = 0.7;
+      tinyUI.render();
+    });
+
+    nestedInner.addEventListener('touchstart', (e) => {
+      log('Level 2: Inner container', 'event-bubble');
+    });
+
+    nestedOuter.addEventListener('touchstart', (e) => {
+      log('Level 1: Outer container', 'event-bubble');
+    });
+
+    nestedBtn.addEventListener('touchend', () => {
+      nestedBtn.alpha = 1;
+      tinyUI.render();
+    });
+
+
+    // 初始渲染
+    tinyUI.render();
+    log('Event demo ready. Click boxes!');
+    </script>
+  </body>
+</html>
