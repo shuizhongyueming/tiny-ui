@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AdjustTo Example - Tiny UI Components</title>
+    <style>
+    * {
+      padding: 0;
+      margin: 0;
+    }
+    html,body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+      -ms-touch-action: none;
+      touch-action: none;
+    }
+    canvas {
+      -ms-touch-action: none;
+      touch-action: none;
+      touch-action-delay: none;
+      -webkit-tap-highlight-color: rgba(0,0,0,0);
+      -moz-tap-highlight-color: rgba(0,0,0,0);
+      user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      outline: none;
+      border: none;
+      width: 100%;
+      height: 100%;
+    }
+    #info {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 12px;
+      border-radius: 4px;
+      pointer-events: none;
+      z-index: 1000;
+    }
+    </style>
+  </head>
+  <body>
+    <div id="info">
+      <div>adjustTo Demo</div>
+      <div>Top: willContain=false (同级)</div>
+      <div>Bottom: willContain=true (父子)</div>
+    </div>
+    <canvas id="game"></canvas>
+    <script src="../../core/dist/tiny-ui-core.js"></script>
+    <script src="../dist/tiny-ui-components.js"></script>
+    <script>
+    const canvas = document.getElementById('game');
+    const tinyUI = new TinyUI(canvas);
+    const { adjustTo } = TinyUIComponents.utils;
+
+    // ========== willContain = false 示例（同级关系）==========
+    const topY = 250;
+
+    // 参考容器（有缩放）
+    const checker1 = tinyUI.createGraphics();
+    checker1.drawRoundedRect(0, 0, 400, 300, 20, '#3b82f6');
+    checker1.x = tinyUI.stageWidth / 2;
+    checker1.y = topY;
+    checker1.scaleX = 1.5; // 缩放后实际宽度 600
+    checker1.scaleY = 1.2; // 缩放后实际高度 360
+    tinyUI.root.addChild(checker1);
+
+    // 标签
+    const label1 = tinyUI.createText('Checker (scaled 1.5x1.2)');
+    label1.fontSize = 32;
+    label1.color = '#ffffff';
+    label1.updateTexture();
+    adjustTo(checker1, false)(label1, { h: 'center', v: 'center' });
+    tinyUI.root.addChild(label1);
+
+    // 左上角
+    const box1 = tinyUI.createGraphics();
+    box1.drawCircle(30, 30, 30, '#ef4444');
+    adjustTo(checker1, false)(box1, { h: 'left', v: 'top' });
+    tinyUI.root.addChild(box1);
+
+    const text1 = tinyUI.createText('left-top');
+    text1.fontSize = 20;
+    text1.color = '#ffffff';
+    text1.updateTexture();
+    adjustTo(box1, false)(text1, { h: 'center', v: 'center' });
+    tinyUI.root.addChild(text1);
+
+    // 右上角
+    const box2 = tinyUI.createGraphics();
+    box2.drawCircle(30, 30, 30, '#10b981');
+    adjustTo(checker1, false)(box2, { h: 'right', v: 'top' });
+    tinyUI.root.addChild(box2);
+
+    const text2 = tinyUI.createText('right-top');
+    text2.fontSize = 20;
+    text2.color = '#ffffff';
+    text2.updateTexture();
+    adjustTo(box2, false)(text2, { h: 'center', v: 'center' });
+    tinyUI.root.addChild(text2);
+
+    // 底部居中
+    const box3 = tinyUI.createGraphics();
+    box3.drawCircle(30, 30, 30, '#f59e0b');
+    adjustTo(checker1, false)(box3, { h: 'center', v: 'bottom' });
+    tinyUI.root.addChild(box3);
+
+    const text3 = tinyUI.createText('center-bottom');
+    text3.fontSize = 20;
+    text3.color = '#ffffff';
+    text3.updateTexture();
+    adjustTo(box3, false)(text3, { h: 'center', v: 'center' });
+    tinyUI.root.addChild(text3);
+
+    // 右下角带偏移
+    const box4 = tinyUI.createGraphics();
+    box4.drawCircle(30, 30, 30, '#ec4899');
+    adjustTo(checker1, false)(box4, { h: 'right', v: 'bottom' }, { x: -20, y: -20 });
+    tinyUI.root.addChild(box4);
+
+    const text4 = tinyUI.createText('offset');
+    text4.fontSize = 20;
+    text4.color = '#ffffff';
+    text4.updateTexture();
+    adjustTo(box4, false)(text4, { h: 'center', v: 'center' });
+    tinyUI.root.addChild(text4);
+
+
+    // ========== willContain = true 示例（父子关系）==========
+    const bottomY = 750;
+
+    // 父容器（有缩放）
+    const checker2 = tinyUI.createContainer();
+    checker2.width = 400;
+    checker2.height = 300;
+    checker2.x = tinyUI.stageWidth / 2;
+    checker2.y = bottomY;
+    checker2.scaleX = 1.5; // 子元素不受此影响
+    checker2.scaleY = 1.2;
+    tinyUI.root.addChild(checker2);
+
+    // 背景（子节点在父容器的局部坐标系中，左上角为原点）
+    const bg2 = tinyUI.createGraphics();
+    bg2.drawRoundedRect(0, 0, 400, 300, 20, '#6366f1');
+    adjustTo(checker2, true)(bg2, { h: 'left', v: 'top' });
+    checker2.addChild(bg2);
+
+    // 标签
+    const label2 = tinyUI.createText('Container (scaled 1.5x1.2)');
+    label2.fontSize = 32;
+    label2.color = '#ffffff';
+    label2.updateTexture();
+    adjustTo(checker2, true)(label2, { h: 'center', v: 'center' });
+    checker2.addChild(label2);
+
+    // 左上角（子元素在父容器的局部坐标系中）
+    const child1 = tinyUI.createGraphics();
+    child1.drawCircle(30, 30, 30, '#ef4444');
+    adjustTo(checker2, true)(child1, { h: 'left', v: 'top' });
+    checker2.addChild(child1);
+
+    const childText1 = tinyUI.createText('left-top');
+    childText1.fontSize = 20;
+    childText1.color = '#ffffff';
+    childText1.updateTexture();
+    adjustTo(child1, false)(childText1, { h: 'center', v: 'center' });
+    checker2.addChild(childText1);
+
+    // 右上角
+    const child2 = tinyUI.createGraphics();
+    child2.drawCircle(30, 30, 30, '#10b981');
+    adjustTo(checker2, true)(child2, { h: 'right', v: 'top' });
+    checker2.addChild(child2);
+
+    const childText2 = tinyUI.createText('right-top');
+    childText2.fontSize = 20;
+    childText2.color = '#ffffff';
+    childText2.updateTexture();
+    adjustTo(child2, false)(childText2, { h: 'center', v: 'center' });
+    checker2.addChild(childText2);
+
+    // 底部居中
+    const child3 = tinyUI.createGraphics();
+    child3.drawCircle(30, 30, 30, '#f59e0b');
+    adjustTo(checker2, true)(child3, { h: 'center', v: 'bottom' });
+    checker2.addChild(child3);
+
+    const childText3 = tinyUI.createText('center-bottom');
+    childText3.fontSize = 20;
+    childText3.color = '#ffffff';
+    childText3.updateTexture();
+    adjustTo(child3, false)(childText3, { h: 'center', v: 'center' });
+    checker2.addChild(childText3);
+
+    // 右下角带偏移
+    const child4 = tinyUI.createGraphics();
+    child4.drawCircle(30, 30, 30, '#ec4899');
+    adjustTo(checker2, true)(child4, { h: 'right', v: 'bottom' }, { x: -20, y: -20 });
+    checker2.addChild(child4);
+
+    const childText4 = tinyUI.createText('offset');
+    childText4.fontSize = 20;
+    childText4.color = '#ffffff';
+    childText4.updateTexture();
+    adjustTo(child4, false)(childText4, { h: 'center', v: 'center' });
+    checker2.addChild(childText4);
+
+
+    // ========== 辅助说明文本 ==========
+    const hint1 = tinyUI.createText('willContain=false: target 与 checker 同级，考虑 checker 的 scale');
+    hint1.fontSize = 18;
+    hint1.color = '#1e293b';
+    hint1.updateTexture();
+    hint1.x = tinyUI.stageWidth / 2;
+    hint1.y = topY + 240;
+    tinyUI.root.addChild(hint1);
+
+    const hint2 = tinyUI.createText('willContain=true: target 是 checker 子节点，不考虑 checker 的 scale');
+    hint2.fontSize = 18;
+    hint2.color = '#1e293b';
+    hint2.updateTexture();
+    hint2.x = tinyUI.stageWidth / 2;
+    hint2.y = bottomY + 240;
+    tinyUI.root.addChild(hint2);
+
+
+    tinyUI.render();
+    </script>
+  </body>
+</html>

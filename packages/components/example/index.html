@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tiny UI Components - Examples</title>
+    <style>
+    * {
+      padding: 0;
+      margin: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    h1 {
+      color: white;
+      text-align: center;
+      margin-bottom: 10px;
+      font-size: 2.5em;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .subtitle {
+      color: rgba(255,255,255,0.9);
+      text-align: center;
+      margin-bottom: 40px;
+      font-size: 1.1em;
+    }
+    .examples {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+    }
+    .example-card {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      text-decoration: none;
+      color: #333;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .example-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    }
+    .example-card h2 {
+      color: #667eea;
+      margin-bottom: 8px;
+      font-size: 1.4em;
+    }
+    .example-card p {
+      color: #666;
+      line-height: 1.6;
+      font-size: 0.95em;
+    }
+    .tag {
+      display: inline-block;
+      background: #f0f4ff;
+      color: #667eea;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 0.85em;
+      margin-top: 12px;
+      font-weight: 500;
+    }
+    footer {
+      text-align: center;
+      color: rgba(255,255,255,0.8);
+      margin-top: 60px;
+      font-size: 0.9em;
+    }
+    footer a {
+      color: white;
+      text-decoration: underline;
+    }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🎨 Tiny UI Components</h1>
+      <p class="subtitle">Interactive examples for Tiny UI Components library</p>
+      
+      <div class="examples">
+        <a href="adjustTo.html" class="example-card">
+          <h2>adjustTo</h2>
+          <p>Layout utility for positioning display objects relative to each other. Supports both sibling and parent-child relationships with scale-aware positioning.</p>
+          <span class="tag">Utils</span>
+        </a>
+
+        <!-- Placeholder for future examples -->
+        <div class="example-card" style="opacity: 0.5; pointer-events: none;">
+          <h2>More Examples</h2>
+          <p>Additional component examples coming soon...</p>
+          <span class="tag">Coming Soon</span>
+        </div>
+      </div>
+
+      <footer>
+        <p>Built with <a href="https://github.com/shuizhongyueming/tiny-ui" target="_blank">Tiny UI</a></p>
+      </footer>
+    </div>
+  </body>
+</html>
