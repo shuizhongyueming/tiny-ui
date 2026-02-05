@@ -239,7 +239,13 @@ export class Text extends DisplayObject {
         }
       }
 
-      textWidth = this._maxWidth;
+      // 计算实际最长行的宽度，而不是直接使用 maxWidth
+      let maxLineWidth = 0;
+      for (const line of lines) {
+        const metrics = ctx.measureText(line);
+        maxLineWidth = Math.max(maxLineWidth, metrics.width);
+      }
+      textWidth = maxLineWidth;
       textHeight = lines.length * effectiveLineHeight;
     } else {
       // 单行文本处理 - 但仍然需要处理手动换行符
