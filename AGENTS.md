@@ -86,6 +86,30 @@ Touch events mapped to mouse events with 300ms window:
 touchEventRecords: Map<EventName, { stopTypes: StopType[], time: number }>
 ```
 
+### Event Propagation
+
+**Propagation control:**
+- `stopPropagation()` - stop bubbling to parent nodes
+- `stopImmediatePropagation()` - stop other listeners on same node
+- `stop()` - convenience method for both
+
+**Dispatch logic:**
+```typescript
+// Before traversing children, record event state
+const handledBefore = event.handled;
+
+// ... traverse children recursively ...
+
+// After children traversal, check if THIS branch handled the event
+// (not some other branch in the tree)
+const handledByChildren = !handledBefore && event.handled;
+const needsHitTest = !handledByChildren;
+```
+
+**Event target:**
+- `event.target` - set only once (first triggered node), never overwritten during bubbling
+- `event.currentTarget` - use `this` inside listener to get current node
+
 ## Quick Reference
 
 ### Common Tasks
