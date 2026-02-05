@@ -1,7 +1,7 @@
 import { DisplayObject } from "../DisplayObject";
 import { EventName } from "../type";
 
-export type StopType = 'stopPropagation' | 'stopImmediatePropagation';
+export type StopType = "stopPropagation" | "stopImmediatePropagation";
 
 interface UIEventInit {
   type: EventName;
@@ -70,13 +70,19 @@ export class UIEvent {
     this.originalEvent.stopImmediatePropagation();
   }
 
+  stop() {
+    // 同时阻止传播和立即传播
+    this.stopPropagation();
+    this.stopImmediatePropagation();
+  }
+
   getStopTypes(): StopType[] {
     const stops: StopType[] = [];
     if (this._propagationStopped) {
-      stops.push('stopPropagation');
+      stops.push("stopPropagation");
     }
     if (this._immediatePropagationStopped) {
-      stops.push('stopImmediatePropagation');
+      stops.push("stopImmediatePropagation");
     }
     return stops;
   }

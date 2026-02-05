@@ -222,31 +222,40 @@ export class EventManager {
   ): void {
     if (!node || !node.visible) return;
 
-    // 事件已阻止传播
-    if (event.propagationStopped) return;
+    // 记录子节点遍历前的事件处理状态
+    const handledBefore = event.handled;
 
     // 首先传递给子节点 (从前到后，以便最上层的节点先接收到事件)
     if (node.children && node.children.length > 0) {
       // 从后向前遍历，这样最上层的元素先接收到事件
       for (let i = node.children.length - 1; i >= 0; i--) {
         this.dispatchEventToNode(node.children[i], event);
-        if (event.propagationStopped) return;
+        // 兄弟节点阻止事件冒泡，停止事件传播
+        if (event.immediatePropagationStopped) return;
       }
+    }
+
+    // 子节点阻止事件冒泡，停止事件传播
+    if (event.propagationStopped) {
+      return;
     }
 
     // 如果没有监听器，直接跳过
     if (!node.hasEventListener(event.type)) return;
 
-    // 性能优化：如果子节点已处理事件，说明点击在子节点范围内
-    // 子节点在父节点内，所以父节点的 hitTest 必然通过，可以跳过
-    const needsHitTest = !event.handled;
+    // 性能优化：只有当前节点的子节点处理了事件，才跳过 hitTest
+    // 通过比较子节点遍历前后的 handled 状态，排除其他树分支的干扰
+    const handledByChildren = !handledBefore && event.handled;
+    const needsHitTest = !handledByChildren;
 
     if (needsHitTest && node.hitTest && !node.hitTest(event.x, event.y)) {
       return; // hitTest 失败，不触发事件
     }
 
-    // 设置事件目标并触发
-    event.target = node;
+    // 设置事件目标（只有第一次触发时才设置，指向最深层的目标节点）
+    if (!event.target) {
+      event.target = node;
+    }
     node.dispatchEvent(event.type, event);
   }
 

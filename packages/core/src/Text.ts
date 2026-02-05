@@ -175,10 +175,24 @@ export class Text extends DisplayObject {
     let textHeight: number;
     let lines: string[] = [];
 
+    // 临时宽度缓存，函数执行完毕后自动销毁
+    const widthCache = new Map<string, number>();
+    const getTextWidth = (str: string): number => {
+      let width = widthCache.get(str);
+      if (width === undefined) {
+        width = ctx.measureText(str).width;
+        widthCache.set(str, width);
+      }
+      return width;
+    };
+
     // 首先处理换行符
     const linesFromBreaks = this._text.split("\n");
 
     if (this._maxWidth > 0) {
+      // 缓存空格宽度
+      const spaceWidth = getTextWidth(" ");
+
       // 多行文本处理 - 需要考虑手动换行和自动换行
       for (const lineText of linesFromBreaks) {
         if (lineText.length === 0) {
@@ -189,15 +203,19 @@ export class Text extends DisplayObject {
 
         const words = lineText.split(" ");
         let currentLine = "";
+        let currentWidth = 0;
 
-        for (let i = 0; i < words.length; i++) {
-          const word = words[i];
-          const testLine =
-            currentLine.length === 0 ? word : currentLine + " " + word;
-          const width = ctx.measureText(testLine).width;
+        for (const word of words) {
+          const wordWidth = getTextWidth(word);
+          const testWidth =
+            currentLine.length === 0
+              ? wordWidth
+              : currentWidth + spaceWidth + wordWidth;
 
-          if (width <= this._maxWidth) {
-            currentLine = testLine;
+          if (testWidth <= this._maxWidth) {
+            currentLine =
+              currentLine.length === 0 ? word : currentLine + " " + word;
+            currentWidth = testWidth;
           } else {
             // 如果当前行不为空，先推入当前行
             if (currentLine.length > 0) {
@@ -206,29 +224,31 @@ export class Text extends DisplayObject {
             }
 
             // 处理单个超长单词 - 按字符强制换行
-            const wordWidth = ctx.measureText(word).width;
             if (wordWidth > this._maxWidth) {
               let charLine = "";
-              for (let j = 0; j < word.length; j++) {
-                const char = word[j];
-                const testCharLine = charLine + char;
-                const charWidth = ctx.measureText(testCharLine).width;
+              let charWidth = 0;
 
-                if (charWidth <= this._maxWidth) {
-                  charLine = testCharLine;
+              for (const char of word) {
+                const charW = getTextWidth(char);
+                if (charWidth + charW <= this._maxWidth) {
+                  charLine += char;
+                  charWidth += charW;
                 } else {
                   if (charLine.length > 0) {
                     lines.push(charLine);
                   }
                   charLine = char;
+                  charWidth = charW;
                 }
               }
               if (charLine.length > 0) {
                 currentLine = charLine;
+                currentWidth = charWidth;
               }
             } else {
               // 单词未超长，作为新行开始
               currentLine = word;
+              currentWidth = wordWidth;
             }
           }
         }
@@ -239,22 +259,26 @@ export class Text extends DisplayObject {
         }
       }
 
-      // 计算实际最长行的宽度，而不是直接使用 maxWidth
+      // 计算实际最长行的宽度（从缓存取，无需重复 measureText）
       let maxLineWidth = 0;
       for (const line of lines) {
-        const metrics = ctx.measureText(line);
-        maxLineWidth = Math.max(maxLineWidth, metrics.width);
+        maxLineWidth = Math.max(maxLineWidth, getTextWidth(line));
       }
       textWidth = maxLineWidth;
       textHeight = lines.length * effectiveLineHeight;
     } else {
       // 单行文本处理 - 但仍然需要处理手动换行符
       lines = linesFromBreaks;
-      let maxLineWidth = 0;
 
+      // 预填充缓存
       for (const line of lines) {
-        const metrics = ctx.measureText(line);
-        maxLineWidth = Math.max(maxLineWidth, metrics.width);
+        getTextWidth(line);
+      }
+
+      // 计算最大行宽（从缓存取）
+      let maxLineWidth = 0;
+      for (const line of lines) {
+        maxLineWidth = Math.max(maxLineWidth, getTextWidth(line));
       }
 
       textWidth = maxLineWidth;
@@ -312,6 +336,9 @@ export class Text extends DisplayObject {
     // 更新状态
     this.textureNeedsUpdate = false;
     this.previousText = this._text;
+
+    // 清除宽度缓存
+    widthCache.clear();
   }
 
   override destroy(): void {
