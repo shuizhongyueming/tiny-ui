@@ -134,5 +134,90 @@ packages/core/
   llvm.txt       - API documentation
 ```
 
+## Safe Section Texture Upload Pattern
+
+### Problem Context
+When tiny-ui coexists with other WebGL engines (e.g., Phaser), runtime texture uploads outside the safe section can pollute shared GL state, causing rendering artifacts (e.g., black squares for Canvas Text).
+
+### Solution Architecture
+
+**Core Principle**: All GL operations that modify state must happen within the "safe section" - between `GLState.snapshot()` and `GLState.restore()`.
+
+```
+TinyUI.patchRender()
+    ├── stashGlState()          // snapshot current GL state
+    ├── render()
+    │   ├── _flushGLTasks()     // execute queued GL operations
+    │   └── _renderTree()       // normal rendering
+    └── restoreGlState()        // restore original GL state
+```
+
+### Implementation Details
+
+**1. GL Task Queue (`TinyUI.enqueueGLTask`)**
+- If already in safe section: execute immediately
+- Otherwise: queue for next `patchRender()`
+
+**2. Deferred Texture Loading (`TextureManager.loadTexture`)**
+```typescript
+async loadTexture(url: string): Promise<WebGLTexture> {
+  // 1. Check cache
+  // 2. Check inflight (merge concurrent requests)
+  // 3. Load image (CPU only, no GL)
+  // 4. Enqueue GL upload task
+  // 5. Return deferred.promise (resolves in safe section)
+}
+```
+
+**3. GLState PixelStorei Tracking**
+- Track `UNPACK_PREMULTIPLY_ALPHA_WEBGL`, `UNPACK_ALIGNMENT`, `UNPACK_FLIP_Y_WEBGL`, `UNPACK_COLORSPACE_CONVERSION_WEBGL`
+- Restore all pixelStorei states in single `restore()` call
+- TextureManager only sets values, doesn't stash/restore per-texture
+
+**4. Bitmap/Text Updates**
+- Canvas 2D drawing: immediate
+- GL texture creation/upload: enqueued via `enqueueGLTask()`
+- Use `textureUpdateGen` to skip stale tasks
+
+### Key Classes
+
+| Class | Responsibility |
+|-------|---------------|
+| `TinyUI` | GL task queue, safe section management |
+| `TextureManager` | Deferred loading, inflight tracking |
+| `GLState` | GL state snapshot/restore, pixelStorei tracking |
+| `Deferred<T>` | Promise wrapper for async resolution |
+
+### Performance Benefits
+
+- **Before**: N textures × 4 `getParameter` + 4 `pixelStorei` per texture
+- **After**: 1 `GLState.restore()` for all pixelStorei states
+- Concurrent requests to same URL automatically merged
+
+### Code Patterns
+
+**Enqueue GL Task:**
+```typescript
+this.app.enqueueGLTask(() => {
+  if (this.destroyed) return;
+  if (gen !== this.textureUpdateGen) return; // skip stale
+  this.texture = this.app.textureManager.createImageTexture(image);
+});
+```
+
+**Deferred Usage:**
+```typescript
+const deferred = new Deferred<WebGLTexture>();
+// ... async work ...
+deferred.resolve(texture);
+return deferred.promise;
+```
+
+### Migration Notes
+
+- `TextureManager` constructor now requires `TinyUI` instance: `new TextureManager(gl, app)`
+- `loadTexture()` returns Promise that may not resolve until next `patchRender()`
+- All texture operations (create/upload/delete) must go through safe section
+
 ---
 **Note**: No Cursor rules or Copilot instructions exist in this repo.
