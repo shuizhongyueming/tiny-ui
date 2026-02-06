@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Tiny UI + Phaser Canvas Text Test</title>
+    <style>
+    * {
+      padding: 0;
+      margin: 0;
+    }
+    :root {
+      --sat: env(safe-area-inset-top, 50px);
+      --sar: env(safe-area-inset-right, 50px);
+      --sab: env(safe-area-inset-bottom, 50px);
+      --sal: env(safe-area-inset-left, 50px);
+    }
+    html,body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+      -ms-touch-action: none;
+      touch-action: none;
+      background: #333;
+    }
+    canvas {
+      -ms-touch-action: none;
+      touch-action: none;
+      touch-action-delay: none;
+      -webkit-tap-highlight-color: rgba(0,0,0,0);
+      -moz-tap-highlight-color: rgba(0,0,0,0);
+      user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      outline: none;
+      border: none;
+      width: 100%;
+      height: 100%;
+    }
+    #info {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: white;
+      font-family: monospace;
+      font-size: 12px;
+      z-index: 100;
+      background: rgba(0,0,0,0.7);
+      padding: 10px;
+      border-radius: 5px;
+    }
+    </style>
+  </head>
+  <body>
+    <div id="info">
+      <div>TinyUI + Phaser Canvas Text Test</div>
+      <div id="status">Status: Initializing...</div>
+    </div>
+    <canvas id="game"></canvas>
+    <script>
+    let callbackId = 1;
+    const idMapCallback = new Map();
+    const MAX_FPS = 60;
+    let frameTime = -1;
+    const xyxSetFramePerSecond = (fps) => {
+        if (fps > MAX_FPS) {
+            throw new Error(`max fps is ${MAX_FPS}`);
+        }
+        // 如果平台支持设定 frame，那么就由平台设定，frameTime 就保持为 -1，也就是每帧都执行
+        if (xyx.supportSetFrame) {
+            xyx.setPreferredFramesPerSecond(fps);
+            frameTime = -1;
+        }
+        else {
+            // 使用 Math.floor 避免进行浮点运算
+            // 同时较小的 frameTime 也能使得真实情况下获得的 fps 更接近设定的 fps
+            // 主动把 fps 调高一点，这样真实情况下获得的 fps 就会更接近设定的 fps
+            frameTime = Math.floor(1000 / (fps + 2));
+        }
+    };
+    const raf = window.requestAnimationFrame;
+    let nextUpdateTime = 0;
+    function frame(timeNow) {
+        raf(frame);
+        const currentTime = Date.now();
+        if (currentTime >= nextUpdateTime) {
+            if (frameTime < 0) {
+                nextUpdateTime = currentTime;
+            }
+            else {
+                nextUpdateTime = currentTime + frameTime;
+            }
+            if (window.xyxPrevAnimationFrame) {
+                window.xyxPrevAnimationFrame(timeNow);
+            }
+            // 需要先将 callbacks 复制一份出来，因为在执行 callback 的过程中，可能会有新的 callback 被添加进来
+            const callbacks = Array.from(idMapCallback.values());
+            // 需要先清空 callbacks，因为在执行 callback 的过程中，可能会有新的 callback 被添加进来
+            idMapCallback.clear();
+            for (const callback of callbacks) {
+                callback(timeNow);
+            }
+            if (window.xyxPostAnimationFrame) {
+                window.xyxPostAnimationFrame(timeNow);
+            }
+        }
+    }
+    raf(frame);
+    const requestAnimationFrame = (callback) => {
+        const id = callbackId++;
+        idMapCallback.set(id, callback);
+        return id;
+    };
+    const cancelAnimationFrame = (id) => {
+        idMapCallback.delete(id);
+    };
+    window.requestAnimationFrame = requestAnimationFrame;
+    window.cancelAnimationFrame = cancelAnimationFrame;
+    </script>
+
+    <!-- Phaser -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.85.2/dist/phaser.min.js"></script>
+    <!-- Tiny UI -->
+    <script src="../dist/tiny-ui-core.js"></script>
+
+    <script>
+    const canvas = document.getElementById('game');
+    const statusEl = document.getElementById('status');
+
+    // 固定画布大小
+    const CANVAS_WIDTH = 750;
+    const CANVAS_HEIGHT = 1334;
+
+    // 创建 TinyUI 实例
+    const glOptions = {
+      alpha: true,
+      antialias: true,
+      depth: false,
+      desynchronized: false,
+      failIfMajorPerformanceCaveat: false,
+      powerPreference: "low-power",
+      premultipliedAlpha: true,
+      preserveDrawingBuffer: false,
+      stencil: true,
+    };
+
+    const app = new TinyUI(canvas, glOptions, 'webgl', {});
+
+    // 设置画布大小
+    function resize() {
+      const scale = Math.min(window.innerWidth / CANVAS_WIDTH, window.innerHeight / CANVAS_HEIGHT);
+      const width = CANVAS_WIDTH * scale;
+      const height = CANVAS_HEIGHT * scale;
+      canvas.style.width = width + 'px';
+      canvas.style.height = height + 'px';
+      canvas.style.position = 'absolute';
+      canvas.style.left = ((window.innerWidth - width) / 2) + 'px';
+      canvas.style.top = ((window.innerHeight - height) / 2) + 'px';
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    // ========== Phaser 场景 ==========
+    class TestScene extends Phaser.Scene {
+      constructor() {
+        super({ key: 'TestScene' });
+      }
+
+      preload() {
+        // 不需要加载资源，直接使用 Canvas Text
+      }
+
+      create() {
+        // 设置背景色
+        this.cameras.main.setBackgroundColor('#2d2d2d');
+
+        // 创建 Canvas Text（模拟游戏中的体力值显示）
+        this.livesText = this.add.text(CANVAS_WIDTH / 2, 200, '5 / 10', {
+          fontFamily: 'Arial',
+          fontSize: '40px',
+          fontStyle: 'bold',
+          color: '#ffffff'
+        }).setOrigin(0.5);
+
+        // 创建另一个 Canvas Text（模拟冒险进度）
+        this.progressText = this.add.text(CANVAS_WIDTH / 2, 300, 'Level 2/200', {
+          fontFamily: 'Arial',
+          fontSize: '25px',
+          fontStyle: '700',
+          color: '#fff'
+        }).setOrigin(0.5);
+
+        // 添加标题
+        this.add.text(CANVAS_WIDTH / 2, 100, 'Canvas Text Test', {
+          fontFamily: 'Arial',
+          fontSize: '36px',
+          color: '#4a9eff'
+        }).setOrigin(0.5);
+
+        // 添加说明
+        this.add.text(CANVAS_WIDTH / 2, 400, 'If text appears as black boxes,\nthe bug is reproduced!', {
+          fontFamily: 'Arial',
+          fontSize: '20px',
+          color: '#ff6b6b',
+          align: 'center'
+        }).setOrigin(0.5);
+
+        // 定期更新文本（模拟体力值变化）
+        this.time.addEvent({
+          delay: 2000,
+          callback: () => {
+            const lives = Math.floor(Math.random() * 10) + 1;
+            this.livesText.setText(`${lives} / 10`);
+          },
+          loop: true
+        });
+
+        statusEl.textContent = 'Status: Phaser scene created';
+      }
+
+      update() {
+        // 每一帧更新时，触发 tiny-ui patch render
+        // 这模拟了游戏中的情况：phaser 渲染后，tiny-ui 执行 patch render
+      }
+    }
+
+    async function main() {
+      // ========== 创建 Phaser 游戏 ==========
+      const game = new Phaser.Game({
+        type: Phaser.WEBGL,
+        width: CANVAS_WIDTH,
+        height: CANVAS_HEIGHT,
+        canvas: canvas,
+        transparent: true,
+        scene: TestScene,
+        scale: {
+          mode: Phaser.Scale.NONE,
+          autoCenter: Phaser.Scale.CENTER_BOTH
+        }
+      });
+
+      // ========== TinyUI 内容 ==========
+      // 创建一个图片（模拟游戏中的 UI 图片）
+      const image = await app.createBitmapFromUrl('./img.png');
+      image.x = CANVAS_WIDTH / 2;
+      image.y = 600;
+      image.width = 150;
+      image.height = 100;
+      app.root.addChild(image);
+
+      // 创建一个文本
+      const uiText = app.createText('TinyUI Text');
+      uiText.x = CANVAS_WIDTH / 2;
+      uiText.y = 750;
+      uiText.color = 0x4a9eff;
+      uiText.fontSize = 24;
+      uiText.anchorX = 0.5;
+      app.root.addChild(uiText);
+
+      // ========== 模拟游戏中的 patch render 流程 ==========
+      let frameCount = 0;
+
+      statusEl.textContent = 'Status: Test running...';
+
+      window.xyxPostAnimationFrame = function(time) {
+        app.patchRender();
+      };
+    }
+
+    main().then(() => {
+      console.log('TinyUI test completed successfully');
+    }).catch((error) => {
+      console.error('Error:', error);
+    });
+
+    </script>
+  </body>
+</html>
