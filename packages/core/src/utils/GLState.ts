@@ -59,6 +59,11 @@ interface GLInnerState {
   sampleCoverageInvert: boolean;
   vao: WebGLVertexArrayObject | null;
   vaoOES: any;
+  // pixelStorei states (tracked for safe section texture uploads)
+  unpackPremultiplyAlpha: boolean;
+  unpackAlignment: number;
+  unpackFlipY: boolean;
+  unpackColorspaceConversion: number;
 }
 
 type AnyGL = WebGLRenderingContext | WebGL2RenderingContext;
@@ -137,6 +142,10 @@ export class GLState {
       sampleCoverageInvert: false,
       vao: null,
       vaoOES: null,
+      unpackPremultiplyAlpha: false,
+      unpackAlignment: 4,
+      unpackFlipY: false,
+      unpackColorspaceConversion: gl.BROWSER_DEFAULT_WEBGL,
     };
   }
 
@@ -376,6 +385,18 @@ export class GLState {
     wrap("sampleCoverage", (value: number, invert: boolean) => {
       this.state.sampleCoverageValue = value;
       this.state.sampleCoverageInvert = invert;
+    });
+
+    wrap("pixelStorei", (pname: number, value: number | boolean) => {
+      if (pname === gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL) {
+        this.state.unpackPremultiplyAlpha = value as boolean;
+      } else if (pname === gl.UNPACK_ALIGNMENT) {
+        this.state.unpackAlignment = value as number;
+      } else if (pname === gl.UNPACK_FLIP_Y_WEBGL) {
+        this.state.unpackFlipY = value as boolean;
+      } else if (pname === gl.UNPACK_COLORSPACE_CONVERSION_WEBGL) {
+        this.state.unpackColorspaceConversion = value as number;
+      }
     });
 
     if (this.isWebGL2) {
@@ -820,6 +841,34 @@ export class GLState {
           snapshot.sampleCoverageValue,
           snapshot.sampleCoverageInvert,
         );
+
+      // Restore pixelStorei states (tracked for safe section texture uploads)
+      if (orig.pixelStorei) {
+        if (orig.pixelStorei) {
+          orig.pixelStorei(
+            this.gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL,
+            snapshot.unpackPremultiplyAlpha,
+          );
+        }
+        if (orig.pixelStorei) {
+          orig.pixelStorei(
+            this.gl.UNPACK_ALIGNMENT,
+            snapshot.unpackAlignment,
+          );
+        }
+        if (orig.pixelStorei) {
+          orig.pixelStorei(
+            this.gl.UNPACK_FLIP_Y_WEBGL,
+            snapshot.unpackFlipY,
+          );
+        }
+        if (orig.pixelStorei) {
+          orig.pixelStorei(
+            this.gl.UNPACK_COLORSPACE_CONVERSION_WEBGL,
+            snapshot.unpackColorspaceConversion,
+          );
+        }
+      }
     });
 
     this.setTrackingEnabled(true);
@@ -1194,6 +1243,11 @@ export class GLState {
         sampleCoverageEnabled: false,
         sampleCoverageValue: 1,
         sampleCoverageInvert: false,
+        // pixelStorei defaults per WebGL spec
+        unpackPremultiplyAlpha: false,
+        unpackAlignment: 4,
+        unpackFlipY: false,
+        unpackColorspaceConversion: gl.BROWSER_DEFAULT_WEBGL,
       };
     });
   }

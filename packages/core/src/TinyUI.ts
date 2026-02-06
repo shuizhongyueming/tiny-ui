@@ -153,7 +153,7 @@ class TinyUI {
 
     // 初始化管理器
     this.shaderManager = new ShaderManager(this.gl);
-    this.textureManager = new TextureManager(this.gl);
+    this.textureManager = new TextureManager(this.gl, this);
     this.eventManager = new EventManager(this, option);
 
     // 初始化着色器
@@ -513,7 +513,7 @@ class TinyUI {
     return { r, g, b, a };
   }
 
-  // 加载图片并创建纹理
+  // 加载图片并创建纹理（deferred upload，在 safe section 内完成 GL 上传）
   loadTexture(url: string): Promise<WebGLTexture> {
     return this.textureManager.loadTexture(url);
   }

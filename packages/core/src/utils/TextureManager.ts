@@ -1,18 +1,21 @@
+import type TinyUI from "../TinyUI";
+import { Deferred } from "./Deferred";
+
 export class TextureManager {
   private gl: WebGLRenderingContext;
+  private app: TinyUI;
   private textures: Map<string, WebGLTexture> = new Map();
   private textureCache: Map<string, WebGLTexture> = new Map();
+  private inflight: Map<string, Deferred<WebGLTexture>> = new Map();
 
-  constructor(gl: WebGLRenderingContext) {
+  constructor(gl: WebGLRenderingContext, app: TinyUI) {
     this.gl = gl;
+    this.app = app;
   }
 
   // 创建纹理
   createTexture(): WebGLTexture {
     const gl = this.gl;
-
-    const prevActiveTexture = gl.getParameter(gl.ACTIVE_TEXTURE) as number;
-    const prevBinding = gl.getParameter(gl.TEXTURE_BINDING_2D) as WebGLTexture | null;
 
     const texture = gl.createTexture();
 
@@ -31,64 +34,32 @@ export class TextureManager {
       new Uint8Array([255, 255, 255, 255]) // 白色
     );
 
-    // Restore bindings to avoid polluting shared GL state.
-    gl.bindTexture(gl.TEXTURE_2D, prevBinding);
-    gl.activeTexture(prevActiveTexture);
-
     return texture;
   }
 
   // 从图像设置纹理
+  // 注意：此函数必须在 TinyUI 的 safe section 内调用（即 GLState.snapshot 和 restore 之间）
+  // pixelStorei 状态的恢复由 GLState.restore() 统一处理，不需要每张图单独恢复
   setTextureFromImage(texture: WebGLTexture, image: HTMLImageElement | HTMLCanvasElement, premultiplyAlpha: boolean = false): void {
     const gl = this.gl;
 
-    const prevPremultiplyAlpha = gl.getParameter(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL) as boolean;
-    const prevUnpackAlignment = gl.getParameter(gl.UNPACK_ALIGNMENT) as number;
-    const prevFlipY = gl.getParameter(gl.UNPACK_FLIP_Y_WEBGL) as boolean;
-    const prevColorSpace = gl.getParameter(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL) as number;
-
     gl.bindTexture(gl.TEXTURE_2D, texture);
 
-    // Use WebGL built-in premultiply alpha (restore previous state afterwards).
-    if (prevPremultiplyAlpha !== premultiplyAlpha) {
-      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, premultiplyAlpha);
-    }
+    // 设置需要的 pixelStorei 值（恢复由 GLState.restore() 统一处理）
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, premultiplyAlpha);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.BROWSER_DEFAULT_WEBGL);
 
-    // Keep uploads predictable; restore afterwards.
-    if (prevUnpackAlignment !== 4) {
-      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
-    }
-    if (prevFlipY !== false) {
-      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-    }
-    if (prevColorSpace !== gl.BROWSER_DEFAULT_WEBGL) {
-      gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.BROWSER_DEFAULT_WEBGL);
-    }
-
-    try {
-      // 将图像数据上传到纹理
-      gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        gl.RGBA,
-        gl.RGBA,
-        gl.UNSIGNED_BYTE,
-        image,
-      );
-    } finally {
-      if (prevPremultiplyAlpha !== premultiplyAlpha) {
-        gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, prevPremultiplyAlpha);
-      }
-      if (prevUnpackAlignment !== 4) {
-        gl.pixelStorei(gl.UNPACK_ALIGNMENT, prevUnpackAlignment);
-      }
-      if (prevFlipY !== false) {
-        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, prevFlipY);
-      }
-      if (prevColorSpace !== gl.BROWSER_DEFAULT_WEBGL) {
-        gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, prevColorSpace);
-      }
-    }
+    // 将图像数据上传到纹理
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.RGBA,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      image,
+    );
 
     // 检查图像尺寸是否为2的幂
     const isPowerOf2 = (value: number) => (value & (value - 1)) === 0;
@@ -102,11 +73,6 @@ export class TextureManager {
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     }
-
-    // 恢复默认值
-    // gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-
-    gl.bindTexture(gl.TEXTURE_2D, null);
   }
 
   loadImage(url: string): Promise<HTMLImageElement> {
@@ -126,22 +92,51 @@ export class TextureManager {
     });
   }
 
-  // 加载纹理
+  // 加载纹理（deferred upload，在 safe section 内完成 GL 上传）
   async loadTexture(url: string): Promise<WebGLTexture> {
-    // 检查缓存
+    // 1. 检查缓存
     if (this.textureCache.has(url)) {
       return this.textureCache.get(url)!;
     }
 
-    const img = await this.loadImage(url);
+    // 2. 检查 inflight（合并并发请求）
+    const existing = this.inflight.get(url);
+    if (existing) {
+      return existing.promise;
+    }
 
-    return this.createImageTexture(img)
+    // 3. 创建 Deferred
+    const deferred = new Deferred<WebGLTexture>();
+    this.inflight.set(url, deferred);
+
+    // 4. 加载图片（不触碰 GL）
+    try {
+      const image = await this.loadImage(url);
+
+      // 5. 在 safe section 内上传
+      this.app.enqueueGLTask(() => {
+        try {
+          const texture = this.createImageTexture(image);
+          deferred.resolve(texture);
+        } catch (err) {
+          deferred.reject(err instanceof Error ? err : new Error(String(err)));
+        } finally {
+          this.inflight.delete(url);
+        }
+      });
+    } catch (err) {
+      deferred.reject(err instanceof Error ? err : new Error(String(err)));
+      this.inflight.delete(url);
+    }
+
+    return deferred.promise;
   }
+
+  // 创建图像纹理（必须在 safe section 内调用）
   createImageTexture(image: HTMLImageElement): WebGLTexture {
     const texture = this.createTexture();
     const url = image.src;
     this.setTextureFromImage(texture, image);
-
 
     // 添加到缓存
     this.textureCache.set(url, texture);
@@ -150,7 +145,7 @@ export class TextureManager {
     return texture;
   }
 
-  // 创建Canvas纹理
+  // 创建Canvas纹理（必须在 safe section 内调用）
   createCanvasTexture(canvas: HTMLCanvasElement, premultiplyAlpha = false): WebGLTexture {
     const texture = this.createTexture();
 
@@ -162,7 +157,7 @@ export class TextureManager {
     return texture;
   }
 
-  // 删除纹理
+  // 删除纹理（必须在 safe section 内调用）
   deleteTexture(texture: WebGLTexture): void {
     const gl = this.gl;
 
@@ -180,9 +175,15 @@ export class TextureManager {
     gl.deleteTexture(texture);
   }
 
-  // 销毁所有纹理
+  // 销毁所有纹理（必须在 safe section 内调用）
   destroy(): void {
     const gl = this.gl;
+
+    // Reject all inflight texture loads
+    for (const [url, deferred] of this.inflight.entries()) {
+      deferred.reject(new Error(`TextureManager destroyed while loading texture: ${url}`));
+    }
+    this.inflight.clear();
 
     // 删除所有纹理
     for (const texture of this.textures.values()) {
