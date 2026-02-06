@@ -121,6 +121,9 @@ class TinyUI {
   // 根容器
   root: Container;
 
+  private _glTasks: Array<() => void> = [];
+  private _glSafeDepth: number = 0;
+
   constructor(
     canvas: HTMLCanvasElement,
     glContextArrtibutes: WebGLContextAttributes = {},
@@ -275,32 +278,39 @@ class TinyUI {
   render(patch: boolean = false) {
     this.updateViewport(patch);
 
-    const gl = this.gl;
+    this._glSafeDepth++;
+    try {
+      this._flushGLTasks();
 
-    if (!patch) {
-      // 清除画布
-      gl.clearColor(0, 0, 0, 0);
-      gl.clear(gl.COLOR_BUFFER_BIT);
+      const gl = this.gl;
+
+      if (!patch) {
+        // 清除画布
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+      }
+
+      // 设置视口
+      gl.viewport(0, 0, this.viewportWidth, this.viewportHeight);
+
+      // 使用着色器程序
+      gl.useProgram(this.shaderProgram);
+
+      // 设置分辨率
+      gl.uniform2f(
+        this.resolutionLocation,
+        this.viewportWidth,
+        this.viewportHeight,
+      );
+
+      // 重置当前变换矩阵
+      this.currentMatrix = new Matrix();
+
+      // 渲染整个场景树
+      this._renderTree(this.root);
+    } finally {
+      this._glSafeDepth--;
     }
-
-    // 设置视口
-    gl.viewport(0, 0, this.viewportWidth, this.viewportHeight);
-
-    // 使用着色器程序
-    gl.useProgram(this.shaderProgram);
-
-    // 设置分辨率
-    gl.uniform2f(
-      this.resolutionLocation,
-      this.viewportWidth,
-      this.viewportHeight,
-    );
-
-    // 重置当前变换矩阵
-    this.currentMatrix = new Matrix();
-
-    // 渲染整个场景树
-    this._renderTree(this.root);
   }
 
   private stashGlState() {
@@ -323,6 +333,39 @@ class TinyUI {
       this.render(true);
     } finally {
       this.restoreGlState();
+    }
+  }
+
+  isInGLSafeSection(): boolean {
+    return this._glSafeDepth > 0;
+  }
+
+  enqueueGLTask(task: () => void): void {
+    if (this.isInGLSafeSection()) {
+      task();
+      return;
+    }
+    this._glTasks.push(task);
+  }
+
+  private _flushGLTasks(): void {
+    // Tasks can enqueue more tasks; keep flushing until stable.
+    let guard = 0;
+    while (this._glTasks.length > 0) {
+      if (guard++ > 1000) {
+        console.warn("[TinyUI] GL task flush exceeded guard limit");
+        this._glTasks.length = 0;
+        return;
+      }
+
+      const tasks = this._glTasks.splice(0, this._glTasks.length);
+      for (const task of tasks) {
+        try {
+          task();
+        } catch (err) {
+          console.warn("[TinyUI] GL task failed:", err);
+        }
+      }
     }
   }
 
@@ -477,6 +520,14 @@ class TinyUI {
 
   destroy() {
     const gl = this.gl;
+
+    // Flush any pending GL tasks (e.g. queued texture deletes).
+    this._glSafeDepth++;
+    try {
+      this._flushGLTasks();
+    } finally {
+      this._glSafeDepth--;
+    }
 
     // 删除缓冲区
     gl.deleteBuffer(this.positionBuffer);

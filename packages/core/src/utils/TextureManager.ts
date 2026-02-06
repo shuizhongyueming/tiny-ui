@@ -11,6 +11,9 @@ export class TextureManager {
   createTexture(): WebGLTexture {
     const gl = this.gl;
 
+    const prevActiveTexture = gl.getParameter(gl.ACTIVE_TEXTURE) as number;
+    const prevBinding = gl.getParameter(gl.TEXTURE_BINDING_2D) as WebGLTexture | null;
+
     const texture = gl.createTexture();
 
     // 使用默认白色像素初始化纹理
@@ -28,6 +31,10 @@ export class TextureManager {
       new Uint8Array([255, 255, 255, 255]) // 白色
     );
 
+    // Restore bindings to avoid polluting shared GL state.
+    gl.bindTexture(gl.TEXTURE_2D, prevBinding);
+    gl.activeTexture(prevActiveTexture);
+
     return texture;
   }
 
@@ -35,19 +42,52 @@ export class TextureManager {
   setTextureFromImage(texture: WebGLTexture, image: HTMLImageElement | HTMLCanvasElement, premultiplyAlpha: boolean = false): void {
     const gl = this.gl;
 
+    const prevPremultiplyAlpha = gl.getParameter(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL) as boolean;
+    const prevUnpackAlignment = gl.getParameter(gl.UNPACK_ALIGNMENT) as number;
+    const prevFlipY = gl.getParameter(gl.UNPACK_FLIP_Y_WEBGL) as boolean;
+    const prevColorSpace = gl.getParameter(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL) as number;
+
     gl.bindTexture(gl.TEXTURE_2D, texture);
 
-    // 使用 WebGL 内置的预乘 alpha
-    if (premultiplyAlpha) {
-      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+    // Use WebGL built-in premultiply alpha (restore previous state afterwards).
+    if (prevPremultiplyAlpha !== premultiplyAlpha) {
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, premultiplyAlpha);
     }
 
-    // 将图像数据上传到纹理
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+    // Keep uploads predictable; restore afterwards.
+    if (prevUnpackAlignment !== 4) {
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+    }
+    if (prevFlipY !== false) {
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    }
+    if (prevColorSpace !== gl.BROWSER_DEFAULT_WEBGL) {
+      gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.BROWSER_DEFAULT_WEBGL);
+    }
 
-    // 恢复默认设置
-    if (premultiplyAlpha) {
-      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+    try {
+      // 将图像数据上传到纹理
+      gl.texImage2D(
+        gl.TEXTURE_2D,
+        0,
+        gl.RGBA,
+        gl.RGBA,
+        gl.UNSIGNED_BYTE,
+        image,
+      );
+    } finally {
+      if (prevPremultiplyAlpha !== premultiplyAlpha) {
+        gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, prevPremultiplyAlpha);
+      }
+      if (prevUnpackAlignment !== 4) {
+        gl.pixelStorei(gl.UNPACK_ALIGNMENT, prevUnpackAlignment);
+      }
+      if (prevFlipY !== false) {
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, prevFlipY);
+      }
+      if (prevColorSpace !== gl.BROWSER_DEFAULT_WEBGL) {
+        gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, prevColorSpace);
+      }
     }
 
     // 检查图像尺寸是否为2的幂

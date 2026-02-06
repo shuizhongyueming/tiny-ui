@@ -18,6 +18,8 @@ export class Text extends DisplayObject {
 
   texture: WebGLTexture | null = null;
   textureNeedsUpdate: boolean = true;
+  private textureUploadPending: boolean = false;
+  private textureUpdateGen: number = 0;
   private textureWidth: number = 0;
   private textureHeight: number = 0;
   private previousText: string = "";
@@ -131,18 +133,23 @@ export class Text extends DisplayObject {
   }
 
   updateTexture(): void {
-    const gl = this.app.gl;
     const textureManager = this.app.textureManager;
+
     // 如果文本为空，清除纹理
     if (!this._text || this._text.length === 0) {
       if (this.texture) {
-        gl.deleteTexture(this.texture);
+        const textureToDelete = this.texture;
         this.texture = null;
+        this.app.enqueueGLTask(() => {
+          this.app.gl.deleteTexture(textureToDelete);
+        });
       }
       this.setWidth(0);
       this.setHeight(0);
       this.textureNeedsUpdate = false;
       this.previousText = "";
+      this.textureUploadPending = false;
+      this.textureUpdateGen++;
       return;
     }
 
@@ -325,17 +332,25 @@ export class Text extends DisplayObject {
     this.setWidth(originalWidth);
     this.setHeight(originalHeight);
 
-    // 删除旧纹理
-    if (this.texture) {
-      gl.deleteTexture(this.texture);
-    }
+    const gen = ++this.textureUpdateGen;
+    const previousTexture = this.texture;
+    this.textureUploadPending = true;
 
-    // 创建新纹理
-    this.texture = textureManager.createCanvasTexture(canvas, false);
-
-    // 更新状态
+    // Mark as handled to avoid enqueue storms; setters will flip it back.
     this.textureNeedsUpdate = false;
     this.previousText = this._text;
+
+    this.app.enqueueGLTask(() => {
+      if (this.destroyed) return;
+      if (gen !== this.textureUpdateGen) return;
+
+      if (previousTexture) {
+        this.app.gl.deleteTexture(previousTexture);
+      }
+
+      this.texture = textureManager.createCanvasTexture(canvas, false);
+      this.textureUploadPending = false;
+    });
 
     // 清除宽度缓存
     widthCache.clear();
@@ -346,10 +361,14 @@ export class Text extends DisplayObject {
 
     // 释放纹理
     if (this.texture) {
-      const gl = this.app.gl;
-      gl.deleteTexture(this.texture);
+      const textureToDelete = this.texture;
       this.texture = null;
+      this.app.enqueueGLTask(() => {
+        this.app.gl.deleteTexture(textureToDelete);
+      });
     }
+    this.textureUploadPending = false;
+    this.textureUpdateGen++;
   }
 
   render(_matrix: Matrix): void {

@@ -22,6 +22,8 @@ export class DisplayObject {
   name: string = "";
   rotation: number = 0; // 角度 (0-360)
 
+  destroyed: boolean = false;
+
   private eventListeners: Map<EventName, Set<Callback>> = new Map();
 
   /**
@@ -223,6 +225,7 @@ export class DisplayObject {
   }
 
   destroy(): void {
+    this.destroyed = true;
     if (this.parent) {
       this.parent.removeChild(this);
     }

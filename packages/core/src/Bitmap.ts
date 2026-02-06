@@ -7,6 +7,8 @@ export class Bitmap extends DisplayObject {
   texture: WebGLTexture | null = null;
   imgLoadPromise: Promise<Bitmap> | null = null;
   source: HTMLImageElement | HTMLCanvasElement | null = null;
+  private textureUploadPending: boolean = false;
+  private textureUpdateGen: number = 0;
 
   constructor(app: TinyUI, name: string = 'Bitmap') {
     super(app, name);
@@ -29,23 +31,55 @@ export class Bitmap extends DisplayObject {
   loadFromImage(image: HTMLImageElement, resize: boolean = true): Bitmap {
     this.src = image.src;
     this.source = image;
-    this.texture = this.app.textureManager.createImageTexture(image);
-    this.imgLoadPromise = Promise.resolve(this);
+
     if (resize) {
       this.setWidth(image.width);
       this.setHeight(image.height);
     }
+
+    const gen = ++this.textureUpdateGen;
+    const previousTexture = this.texture;
+    this.textureUploadPending = true;
+
+    this.app.enqueueGLTask(() => {
+      if (this.destroyed) return;
+      if (gen !== this.textureUpdateGen) return;
+
+      if (previousTexture) {
+        this.app.gl.deleteTexture(previousTexture);
+      }
+
+      this.texture = this.app.textureManager.createImageTexture(image);
+      this.textureUploadPending = false;
+    });
+    this.imgLoadPromise = Promise.resolve(this);
     return this;
   }
   loadFromCanvas(canvas: HTMLCanvasElement, resize: boolean = true): Bitmap {
     this.src = '<canvas>';
     this.source = canvas;
-    this.texture = this.app.textureManager.createCanvasTexture(canvas);
-    this.imgLoadPromise = Promise.resolve(this);
+
     if (resize) {
       this.setWidth(canvas.width);
       this.setHeight(canvas.height);
     }
+
+    const gen = ++this.textureUpdateGen;
+    const previousTexture = this.texture;
+    this.textureUploadPending = true;
+
+    this.app.enqueueGLTask(() => {
+      if (this.destroyed) return;
+      if (gen !== this.textureUpdateGen) return;
+
+      if (previousTexture) {
+        this.app.gl.deleteTexture(previousTexture);
+      }
+
+      this.texture = this.app.textureManager.createCanvasTexture(canvas);
+      this.textureUploadPending = false;
+    });
+    this.imgLoadPromise = Promise.resolve(this);
     return this;
   }
 
@@ -54,10 +88,15 @@ export class Bitmap extends DisplayObject {
 
     // 释放纹理
     if (this.texture) {
-      const gl = this.app.gl;
-      gl.deleteTexture(this.texture);
+      const textureToDelete = this.texture;
       this.texture = null;
+
+      this.app.enqueueGLTask(() => {
+        this.app.gl.deleteTexture(textureToDelete);
+      });
     }
+    this.textureUploadPending = false;
+    this.textureUpdateGen++;
   }
 
   render(_matrix: Matrix): void {
