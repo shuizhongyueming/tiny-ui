@@ -1,5 +1,5 @@
 # Test outputs
-tests/visual/snapshots/
+tests/visual/__snapshots__/
 playwright-report/
 test-results/
 

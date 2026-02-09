@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run --config vitest.integration.config.ts",
-    "test:visual": "vitest run --config vitest.visual.config.ts",
+    "test:visual": "playwright test --config playwright.visual.config.ts",
+    "test:visual:update": "playwright test --config playwright.visual.config.ts --update-snapshots",
     "test:coexistence": "playwright test tests/integration/engine-coexistence",
     "test:ui": "vitest --ui",
     "test:ui:browser": "vitest --config vitest.ui.config.ts",
@@ -23,6 +24,7 @@
   "license": "ISC",
   "packageManager": "pnpm@10.6.5",
   "devDependencies": {
+    "@playwright/test": "^1.58.1",
     "@vitest/browser": "^4.0.18",
     "@vitest/ui": "^4.0.18",
     "canvas": "^3.2.1",

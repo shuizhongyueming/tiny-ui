@@ -12,3 +12,12 @@ test-coexistence:
 
 test-watch:
     pnpm run test:watch
+
+test-visual:
+    npx playwright test --config playwright.visual.config.ts
+
+test-visual-update:
+    npx playwright test --config playwright.visual.config.ts --update-snapshots
+
+test-visual-report:
+    npx playwright show-report
