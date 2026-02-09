@@ -402,7 +402,6 @@ class TinyUI {
     // 处理裁剪区域
     let scissorEnabled = false;
     if (node.clipRect) {
-      console.log(`[TinyUI:Scissor] Found clipRect on ${node.name}`);
       scissorEnabled = this._applyScissor(node, combinedMatrix);
     }
 
@@ -491,17 +490,8 @@ class TinyUI {
 
     // 确保有效范围
     if (scissorWidth <= 0 || scissorHeight <= 0) {
-      console.log('[TinyUI:Scissor] Invalid scissor size:', scissorWidth, scissorHeight);
       return false;
     }
-
-    console.log('[TinyUI:Scissor] Applying scissor:', JSON.stringify({
-      node: node.name,
-      minX, minY, maxX, maxY,
-      scissorX, scissorY, scissorWidth, scissorHeight,
-      viewportWidth, viewportHeight,
-      rect
-    }, null, 2));
 
     // 保存当前 scissor 状态
     this._scissorStateStack.push({

@@ -52,8 +52,6 @@ export class EventManager {
   }
 
   private setupEventListeners(options: EventManagerOptions): void {
-    console.log("[TinyUI:EventManager] Setting up event listeners");
-
     // 触摸开始事件
     const touchStartListener = this.createTouchListener(EventName.TouchStart);
     if (options.handleTouchEventListening) {
