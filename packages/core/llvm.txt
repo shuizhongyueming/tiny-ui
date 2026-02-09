@@ -103,6 +103,7 @@ tinyUI.createBitmapFromUrl('img.png').then(bitmap => {
 | Text | `Text` | 文本显示节点（支持 BBCode） | complex |
 | Graphics | `Graphics` | 矢量图形节点 | minimal |
 | Events | `EventManager`, `UIEvent`, `EventName` | 触控事件系统 | complex |
+| Emitter | `Emitter` | 生命周期事件发射器 | minimal |
 | Math | `Matrix` | 2D 变换矩阵 | - |
 | Resource | `TextureManager`, `ShaderManager` | 资源管理（高级） | - |
 | GL State | `GLState*`, `StatePreservationStrategy` | WebGL 状态管理 | complex |
@@ -478,6 +479,82 @@ box.addEventListener('touchstart', (e) => {
 
 tinyUI.root.addChild(box);
 tinyUI.render();
+```
+
+---
+
+### Feature：Emitter（生命周期事件）
+
+**What**：轻量级事件发射器，用于监听 DisplayObject 的生命周期和状态变化。
+
+**API**：
+```typescript
+class Emitter {
+  on<P>(eventName: string, callback: (data?: P) => void): () => void;
+  once<P>(eventName: string, callback: (data?: P) => void): void;
+  off(eventName: string, callback: Function): void;
+  emit<P>(eventName: string, data?: P): void;
+  listenerCount(eventName: string): number;
+  hasListener(eventName: string): boolean;
+  removeAllListeners(eventName?: string): void;
+}
+```
+
+**DisplayObject 内置事件**：
+
+| 事件名 | 触发时机 | 回调数据 |
+|--------|----------|----------|
+| `resize` | width/height 变化 | `{ width: number, height: number }` |
+| `childrenChanged` | 子节点增删 | `{ type: 'add' \| 'remove', child: DisplayObject, index: number }` |
+| `destroyed` | 节点销毁时 | `void` |
+
+**语义约定**：
+1. `on()` 返回取消订阅函数，便于自动清理
+2. `once()` 监听一次后自动移除
+3. `emit()` 同步触发，按注册顺序执行
+4. `destroy()` 自动触发 `destroyed` 事件并清理所有监听器
+
+**最小 demo**：
+```javascript
+const container = tinyUI.createContainer();
+
+// 监听尺寸变化
+const unsubscribe = container.on('resize', ({ width, height }) => {
+  console.log('Size changed:', width, height);
+});
+
+// 监听子节点变化
+container.on('childrenChanged', ({ type, child, index }) => {
+  console.log(`Child ${type}ed at index ${index}`);
+});
+
+// 添加子节点触发事件
+const child = tinyUI.createText('Hello');
+container.addChild(child);  // 触发 childrenChanged
+
+// 取消监听
+unsubscribe();
+```
+
+**常见用法**：
+```javascript
+// 监听多个事件
+const unsubResize = node.on('resize', handleResize);
+const unsubDestroy = node.on('destroyed', () => {
+  unsubResize();
+  console.log('Node destroyed');
+});
+
+// 检查是否有监听器
+if (node.hasListener('resize')) {
+  console.log('Has resize listeners:', node.listenerCount('resize'));
+}
+
+// 清理特定事件的所有监听器
+node.removeAllListeners('resize');
+
+// 清理所有监听器
+node.removeAllListeners();
 ```
 
 ---

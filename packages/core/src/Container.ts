@@ -41,6 +41,28 @@ export class Container extends DisplayObject {
 
     this.children.push(child);
     child.parent = this;
+
+    this.emit("childrenChanged", {
+      type: "add",
+      child,
+      index: this.children.length - 1,
+    });
+  }
+
+  addChildAt(child: DisplayObject, index: number): void {
+    if (child.parent) {
+      child.parent.removeChild(child);
+    }
+
+    const insertIndex = Math.max(0, Math.min(index, this.children.length));
+    this.children.splice(insertIndex, 0, child);
+    child.parent = this;
+
+    this.emit("childrenChanged", {
+      type: "add",
+      child,
+      index: insertIndex,
+    });
   }
 
   removeChild(child: DisplayObject): void {
@@ -48,6 +70,11 @@ export class Container extends DisplayObject {
     if (index !== -1) {
       this.children.splice(index, 1);
       child.parent = null;
+      this.emit("childrenChanged", {
+        type: "remove",
+        child,
+        index,
+      });
     }
   }
 

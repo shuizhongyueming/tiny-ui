@@ -4,6 +4,7 @@ export * from "./Container";
 export * from "./DisplayObject";
 export * from "./Graphics";
 export * from "./type";
+export * from "./utils/Emitter";
 export * from "./utils/EventManager";
 export * from "./utils/Matrix";
 export * from "./utils/ShaderManager";

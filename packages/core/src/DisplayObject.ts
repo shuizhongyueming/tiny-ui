@@ -2,9 +2,12 @@ import { type Container } from "./Container";
 import type { EventName, Callback, Rect, Size, Point } from "./type";
 import { Matrix } from "./utils/Matrix";
 import type { UIEvent } from "./utils/UIEvent";
+import { Emitter } from "./utils/Emitter";
 import type TinyUI from "./TinyUI";
 
 export class DisplayObject {
+
+export class DisplayObject extends Emitter {
   app: TinyUI;
   parent: Container | null = null;
   children: DisplayObject[] | null = null;
@@ -39,11 +42,19 @@ export class DisplayObject {
   }
 
   protected setWidth(value: number): void {
+    const oldValue = this._width;
     this._width = value;
+    if (oldValue !== value) {
+      this.emit("resize", { width: value, height: this._height });
+    }
   }
 
   protected setHeight(value: number): void {
+    const oldValue = this._height;
     this._height = value;
+    if (oldValue !== value) {
+      this.emit("resize", { width: this._width, height: value });
+    }
   }
 
   scaleToFit(width: number, height?: number): void {
@@ -73,6 +84,7 @@ export class DisplayObject {
   }
 
   constructor(app: TinyUI, name?: string) {
+    super();
     this.app = app;
     this.name = name || "DisplayObject";
   }
@@ -225,10 +237,12 @@ export class DisplayObject {
   }
 
   destroy(): void {
+    this.emit("destroyed");
     this.destroyed = true;
     if (this.parent) {
       this.parent.removeChild(this);
     }
     this.eventListeners.clear();
+    this.removeAllListeners();
   }
 }
