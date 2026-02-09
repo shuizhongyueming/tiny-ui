@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BBCode Text Example - Tiny UI</title>
+    <style>
+    * {
+      padding: 0;
+      margin: 0;
+    }
+    html,body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+      background: #2d3748;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    </style>
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+    <script src="../dist/tiny-ui-core.js"></script>
+    <script>
+    const canvas = document.getElementById('game');
+    const tinyUI = new TinyUI(canvas);
+    const dpr = window.devicePixelRatio || 1;
+
+    // 辅助函数：强制更新纹理以获取正确尺寸
+    function forceUpdateTexture(text) {
+      text.updateTexture();
+      return text;
+    }
+
+    // 标题
+    const title = tinyUI.createText('BBCode Text Formatting Demo');
+    title.color = '#ffffff';
+    title.fontSize = 40 * dpr;
+    title.anchorX = 0;
+    title.anchorY = 0;
+    title.x = 50 * dpr;
+    title.y = 30 * dpr;
+    tinyUI.root.addChild(title);
+
+    let yOffset = 120 * dpr;
+    const xBase = 50 * dpr;
+    const columnSpacing = 150 * dpr;
+
+    // 测试 1: 基础格式
+    const label1 = tinyUI.createText('Test 1: Basic Formatting');
+    label1.color = '#cbd5e0';
+    label1.fontSize = 18 * dpr;
+    label1.anchorX = 0;
+    label1.anchorY = 0;
+    label1.x = xBase;
+    label1.y = yOffset;
+    tinyUI.root.addChild(label1);
+
+    const text1 = tinyUI.createText('[b]Bold[/b] [i]Italic[/i] [u]Underline[/u] [s]Strikethrough[/s]');
+    text1.bbcodeEnabled = true;
+    text1.color = '#ffffff';
+    text1.fontSize = 20 * dpr;
+    text1.anchorX = 0;
+    text1.anchorY = 0;
+    text1.x = xBase;
+    text1.y = yOffset + 30 * dpr;
+    forceUpdateTexture(text1);
+    tinyUI.root.addChild(text1);
+
+    yOffset += 80 * dpr;
+
+    // 测试 2: 颜色和大小
+    const label2 = tinyUI.createText('Test 2: Colors & Sizes');
+    label2.color = '#cbd5e0';
+    label2.fontSize = 18 * dpr;
+    label2.anchorX = 0;
+    label2.anchorY = 0;
+    label2.x = xBase;
+    label2.y = yOffset;
+    tinyUI.root.addChild(label2);
+
+    const text2 = tinyUI.createText('[color=#ff6b6b]Red[/color] [color=#4ecdc4]Teal[/color] [size=1.5]Big[/size] [size=0.7]Small[/size]');
+    text2.bbcodeEnabled = true;
+    text2.color = '#ffffff';
+    text2.fontSize = 18 * dpr;
+    text2.anchorX = 0;
+    text2.anchorY = 0;
+    text2.x = xBase;
+    text2.y = yOffset + 30 * dpr;
+    forceUpdateTexture(text2);
+    tinyUI.root.addChild(text2);
+
+    yOffset += 80 * dpr;
+
+    // 测试 2b: 嵌套 Size（验证 size 标签可以嵌套）
+    const label2b = tinyUI.createText('Test 2b: Nested Sizes');
+    label2b.color = '#cbd5e0';
+    label2b.fontSize = 18 * dpr;
+    label2b.anchorX = 0;
+    label2b.anchorY = 0;
+    label2b.x = xBase;
+    label2b.y = yOffset;
+    tinyUI.root.addChild(label2b);
+
+    const text2b = tinyUI.createText('[size=1.8]Large [size=0.4]Tiny[/size] Back to Large[/size]');
+    text2b.bbcodeEnabled = true;
+    text2b.color = '#ffffff';
+    text2b.fontSize = 18 * dpr;
+    text2b.anchorX = 0;
+    text2b.anchorY = 0;
+    text2b.x = xBase;
+    text2b.y = yOffset + 30 * dpr;
+    forceUpdateTexture(text2b);
+    tinyUI.root.addChild(text2b);
+
+    yOffset += 80 * dpr;
+
+    // 测试 3: 字体
+    const label3 = tinyUI.createText('Test 3: Different Fonts');
+    label3.color = '#cbd5e0';
+    label3.fontSize = 18 * dpr;
+    label3.anchorX = 0;
+    label3.anchorY = 0;
+    label3.x = xBase;
+    label3.y = yOffset;
+    tinyUI.root.addChild(label3);
+
+    const text3 = tinyUI.createText('Normal [font=Georgia]Georgia[/font] [font="Courier New"]Courier[/font]');
+    text3.bbcodeEnabled = true;
+    text3.color = '#ffffff';
+    text3.fontSize = 18 * dpr;
+    text3.anchorX = 0;
+    text3.anchorY = 0;
+    text3.x = xBase;
+    text3.y = yOffset + 30 * dpr;
+    forceUpdateTexture(text3);
+    tinyUI.root.addChild(text3);
+
+    yOffset += 80 * dpr;
+
+    // 测试 4: 透明度和隐藏
+    const label4 = tinyUI.createText('Test 4: Opacity & Hide');
+    label4.color = '#cbd5e0';
+    label4.fontSize = 18 * dpr;
+    label4.anchorX = 0;
+    label4.anchorY = 0;
+    label4.x = xBase;
+    label4.y = yOffset;
+    tinyUI.root.addChild(label4);
+
+    const text4 = tinyUI.createText('Visible [opacity=30]Faded[/opacity] [hide]Hidden[/hide] Visible');
+    text4.bbcodeEnabled = true;
+    text4.color = '#ffffff';
+    text4.fontSize = 18 * dpr;
+    text4.anchorX = 0;
+    text4.anchorY = 0;
+    text4.x = xBase;
+    text4.y = yOffset + 30 * dpr;
+    forceUpdateTexture(text4);
+    tinyUI.root.addChild(text4);
+
+    yOffset += 80 * dpr;
+
+    // 测试 5: 背景色
+    const label5 = tinyUI.createText('Test 5: Background Colors');
+    label5.color = '#cbd5e0';
+    label5.fontSize = 18 * dpr;
+    label5.anchorX = 0;
+    label5.anchorY = 0;
+    label5.x = xBase;
+    label5.y = yOffset;
+    tinyUI.root.addChild(label5);
+
+    const text5 = tinyUI.createText('Normal [background=#ff0000]Red[/background] [background=#00ff00]Green[/background] [background=#0000ff]Blue[/background]');
+    text5.bbcodeEnabled = true;
+    text5.color = '#ffffff';
+    text5.fontSize = 18 * dpr;
+    text5.anchorX = 0;
+    text5.anchorY = 0;
+    text5.x = xBase;
+    text5.y = yOffset + 30 * dpr;
+    forceUpdateTexture(text5);
+    tinyUI.root.addChild(text5);
+
+    yOffset += 80 * dpr;
+
+    // 测试 6: 描边和轮廓
+    const label6 = tinyUI.createText('Test 6: Stroke & Outline');
+    label6.color = '#cbd5e0';
+    label6.fontSize = 18 * dpr;
+    label6.anchorX = 0;
+    label6.anchorY = 0;
+    label6.x = xBase;
+    label6.y = yOffset;
+    tinyUI.root.addChild(label6);
+
+    const text6 = tinyUI.createText('[stroke]Hollow[/stroke] [outline=#ff0000]RedOutline[/outline] [outlineback=#00ff00]GreenBack[/outlineback]');
+    text6.bbcodeEnabled = true;
+    text6.color = '#ffffff';
+    text6.fontSize = 22 * dpr;
+    text6.anchorX = 0;
+    text6.anchorY = 0;
+    text6.x = xBase;
+    text6.y = yOffset + 30 * dpr;
+    forceUpdateTexture(text6);
+    tinyUI.root.addChild(text6);
+
+    yOffset += 90 * dpr;
+
+    // 测试 7: 线条粗细
+    const label7 = tinyUI.createText('Test 7: Line Thickness');
+    label7.color = '#cbd5e0';
+    label7.fontSize = 18 * dpr;
+    label7.anchorX = 0;
+    label7.anchorY = 0;
+    label7.x = xBase;
+    label7.y = yOffset;
+    tinyUI.root.addChild(label7);
+
+    const text7 = tinyUI.createText('[lineThickness=0.02][u]Thin[/u][/lineThickness] [lineThickness=0.15][u]Thick[/u][/lineThickness] [lineThickness=0.3][u]VeryThick[/u][/lineThickness]');
+    text7.bbcodeEnabled = true;
+    text7.color = '#ffffff';
+    text7.fontSize = 18 * dpr;
+    text7.anchorX = 0;
+    text7.anchorY = 0;
+    text7.x = xBase;
+    text7.y = yOffset + 30 * dpr;
+    forceUpdateTexture(text7);
+    tinyUI.root.addChild(text7);
+
+    yOffset += 80 * dpr;
+
+    // 测试 8: 偏移效果
+    const label8 = tinyUI.createText('Test 8: Offset Effects');
+    label8.color = '#cbd5e0';
+    label8.fontSize = 18 * dpr;
+    label8.anchorX = 0;
+    label8.anchorY = 0;
+    label8.x = xBase;
+    label8.y = yOffset;
+    tinyUI.root.addChild(label8);
+
+    const text8 = tinyUI.createText('Normal [offsety=-5]Up[/offsety] [offsety=5]Down[/offsety] [offsetx=20]Right[/offsetx]');
+    text8.bbcodeEnabled = true;
+    text8.color = '#ffffff';
+    text8.fontSize = 18 * dpr;
+    text8.anchorX = 0;
+    text8.anchorY = 0;
+    text8.x = xBase;
+    text8.y = yOffset + 30 * dpr;
+    forceUpdateTexture(text8);
+    tinyUI.root.addChild(text8);
+
+    // 第二列
+    forceUpdateTexture(label1);
+    forceUpdateTexture(label2);
+    forceUpdateTexture(label3);
+    forceUpdateTexture(label4);
+    forceUpdateTexture(label5);
+    forceUpdateTexture(label6);
+    forceUpdateTexture(label7);
+    forceUpdateTexture(label8);
+
+    const col1MaxWidth = Math.max(
+      label1.width, label2.width, label3.width, label4.width,
+      label5.width, label6.width, label7.width, label8.width,
+      text1.width, text2.width, text3.width, text4.width,
+      text5.width, text6.width, text7.width, text8.width
+    );
+
+    yOffset = 120 * dpr;
+    const xBase2 = xBase + col1MaxWidth + columnSpacing;
+
+    // 测试 9: 百分比偏移（波浪效果）
+    const label9 = tinyUI.createText('Test 9: Wave Effect (Percentage Offset)');
+    label9.color = '#cbd5e0';
+    label9.fontSize = 18 * dpr;
+    label9.anchorX = 0;
+    label9.anchorY = 0;
+    label9.x = xBase2;
+    label9.y = yOffset;
+    tinyUI.root.addChild(label9);
+
+    const text9 = tinyUI.createText('[offsety=-30%]W[/offsety][offsety=-10%]a[/offsety][offsety=10%]v[/offsety][offsety=30%]e[/offsety][offsety=10%]E[/offsety][offsety=-10%]f[/offsety][offsety=-30%]f[/offsety][offsety=-10%]e[/offsety][offsety=10%]c[/offsety][offsety=30%]t[/offsety]');
+    text9.bbcodeEnabled = true;
+    text9.color = '#ffffff';
+    text9.fontSize = 28 * dpr;
+    text9.anchorX = 0;
+    text9.anchorY = 0;
+    text9.x = xBase2;
+    text9.y = yOffset + 30 * dpr;
+    forceUpdateTexture(text9);
+    tinyUI.root.addChild(text9);
+
+    yOffset += 90 * dpr;
+
+    // 测试 10: 复杂嵌套
+    const label10 = tinyUI.createText('Test 10: Complex Nesting');
+    label10.color = '#cbd5e0';
+    label10.fontSize = 18 * dpr;
+    label10.anchorX = 0;
+    label10.anchorY = 0;
+    label10.x = xBase2;
+    label10.y = yOffset;
+    tinyUI.root.addChild(label10);
+
+    const text10 = tinyUI.createText('[b][color=#ff6b6b]BoldRed[/color] [i]BoldItalic[/i][/b] [size=1.3][u]LargeUnderlined[/u][/size]');
+    text10.bbcodeEnabled = true;
+    text10.color = '#ffffff';
+    text10.fontSize = 18 * dpr;
+    text10.anchorX = 0;
+    text10.anchorY = 0;
+    text10.x = xBase2;
+    text10.y = yOffset + 30 * dpr;
+    forceUpdateTexture(text10);
+    tinyUI.root.addChild(text10);
+
+    yOffset += 80 * dpr;
+
+    // 测试 11: 转义字符
+    const label11 = tinyUI.createText('Test 11: Escape Characters');
+    label11.color = '#cbd5e0';
+    label11.fontSize = 18 * dpr;
+    label11.anchorX = 0;
+    label11.anchorY = 0;
+    label11.x = xBase2;
+    label11.y = yOffset;
+    tinyUI.root.addChild(label11);
+
+    const text11 = tinyUI.createText('Escape: [[b] shows as [b] (plain text)');
+    text11.bbcodeEnabled = true;
+    text11.color = '#ffffff';
+    text11.fontSize = 18 * dpr;
+    text11.anchorX = 0;
+    text11.anchorY = 0;
+    text11.x = xBase2;
+    text11.y = yOffset + 30 * dpr;
+    forceUpdateTexture(text11);
+    tinyUI.root.addChild(text11);
+
+    yOffset += 80 * dpr;
+
+    // 测试 12: 未闭合标签（应显示为纯文本）
+    const label12 = tinyUI.createText('Test 12: Unclosed Tags (Plain Text)');
+    label12.color = '#cbd5e0';
+    label12.fontSize = 18 * dpr;
+    label12.anchorX = 0;
+    label12.anchorY = 0;
+    label12.x = xBase2;
+    label12.y = yOffset;
+    tinyUI.root.addChild(label12);
+
+    const text12 = tinyUI.createText('Unclosed: [b]this is plain text (not bold)');
+    text12.bbcodeEnabled = true;
+    text12.color = '#ffffff';
+    text12.fontSize = 18 * dpr;
+    text12.anchorX = 0;
+    text12.anchorY = 0;
+    text12.x = xBase2;
+    text12.y = yOffset + 30 * dpr;
+    forceUpdateTexture(text12);
+    tinyUI.root.addChild(text12);
+
+    yOffset += 80 * dpr;
+
+    // 测试 13: 多行文本
+    const label13 = tinyUI.createText('Test 13: Multi-line Text');
+    label13.color = '#cbd5e0';
+    label13.fontSize = 18 * dpr;
+    label13.anchorX = 0;
+    label13.anchorY = 0;
+    label13.x = xBase2;
+    label13.y = yOffset;
+    tinyUI.root.addChild(label13);
+
+    const text13 = tinyUI.createText('Line1 with [color=#ff6b6b]red[/color]\nLine2 with [b]bold[/b]\nLine3 with [size=1.5]big[/size]');
+    text13.bbcodeEnabled = true;
+    text13.color = '#ffffff';
+    text13.fontSize = 16 * dpr;
+    text13.anchorX = 0;
+    text13.anchorY = 0;
+    text13.x = xBase2;
+    text13.y = yOffset + 30 * dpr;
+    forceUpdateTexture(text13);
+    tinyUI.root.addChild(text13);
+
+    yOffset += 100 * dpr;
+
+    // 测试 14: 带 maxWidth 的换行
+    const label14 = tinyUI.createText('Test 14: BBCode with maxWidth & Wrapping');
+    label14.color = '#cbd5e0';
+    label14.fontSize = 18 * dpr;
+    label14.anchorX = 0;
+    label14.anchorY = 0;
+    label14.x = xBase2;
+    label14.y = yOffset;
+    tinyUI.root.addChild(label14);
+
+    const text14 = tinyUI.createText('This is a [b]long text[/b] with [color=#4ecdc4]various[/color] formatting that should [size=1.3]wrap[/size] when it exceeds the max width');
+    text14.bbcodeEnabled = true;
+    text14.color = '#ffffff';
+    text14.fontSize = 14 * dpr;
+    text14.maxWidth = 280 * dpr;
+    text14.anchorX = 0;
+    text14.anchorY = 0;
+    text14.x = xBase2;
+    text14.y = yOffset + 30 * dpr;
+    forceUpdateTexture(text14);
+    tinyUI.root.addChild(text14);
+
+    const bg14 = tinyUI.createGraphics();
+    bg14.anchorX = 0;
+    bg14.anchorY = 0;
+    bg14.drawRect(0, 0, 280 * dpr, text14.height, 'rgba(100, 100, 100, 0.2)');
+    bg14.x = xBase2;
+    bg14.y = yOffset + 30 * dpr;
+    tinyUI.root.addChild(bg14);
+
+    // 图例说明
+    const legend = tinyUI.createText('Supported: [b] [i] [u] [s] [size=N] [font=X] [color=X] [opacity=N] [hide] [background=X] [offsetx=N] [offsety=N%] [stroke] [outline=X] [outlineback=X] [lineThickness=N]');
+    legend.color = '#94a3b8';
+    legend.fontSize = 14 * dpr;
+    legend.anchorX = 0;
+    legend.anchorY = 0;
+    legend.x = 50 * dpr;
+    legend.y = tinyUI.stageHeight - 40 * dpr;
+    forceUpdateTexture(legend);
+    tinyUI.root.addChild(legend);
+
+    tinyUI.render();
+    </script>
+  </body>
+</html>

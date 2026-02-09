@@ -2,6 +2,16 @@ import { DisplayObject } from "./DisplayObject";
 import type TinyUI from "./TinyUI";
 import { type Matrix } from "./utils/Matrix";
 import { nextPowerOfTwo } from "./utils/Power2";
+import { BBCodeParser } from "./utils/BBCodeParser";
+import type { ParsedSegment } from "./utils/BBCodeParser";
+import {
+  type TextStyleState,
+  type RenderUnit,
+  type LineInfo,
+  createDefaultStyle,
+  applyTagToStyle,
+  buildFontString,
+} from "./utils/BBCodeTypes";
 
 type FontWeight = "normal" | "bold";
 type TextAlign = "left" | "center" | "right";
@@ -24,6 +34,9 @@ export class Text extends DisplayObject {
   private textureHeight: number = 0;
   private previousText: string = "";
   private canvas: HTMLCanvasElement | null = null;
+  private _bbcodeEnabled: boolean = false;
+  private _canvasPadding: number = 10;
+  private parser: BBCodeParser = new BBCodeParser();
 
   constructor(app: TinyUI, name: string = "Text") {
     super(app, name);
@@ -60,6 +73,14 @@ export class Text extends DisplayObject {
 
   get align(): TextAlign {
     return this._align;
+  }
+
+  get bbcodeEnabled(): boolean {
+    return this._bbcodeEnabled;
+  }
+
+  get canvasPadding(): number {
+    return this._canvasPadding;
   }
 
   // Setters
@@ -132,9 +153,21 @@ export class Text extends DisplayObject {
     }
   }
 
-  updateTexture(): void {
-    const textureManager = this.app.textureManager;
+  set bbcodeEnabled(value: boolean) {
+    if (this._bbcodeEnabled !== value) {
+      this._bbcodeEnabled = value;
+      this.textureNeedsUpdate = true;
+    }
+  }
 
+  set canvasPadding(value: number) {
+    if (this._canvasPadding !== value) {
+      this._canvasPadding = value;
+      this.textureNeedsUpdate = true;
+    }
+  }
+
+  updateTexture(): void {
     // 如果文本为空，清除纹理
     if (!this._text || this._text.length === 0) {
       if (this.texture) {
@@ -158,11 +191,20 @@ export class Text extends DisplayObject {
       return;
     }
 
+    if (this._bbcodeEnabled) {
+      this.updateTextureBBCode();
+    } else {
+      this.updateTexturePlain();
+    }
+  }
+
+  private updateTexturePlain(): void {
+    const textureManager = this.app.textureManager;
+
     if (!this.canvas) {
       this.canvas = document.createElement("canvas");
     }
 
-    // 创建离屏canvas
     const canvas = this.canvas;
     const ctx = canvas.getContext("2d");
 
@@ -171,18 +213,13 @@ export class Text extends DisplayObject {
       return;
     }
 
-    // 设置字体
     ctx.font = `${this._fontWeight} ${this._fontSize}px ${this._fontFamily}`;
 
-    // 计算行高 - 如果没有设置，使用默认的1.2倍字体大小
     const effectiveLineHeight = this.lineHeight;
-
-    // 计算文本尺寸
     let textWidth: number;
     let textHeight: number;
     let lines: string[] = [];
 
-    // 临时宽度缓存，函数执行完毕后自动销毁
     const widthCache = new Map<string, number>();
     const getTextWidth = (str: string): number => {
       let width = widthCache.get(str);
@@ -193,17 +230,13 @@ export class Text extends DisplayObject {
       return width;
     };
 
-    // 首先处理换行符
     const linesFromBreaks = this._text.split("\n");
 
     if (this._maxWidth > 0) {
-      // 缓存空格宽度
       const spaceWidth = getTextWidth(" ");
 
-      // 多行文本处理 - 需要考虑手动换行和自动换行
       for (const lineText of linesFromBreaks) {
         if (lineText.length === 0) {
-          // 空行直接添加
           lines.push("");
           continue;
         }
@@ -224,13 +257,11 @@ export class Text extends DisplayObject {
               currentLine.length === 0 ? word : currentLine + " " + word;
             currentWidth = testWidth;
           } else {
-            // 如果当前行不为空，先推入当前行
             if (currentLine.length > 0) {
               lines.push(currentLine);
               currentLine = "";
             }
 
-            // 处理单个超长单词 - 按字符强制换行
             if (wordWidth > this._maxWidth) {
               let charLine = "";
               let charWidth = 0;
@@ -253,20 +284,17 @@ export class Text extends DisplayObject {
                 currentWidth = charWidth;
               }
             } else {
-              // 单词未超长，作为新行开始
               currentLine = word;
               currentWidth = wordWidth;
             }
           }
         }
 
-        // 推入最后一行
         if (currentLine.length > 0) {
           lines.push(currentLine);
         }
       }
 
-      // 计算实际最长行的宽度（从缓存取，无需重复 measureText）
       let maxLineWidth = 0;
       for (const line of lines) {
         maxLineWidth = Math.max(maxLineWidth, getTextWidth(line));
@@ -274,15 +302,12 @@ export class Text extends DisplayObject {
       textWidth = maxLineWidth;
       textHeight = lines.length * effectiveLineHeight;
     } else {
-      // 单行文本处理 - 但仍然需要处理手动换行符
       lines = linesFromBreaks;
 
-      // 预填充缓存
       for (const line of lines) {
         getTextWidth(line);
       }
 
-      // 计算最大行宽（从缓存取）
       let maxLineWidth = 0;
       for (const line of lines) {
         maxLineWidth = Math.max(maxLineWidth, getTextWidth(line));
@@ -292,28 +317,21 @@ export class Text extends DisplayObject {
       textHeight = lines.length * effectiveLineHeight;
     }
 
-    // 设置canvas尺寸 (增加一点边距)
     const originalWidth = textWidth + 4;
     const originalHeight = textHeight + 4;
 
-    // 设置canvas尺寸为2的指数
-    // 这样可以确保纹理尺寸为2的指数，提高性能和缩放效果
     this.textureWidth = nextPowerOfTwo(originalWidth);
     this.textureHeight = nextPowerOfTwo(originalHeight);
 
     canvas.width = this.textureWidth;
     canvas.height = this.textureHeight;
 
-    // 清除canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // 重新设置字体 (因为canvas尺寸改变后会重置字体)
     ctx.font = `${this._fontWeight} ${this._fontSize}px ${this._fontFamily}`;
     ctx.textBaseline = "top";
     ctx.fillStyle = this._color;
     ctx.textAlign = this._align;
 
-    // 计算对齐位置
     let x = 2;
     if (this._align === "center") {
       x = originalWidth / 2;
@@ -321,14 +339,10 @@ export class Text extends DisplayObject {
       x = originalWidth - 2;
     }
 
-    // 绘制文本
     for (let i = 0; i < lines.length; i++) {
       ctx.fillText(lines[i], x, i * effectiveLineHeight + 2);
     }
 
-    // 更新对象尺寸
-    // 但是对象的宽高仍然使用原始尺寸
-    // 这样用户使用的时候，不会有奇怪的空白
     this.setWidth(originalWidth);
     this.setHeight(originalHeight);
 
@@ -336,7 +350,6 @@ export class Text extends DisplayObject {
     const previousTexture = this.texture;
     this.textureUploadPending = true;
 
-    // Mark as handled to avoid enqueue storms; setters will flip it back.
     this.textureNeedsUpdate = false;
     this.previousText = this._text;
 
@@ -352,8 +365,398 @@ export class Text extends DisplayObject {
       this.textureUploadPending = false;
     });
 
-    // 清除宽度缓存
     widthCache.clear();
+  }
+
+  private updateTextureBBCode(): void {
+    const textureManager = this.app.textureManager;
+
+    if (!this.canvas) {
+      this.canvas = document.createElement("canvas");
+    }
+
+    const canvas = this.canvas;
+    const ctx = canvas.getContext("2d");
+
+    if (!ctx) {
+      console.error("Failed to create 2D context for canvas");
+      return;
+    }
+
+    // Parse BBCode
+    const segments = this.parser.parse(this._text);
+
+    // Build render units
+    const units = this.buildRenderUnits(ctx, segments);
+
+    // Layout lines
+    const lines = this.layoutLines(units);
+
+    // Calculate dimensions
+    let maxWidth = 0;
+    let totalHeight = 0;
+    for (const line of lines) {
+      maxWidth = Math.max(maxWidth, line.width);
+      totalHeight += line.height;
+    }
+
+    const originalWidth = maxWidth + 4 + this._canvasPadding * 2;
+    const originalHeight = totalHeight + 4 + this._canvasPadding * 2;
+
+    this.textureWidth = nextPowerOfTwo(originalWidth);
+    this.textureHeight = nextPowerOfTwo(originalHeight);
+
+    canvas.width = this.textureWidth;
+    canvas.height = this.textureHeight;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Render layers
+    this.renderBBCodeLayers(ctx, lines);
+
+    this.setWidth(originalWidth);
+    this.setHeight(originalHeight);
+
+    const gen = ++this.textureUpdateGen;
+    const previousTexture = this.texture;
+    this.textureUploadPending = true;
+
+    this.textureNeedsUpdate = false;
+    this.previousText = this._text;
+
+    this.app.enqueueGLTask(() => {
+      if (this.destroyed) return;
+      if (gen !== this.textureUpdateGen) return;
+
+      if (previousTexture) {
+        this.app.gl.deleteTexture(previousTexture);
+      }
+
+      this.texture = textureManager.createCanvasTexture(canvas, false);
+      this.textureUploadPending = false;
+    });
+  }
+
+  private buildRenderUnits(
+    ctx: CanvasRenderingContext2D,
+    segments: ParsedSegment[]
+  ): RenderUnit[] {
+    const units: RenderUnit[] = [];
+    // Calculate line height ratio based on Text settings
+    const lineHeightRatio = this._lineHeight === 0 ? 1.2 : this._lineHeight / this._fontSize;
+
+    for (const segment of segments) {
+      let style = createDefaultStyle(
+        this._fontSize,
+        this._fontFamily,
+        this._color
+      );
+
+      // Apply tags
+      for (const tag of segment.tags) {
+        style = applyTagToStyle(style, tag, this._fontSize);
+      }
+
+      // Split by newlines
+      const lines = segment.text.split("\n");
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (line.length === 0 && i < lines.length - 1) {
+          // Empty line marker
+          units.push({
+            text: "",
+            style: { ...style },
+            x: 0,
+            y: 0,
+            width: 0,
+            height: style.fontSize * lineHeightRatio,
+            ascent: style.fontSize,
+            lineIndex: -1, // Will be assigned during layout
+          });
+        } else if (line.length > 0) {
+          ctx.font = buildFontString(style);
+          const metrics = ctx.measureText(line);
+          units.push({
+            text: line,
+            style: { ...style },
+            x: 0,
+            y: 0,
+            width: metrics.width,
+            height: style.fontSize * lineHeightRatio,
+            ascent: metrics.actualBoundingBoxAscent || style.fontSize * 0.8,
+            lineIndex: -1,
+          });
+        }
+
+        // Add line break marker (except for last line)
+        if (i < lines.length - 1) {
+          units.push({
+            text: "",
+            style: { ...style },
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 0,
+            ascent: 0,
+            lineIndex: -2, // Line break marker
+          });
+        }
+      }
+    }
+
+    return units;
+  }
+
+  private layoutLines(units: RenderUnit[]): LineInfo[] {
+    const lines: LineInfo[] = [];
+    let currentLineUnits: RenderUnit[] = [];
+    let currentLineWidth = 0;
+    let currentLineHeight = 0;
+    let currentBaseline = 0;
+
+    for (const unit of units) {
+      if (unit.lineIndex === -2) {
+        // Line break
+        if (currentLineUnits.length > 0) {
+          lines.push({
+            units: currentLineUnits,
+            width: currentLineWidth,
+            height: currentLineHeight,
+            baseline: currentBaseline,
+          });
+        }
+        currentLineUnits = [];
+        currentLineWidth = 0;
+        currentLineHeight = 0;
+        currentBaseline = 0;
+        continue;
+      }
+
+      // Check max width
+      if (
+        this._maxWidth > 0 &&
+        currentLineWidth + unit.width > this._maxWidth &&
+        currentLineUnits.length > 0
+      ) {
+        // Start new line
+        lines.push({
+          units: currentLineUnits,
+          width: currentLineWidth,
+          height: currentLineHeight,
+          baseline: currentBaseline,
+        });
+        currentLineUnits = [];
+        currentLineWidth = 0;
+        currentLineHeight = 0;
+        currentBaseline = 0;
+      }
+
+      // Add to current line
+      unit.lineIndex = lines.length;
+      currentLineUnits.push(unit);
+      currentLineWidth += unit.width;
+      currentLineHeight = Math.max(currentLineHeight, unit.height);
+      currentBaseline = Math.max(currentBaseline, unit.ascent);
+    }
+
+    // Add last line
+    if (currentLineUnits.length > 0) {
+      lines.push({
+        units: currentLineUnits,
+        width: currentLineWidth,
+        height: currentLineHeight,
+        baseline: currentBaseline,
+      });
+    }
+
+    // Calculate max content width for alignment
+    let maxContentWidth = 0;
+    for (const line of lines) {
+      maxContentWidth = Math.max(maxContentWidth, line.width);
+    }
+    // Use maxWidth if set, otherwise use content width
+    const containerWidth = this._maxWidth > 0 ? this._maxWidth : maxContentWidth;
+
+    // Calculate positions with padding
+    const padding = this._canvasPadding;
+    let y = 2 + padding;
+    for (const line of lines) {
+      let x = 2 + padding;
+
+      if (this._align === "center") {
+        x = 2 + padding + (containerWidth - line.width) / 2;
+      } else if (this._align === "right") {
+        x = 2 + padding + containerWidth - line.width;
+      }
+
+      for (const unit of line.units) {
+        unit.x = x;
+        unit.y = y + (line.baseline - unit.ascent);
+        // Resolve percentage offsetY
+        if (unit.style.offsetYIsPercentage) {
+          unit.style.offsetY = unit.style.offsetY * line.height;
+        }
+        x += unit.width;
+      }
+
+      y += line.height;
+    }
+
+    return lines;
+  }
+
+  private renderBBCodeLayers(ctx: CanvasRenderingContext2D, lines: LineInfo[]): void {
+    // Layer 0: outlineback
+    for (const line of lines) {
+      for (const unit of line.units) {
+        if (unit.style.outlineBack && unit.style.visible) {
+          this.renderOutlineBack(ctx, unit);
+        }
+      }
+    }
+
+    // Layer 1: background
+    for (const line of lines) {
+      for (const unit of line.units) {
+        if (unit.style.background && unit.style.visible) {
+          ctx.fillStyle = unit.style.background;
+          ctx.fillRect(unit.x, unit.y, unit.width, unit.height);
+        }
+      }
+    }
+
+    // Layer 2: stroke (hollow text)
+    for (const line of lines) {
+      for (const unit of line.units) {
+        if (unit.style.stroke && unit.style.visible) {
+          this.renderStrokedText(ctx, unit);
+        }
+      }
+    }
+
+    // Layer 3: outline (on top)
+    for (const line of lines) {
+      for (const unit of line.units) {
+        if (unit.style.outline && unit.style.visible && !unit.style.stroke) {
+          this.renderOutlinedText(ctx, unit, unit.style.outline);
+        }
+      }
+    }
+
+    // Layer 4: fill + decorations
+    for (const line of lines) {
+      for (const unit of line.units) {
+        if (!unit.style.stroke && unit.style.visible) {
+          this.renderFilledText(ctx, unit);
+        }
+
+        if (unit.style.underline && unit.style.visible) {
+          this.renderUnderline(ctx, unit);
+        }
+
+        if (unit.style.strikethrough && unit.style.visible) {
+          this.renderStrikethrough(ctx, unit);
+        }
+      }
+    }
+  }
+
+  private renderOutlineBack(ctx: CanvasRenderingContext2D, unit: RenderUnit): void {
+    if (!unit.style.outlineBack) return;
+
+    ctx.font = buildFontString(unit.style);
+    ctx.textBaseline = "alphabetic";
+    ctx.lineWidth = unit.style.lineThickness * unit.style.fontSize;
+    ctx.strokeStyle = unit.style.outlineBack;
+    ctx.globalAlpha = unit.style.opacity / 100;
+
+    const x = unit.x + unit.style.offsetX;
+    const y = unit.y + unit.ascent + unit.style.offsetY;
+
+    ctx.strokeText(unit.text, x, y);
+
+    ctx.globalAlpha = 1;
+  }
+
+  private renderStrokedText(ctx: CanvasRenderingContext2D, unit: RenderUnit): void {
+    ctx.font = buildFontString(unit.style);
+    ctx.textBaseline = "alphabetic";
+    ctx.lineWidth = unit.style.lineThickness * unit.style.fontSize;
+    ctx.strokeStyle = unit.style.color;
+    ctx.globalAlpha = unit.style.opacity / 100;
+
+    const x = unit.x + unit.style.offsetX;
+    const y = unit.y + unit.ascent + unit.style.offsetY;
+
+    ctx.strokeText(unit.text, x, y);
+
+    ctx.globalAlpha = 1;
+  }
+
+  private renderOutlinedText(
+    ctx: CanvasRenderingContext2D,
+    unit: RenderUnit,
+    outlineColor: string
+  ): void {
+    ctx.font = buildFontString(unit.style);
+    ctx.textBaseline = "alphabetic";
+    ctx.lineWidth = unit.style.lineThickness * unit.style.fontSize;
+    ctx.strokeStyle = outlineColor;
+    ctx.globalAlpha = unit.style.opacity / 100;
+
+    const x = unit.x + unit.style.offsetX;
+    const y = unit.y + unit.ascent + unit.style.offsetY;
+
+    ctx.strokeText(unit.text, x, y);
+
+    ctx.globalAlpha = 1;
+  }
+
+  private renderFilledText(ctx: CanvasRenderingContext2D, unit: RenderUnit): void {
+    ctx.font = buildFontString(unit.style);
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = unit.style.color;
+    ctx.globalAlpha = unit.style.opacity / 100;
+
+    const x = unit.x + unit.style.offsetX;
+    const y = unit.y + unit.ascent + unit.style.offsetY;
+
+    ctx.fillText(unit.text, x, y);
+
+    ctx.globalAlpha = 1;
+  }
+
+  private renderUnderline(ctx: CanvasRenderingContext2D, unit: RenderUnit): void {
+    const thickness = unit.style.lineThickness * unit.style.fontSize;
+    const y = unit.y + unit.ascent + thickness;
+
+    ctx.strokeStyle = unit.style.color;
+    ctx.lineWidth = thickness;
+    ctx.globalAlpha = unit.style.opacity / 100;
+
+    ctx.beginPath();
+    ctx.moveTo(unit.x + unit.style.offsetX, y + unit.style.offsetY);
+    ctx.lineTo(unit.x + unit.width + unit.style.offsetX, y + unit.style.offsetY);
+    ctx.stroke();
+
+    ctx.globalAlpha = 1;
+  }
+
+  private renderStrikethrough(ctx: CanvasRenderingContext2D, unit: RenderUnit): void {
+    const thickness = unit.style.lineThickness * unit.style.fontSize;
+    const y = unit.y + unit.ascent * 0.6;
+
+    ctx.strokeStyle = unit.style.color;
+    ctx.lineWidth = thickness;
+    ctx.globalAlpha = unit.style.opacity / 100;
+
+    ctx.beginPath();
+    ctx.moveTo(unit.x + unit.style.offsetX, y + unit.style.offsetY);
+    ctx.lineTo(unit.x + unit.width + unit.style.offsetX, y + unit.style.offsetY);
+    ctx.stroke();
+
+    ctx.globalAlpha = 1;
   }
 
   override destroy(): void {

@@ -9,7 +9,7 @@
     "url": "https://github.com/shuizhongyueming/tiny-ui.git"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest"
   },
   "keywords": [],
   "author": "",
@@ -17,7 +17,8 @@
   "packageManager": "pnpm@10.6.5",
   "devDependencies": {
     "esbuild": "^0.25.1",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.2",
+    "vitest": "^4.0.18"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
