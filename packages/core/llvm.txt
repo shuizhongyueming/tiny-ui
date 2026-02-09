@@ -1,7 +1,7 @@
 # Tiny UI Core 通用接口说明与 Demo
 
 > 目标：让第一次接触 Tiny UI Core 的人能在 5 分钟内知道"有哪些接口、怎么用"。  
-> 版本：对应代码库 v1.3.1
+> 版本：对应代码库 v1.5.0
 
 ---
 
@@ -100,12 +100,13 @@ tinyUI.createBitmapFromUrl('img.png').then(bitmap => {
 | DisplayObject | `DisplayObject` | 显示对象基类 | - |
 | Container | `Container` | 容器节点 | minimal |
 | Bitmap | `Bitmap` | 图片显示节点 | minimal |
-| Text | `Text` | 文本显示节点 | complex |
+| Text | `Text` | 文本显示节点（支持 BBCode） | complex |
 | Graphics | `Graphics` | 矢量图形节点 | minimal |
 | Events | `EventManager`, `UIEvent`, `EventName` | 触控事件系统 | complex |
 | Math | `Matrix` | 2D 变换矩阵 | - |
 | Resource | `TextureManager`, `ShaderManager` | 资源管理（高级） | - |
 | GL State | `GLState*`, `StatePreservationStrategy` | WebGL 状态管理 | complex |
+| BBCode | `BBCodeParser`, `BBCodeTypes` | 富文本解析（高级） | - |
 
 ---
 
@@ -288,7 +289,7 @@ tinyUI.createBitmapFromUrl('img.png').then(bitmap => {
 
 ### Feature：Text（文本）
 
-**What**：渲染文本的节点，支持样式、换行和对齐。
+**What**：渲染文本的节点，支持样式、换行、对齐和 BBCode 富文本格式。
 
 **API**：
 ```typescript
@@ -301,6 +302,9 @@ class Text extends DisplayObject {
   lineHeight: number;           // 0 表示自动
   maxWidth: number;             // 0 表示无限制
   align: 'left' | 'center' | 'right';
+  bbcodeEnabled: boolean;        // 是否启用 BBCode 解析
+  canvasPadding: number;         // Canvas 内边距（默认 10）
+  updateTexture(): void;        // 手动更新纹理
 }
 ```
 
@@ -320,6 +324,48 @@ text.color = '#ff0000';
 text.fontSize = 48;
 text.maxWidth = 200;
 text.align = 'center';
+text.x = tinyUI.stageWidth / 2;
+text.y = tinyUI.stageHeight / 2;
+tinyUI.root.addChild(text);
+tinyUI.render();
+```
+
+**BBCode 富文本支持**：
+
+启用 `bbcodeEnabled = true` 后，文本支持 BBCode 标签实现富文本格式。
+
+**支持的标签**：
+| 标签 | 语法 | 说明 |
+|------|------|------|
+| `[b]` | `[b]粗体[/b]` | 粗体 |
+| `[i]` | `[i]斜体[/i]` | 斜体 |
+| `[u]` | `[u]下划线[/u]` | 下划线 |
+| `[s]` | `[s]删除线[/s]` | 删除线 |
+| `[size]` | `[size=1.5]大号[/size]` | 字体大小倍数（0.1-5）|
+| `[font]` | `[font=Arial]字体[/font]` | 指定字体 |
+| `[color]` | `[color=#ff0000]红色[/color]` | 文字颜色 |
+| `[opacity]` | `[opacity=50]半透明[/opacity]` | 透明度（0-100）|
+| `[hide]` | `[hide]隐藏[/hide]` | 隐藏文字 |
+| `[background]` | `[background=#ffff00]背景[/background]` | 背景颜色 |
+| `[stroke]` | `[stroke]描边[/stroke]` | 文字描边（空心）|
+| `[outline]` | `[outline=#ff0000]轮廓[/outline]` | 轮廓颜色 |
+| `[outlineback]` | `[outlineback=#00ff00]背景轮廓[/outlineback]` | 轮廓背景色 |
+| `[lineThickness]` | `[lineThickness=0.1]线条[/lineThickness]` | 下划线/删除线粗细（0.01-1）|
+| `[offsetx]` | `[offsetx=5]右移[/offsetx]` | 水平偏移（像素）|
+| `[offsety]` | `[offsety=-5]上移[/offsety]` | 垂直偏移（像素或百分比）|
+
+**特性说明**：
+1. 标签支持嵌套（最多 50 层）
+2. `[[` 用于转义 `[` 字符
+3. `offsety` 支持百分比：`[offsety=-30%]上移30%[/offsety]`
+4. 未闭合的标签会作为普通文本处理
+
+**最小 demo**：
+```javascript
+const text = tinyUI.createText('[b]粗体[/b] [color=#ff6b6b]红色[/color] [size=1.5]大号[/size]');
+text.bbcodeEnabled = true;
+text.color = '#ffffff';
+text.fontSize = 24;
 text.x = tinyUI.stageWidth / 2;
 text.y = tinyUI.stageHeight / 2;
 tinyUI.root.addChild(text);

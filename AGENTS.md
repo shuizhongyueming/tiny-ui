@@ -134,6 +134,64 @@ packages/core/
   llvm.txt       - API documentation
 ```
 
+## BBCode Rich Text System
+
+### Architecture Overview
+
+BBCode 解析和渲染分为三个阶段：
+
+```
+Text.text (BBCode string)
+    │
+    ▼
+BBCodeParser.parse()              // 解析为 ParsedSegment[]
+    │
+    ├── Tag stack tracking        // 最多 50 层嵌套
+    ├── Escape handling           // [[ 转义为 [
+    └── Unclosed tag recovery     // 未闭合标签回退为纯文本
+    │
+    ▼
+BBCodeTypes.applyTagToStyle()     // 应用标签到样式状态
+    │
+    ├── b/i/u/s                   // 粗体/斜体/下划线/删除线
+    ├── size/font/color           // 大小/字体/颜色
+    ├── opacity/hide              // 透明度/隐藏
+    ├── background                // 背景色
+    ├── stroke/outline            // 描边/轮廓
+    └── offsetx/offsety           // 偏移
+    │
+    ▼
+Text.updateTextureBBCode()        // 布局渲染
+    │
+    ├── Line breaking             // 自动换行
+    ├── RenderUnit generation     // 生成渲染单元
+    ├── Line alignment            // 行对齐
+    └── Canvas 2D rendering       // 绘制到离屏 Canvas
+```
+
+### Key Features
+
+**1. 嵌套标签支持**
+- 使用栈结构跟踪标签状态
+- 最多 50 层嵌套深度限制
+- 后闭合的标签优先匹配
+
+**2. 百分比偏移**
+```typescript
+// offsety 支持百分比，相对于行高
+[offsety=-30%]W[/offsety][offsety=30%]e[/offsety]
+```
+
+**3. 未闭合标签处理**
+- 检测到未闭合标签时，回退到最早未闭合标签位置
+- 将该位置之后的所有内容作为纯文本渲染
+
+### Performance Notes
+
+- BBCode 解析发生在 `updateTexture()` 时
+- 解析结果不缓存，每次文本变更重新解析
+- 对于静态文本，建议启用后手动调用 `updateTexture()` 预渲染
+
 ## Safe Section Texture Upload Pattern
 
 ### Problem Context
