@@ -149,6 +149,7 @@ showConfirm(
 |---------|---------|---------|------|
 | Popup | `Popup` | 全屏遮罩弹窗容器 | complex |
 | Button | `TextBtn` | 响应式/固定尺寸文本按钮 | minimal |
+| Scroll | `Scroll` | 可滚动容器（垂直/水平/双向）| complex |
 | Shape | `ShapeRect` | 纯色矩形背景 | - |
 | Dialog | `Confirm` | 确认对话框（含是/否按钮）| complex |
 | Close | `CloseBtn` | 关闭按钮组件 | - |
@@ -264,6 +265,122 @@ respBtn.y = 100;
 tinyUI.root.addChild(fixedBtn);
 tinyUI.root.addChild(respBtn);
 tinyUI.render();
+```
+
+---
+
+### Feature：Scroll（滚动容器）
+
+**What**：可滚动的内容容器，支持垂直/水平/双向滚动，带惯性、回弹和滚动条。
+
+**API**：
+```typescript
+type Direction = 'vertical' | 'horizontal' | 'both';
+
+interface ScrollbarConfig {
+  width?: number;              // 滚动条宽度，默认 6
+  radius?: number;             // 圆角半径，默认 3
+  color?: string;              // 颜色，默认 'rgba(0,0,0,0.3)'
+  autoHide?: boolean;          // 自动隐藏，默认 true
+  hideDelay?: number;          // 隐藏延迟 ms，默认 1000
+  minLength?: number;          // 最小长度，默认 30
+}
+
+interface ScrollProps {
+  app: TinyUI;
+  width: number;               // 可视区域宽度
+  height: number;              // 可视区域高度
+  direction?: Direction;       // 滚动方向，默认 'vertical'
+  bounce?: boolean;            // 边界回弹，默认 true
+  momentum?: boolean;          // 惯性滚动，默认 true
+  scrollbar?: ScrollbarConfig; // 滚动条配置
+  autoUpdate?: boolean;        // 自动检测内容变化，默认 true
+  onScroll?: (pos: { x: number; y: number; progressX: number; progressY: number }) => void;
+}
+
+interface ScrollResult {
+  container: Container;        // 根容器（包含遮罩和内容）
+  content: Container;          // 内容容器（用户往这里 addChild）
+  scrollTo(pos: { x?: number; y?: number }, animated?: boolean): void;
+  scrollToTop(animated?: boolean): void;
+  scrollToBottom(animated?: boolean): void;
+  scrollToLeft(animated?: boolean): void;
+  scrollToRight(animated?: boolean): void;
+  refresh(): void;             // 手动刷新滚动范围
+  destroy(): void;
+}
+
+function Scroll(props: ScrollProps): ScrollResult;
+```
+
+**语义约定**：
+1. 通过 `content.addChild()` 添加可滚动内容，组件自动计算滚动范围
+2. 内容变化时自动刷新（`autoUpdate: true` 时监听 `childrenChanged` 和 `resize` 事件）
+3. 滚动条仅在内容超出可视区域时显示
+4. 触摸事件被遮罩层拦截，不会穿透到下层
+
+**常见坑**：
+- 直接操作 `content.x/y` 会破坏滚动状态，应使用 `scrollTo()`
+- 内容尺寸计算基于子节点的全局边界框，复杂变换可能影响精度
+- 销毁 Scroll 组件会自动取消内容变化监听
+
+**最小 demo**：
+```javascript
+// 创建滚动区域
+const scroll = Scroll({
+  app: tinyUI,
+  width: 400,
+  height: 600,
+  direction: 'vertical',
+  scrollbar: {
+    width: 6,
+    radius: 3,
+    color: 'rgba(0,0,0,0.4)',
+    autoHide: true
+  },
+  onScroll: (pos) => {
+    console.log('Scroll progress:', pos.progressY);
+  }
+});
+
+// 添加内容
+for (let i = 0; i < 50; i++) {
+  const item = tinyUI.createGraphics();
+  item.drawRoundedRect(20, i * 80, 360, 60, 10, '#4ECDC4');
+  scroll.content.addChild(item);
+}
+
+// 居中显示
+scroll.container.x = (tinyUI.stageWidth - 400) / 2;
+scroll.container.y = (tinyUI.stageHeight - 600) / 2;
+tinyUI.root.addChild(scroll.container);
+tinyUI.render();
+```
+
+**高级用法**：
+```javascript
+// 双向滚动
+const scroll = Scroll({
+  app: tinyUI,
+  width: 400,
+  height: 400,
+  direction: 'both',
+  bounce: true,
+  momentum: true
+});
+
+// 添加大图
+const bigMap = await tinyUI.createBitmapFromUrl('map.jpg');
+scroll.content.addChild(bigMap);
+
+// 滚动到指定位置（带动画）
+scroll.scrollTo({ x: 500, y: 300 }, true);
+
+// 滚动到底部
+scroll.scrollToBottom(true);
+
+// 手动刷新（如手动修改了子节点尺寸）
+scroll.refresh();
 ```
 
 ---
