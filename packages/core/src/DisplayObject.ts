@@ -5,7 +5,12 @@ import type { UIEvent } from "./utils/UIEvent";
 import { Emitter } from "./utils/Emitter";
 import type TinyUI from "./TinyUI";
 
-export class DisplayObject {
+export interface ClipRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
 export class DisplayObject extends Emitter {
   app: TinyUI;
@@ -24,6 +29,7 @@ export class DisplayObject extends Emitter {
   alpha: number = 1;
   name: string = "";
   rotation: number = 0; // 角度 (0-360)
+  clipRect?: ClipRect; // 裁剪区域（相对于节点本地坐标）
 
   destroyed: boolean = false;
 
@@ -234,6 +240,24 @@ export class DisplayObject extends Emitter {
 
   render(_matrix: Matrix): void {
     // 实现渲染逻辑
+  }
+
+  /**
+   * 设置裁剪区域（相对于节点本地坐标）
+   * @param x 裁剪区域左上角 x 坐标
+   * @param y 裁剪区域左上角 y 坐标
+   * @param width 裁剪区域宽度
+   * @param height 裁剪区域高度
+   */
+  setClipRect(x: number, y: number, width: number, height: number): void {
+    this.clipRect = { x, y, width, height };
+  }
+
+  /**
+   * 清除裁剪区域
+   */
+  clearClipRect(): void {
+    this.clipRect = undefined;
   }
 
   destroy(): void {

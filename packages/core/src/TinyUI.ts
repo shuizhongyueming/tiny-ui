@@ -399,11 +399,15 @@ class TinyUI {
     // 设置实际alpha值用于渲染
     node.alpha = actualAlpha;
 
+    // 处理裁剪区域
+    let scissorEnabled = false;
+    if (node.clipRect) {
+      console.log(`[TinyUI:Scissor] Found clipRect on ${node.name}`);
+      scissorEnabled = this._applyScissor(node, combinedMatrix);
+    }
+
     // 渲染当前节点
     node.render(this.currentMatrix);
-
-    // 恢复原始alpha值
-    node.alpha = originalAlpha;
 
     // 如果是容器，递归渲染子节点
     if ("children" in node && Array.isArray((node as any).children)) {
@@ -412,6 +416,121 @@ class TinyUI {
         // 传递计算出的组合矩阵和实际alpha值给子节点
         this._renderTree(child, combinedMatrix, actualAlpha);
       }
+    }
+
+    // 恢复裁剪状态
+    if (scissorEnabled) {
+      this._restoreScissor();
+    }
+
+    // 恢复原始alpha值
+    node.alpha = originalAlpha;
+  }
+
+  /**
+   * 应用 scissor 裁剪
+   * @returns 是否成功启用 scissor
+   */
+  private _applyScissor(node: DisplayObject, matrix: Matrix): boolean {
+    if (!node.clipRect) return false;
+
+    const gl = this.gl;
+    const canvas = gl.canvas as HTMLCanvasElement;
+    const dpr = window.devicePixelRatio || 1;
+
+    // 将裁剪区域的四个角转换到屏幕坐标
+    const rect = node.clipRect;
+    const corners = [
+      { x: rect.x, y: rect.y },
+      { x: rect.x + rect.width, y: rect.y },
+      { x: rect.x + rect.width, y: rect.y + rect.height },
+      { x: rect.x, y: rect.y + rect.height },
+    ];
+
+    // 应用变换矩阵到裁剪区域
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const corner of corners) {
+      const transformed = matrix.transformPoint(corner.x, corner.y);
+      minX = Math.min(minX, transformed.x);
+      minY = Math.min(minY, transformed.y);
+      maxX = Math.max(maxX, transformed.x);
+      maxY = Math.max(maxY, transformed.y);
+    }
+
+    // 转换为 WebGL 视口坐标（左下角原点，向上/右为正）
+    // minX/minY/maxX/maxY 已经是物理像素（TinyUI 使用物理像素坐标系）
+    const viewportWidth = canvas.width;
+    const viewportHeight = canvas.height;
+    
+    // 直接使用物理像素坐标
+    const physicalMinX = minX;
+    const physicalMinY = minY;
+    const physicalMaxX = maxX;
+    const physicalMaxY = maxY;
+    
+    // TinyUI: 左上角为原点，Y 向下
+    // WebGL scissor: 左下角为原点，Y 向上
+    // 转换 Y 坐标：scissorY 是距离视口底部的距离
+    const rawScissorX = Math.round(physicalMinX);
+    const rawScissorY = Math.round(viewportHeight - physicalMaxY);
+    const rawScissorWidth = Math.round(physicalMaxX - physicalMinX);
+    const rawScissorHeight = Math.round(physicalMaxY - physicalMinY);
+    
+    // 裁剪到视口范围内（计算两个矩形的交集）
+    // 视口矩形: (0, 0) 到 (viewportWidth, viewportHeight)
+    // Scissor 矩形: (rawScissorX, rawScissorY) 到 (rawScissorX + rawScissorWidth, rawScissorY + rawScissorHeight)
+    const intersectLeft = Math.max(0, rawScissorX);
+    const intersectTop = Math.max(0, rawScissorY);
+    const intersectRight = Math.min(viewportWidth, rawScissorX + rawScissorWidth);
+    const intersectBottom = Math.min(viewportHeight, rawScissorY + rawScissorHeight);
+    
+    const scissorX = Math.round(intersectLeft);
+    const scissorY = Math.round(intersectTop);
+    const scissorWidth = Math.max(0, Math.round(intersectRight - intersectLeft));
+    const scissorHeight = Math.max(0, Math.round(intersectBottom - intersectTop));
+
+    // 确保有效范围
+    if (scissorWidth <= 0 || scissorHeight <= 0) {
+      console.log('[TinyUI:Scissor] Invalid scissor size:', scissorWidth, scissorHeight);
+      return false;
+    }
+
+    console.log('[TinyUI:Scissor] Applying scissor:', JSON.stringify({
+      node: node.name,
+      minX, minY, maxX, maxY,
+      scissorX, scissorY, scissorWidth, scissorHeight,
+      viewportWidth, viewportHeight,
+      rect
+    }, null, 2));
+
+    // 保存当前 scissor 状态
+    this._scissorStateStack.push({
+      enabled: gl.isEnabled(gl.SCISSOR_TEST),
+      box: gl.getParameter(gl.SCISSOR_BOX),
+    });
+
+    // 启用 scissor
+    gl.enable(gl.SCISSOR_TEST);
+    gl.scissor(scissorX, scissorY, scissorWidth, scissorHeight);
+
+    return true;
+  }
+
+  /**
+   * 恢复 scissor 状态
+   */
+  private _scissorStateStack: Array<{ enabled: boolean; box: Int32Array }> = [];
+
+  private _restoreScissor(): void {
+    const gl = this.gl;
+    const state = this._scissorStateStack.pop();
+    if (!state) return;
+
+    if (state.enabled) {
+      gl.enable(gl.SCISSOR_TEST);
+      gl.scissor(state.box[0], state.box[1], state.box[2], state.box[3]);
+    } else {
+      gl.disable(gl.SCISSOR_TEST);
     }
   }
 
