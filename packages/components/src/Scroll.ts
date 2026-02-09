@@ -343,8 +343,14 @@ export function Scroll({
     animate();
   }
 
+  // 全局事件处理器引用（用于解绑）
+  let globalTouchMoveHandler: ((e: UIEvent) => void) | null = null;
+  let globalTouchEndHandler: ((e: UIEvent) => void) | null = null;
+
   // 事件处理
   function onTouchStart(e: UIEvent): void {
+    if (isDragging) return;
+    
     isDragging = true;
     startTouch = { x: e.x, y: e.y };
     startScroll = { ...scrollPos };
@@ -361,6 +367,9 @@ export function Scroll({
     
     // 阻止事件穿透到下层
     e.stopPropagation();
+
+    // 绑定全局事件，确保移出 maskLayer 后仍能处理
+    bindGlobalEvents();
   }
 
   function onTouchMove(e: UIEvent): void {
@@ -423,14 +432,36 @@ export function Scroll({
     isDragging = false;
     startMomentum();
     
+    // 解绑全局事件
+    unbindGlobalEvents();
+    
     // 阻止事件穿透到下层
     e.stopPropagation();
   }
 
-  // 绑定事件
+  // 绑定全局事件
+  function bindGlobalEvents(): void {
+    globalTouchMoveHandler = onTouchMove;
+    globalTouchEndHandler = onTouchEnd;
+    
+    app.root.addEventListener(TinyUICore.EventName.TouchMove, globalTouchMoveHandler);
+    app.root.addEventListener(TinyUICore.EventName.TouchEnd, globalTouchEndHandler);
+  }
+
+  // 解绑全局事件
+  function unbindGlobalEvents(): void {
+    if (globalTouchMoveHandler) {
+      app.root.removeEventListener(TinyUICore.EventName.TouchMove, globalTouchMoveHandler);
+      globalTouchMoveHandler = null;
+    }
+    if (globalTouchEndHandler) {
+      app.root.removeEventListener(TinyUICore.EventName.TouchEnd, globalTouchEndHandler);
+      globalTouchEndHandler = null;
+    }
+  }
+
+  // 绑定初始事件（只在 maskLayer 上监听 touchstart）
   maskLayer.addEventListener(TinyUICore.EventName.TouchStart, onTouchStart);
-  maskLayer.addEventListener(TinyUICore.EventName.TouchMove, onTouchMove);
-  maskLayer.addEventListener(TinyUICore.EventName.TouchEnd, onTouchEnd);
 
   // 自动更新
   let unsubscribeChildren: (() => void) | null = null;
@@ -534,6 +565,9 @@ export function Scroll({
       
       unsubscribeChildren?.();
       unsubscribeResize?.();
+      
+      // 清理全局事件绑定
+      unbindGlobalEvents();
       
       container.destroy();
     },
