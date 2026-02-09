@@ -32,7 +32,7 @@ _common-publish versionType:
 publish versionType="patch":
   git pull;
   rm -rf {{justfile_directory()}}/dist;
-  # just test;
+  just test;
   just build;
   just _common-publish {{versionType}};
   git push;
@@ -42,9 +42,10 @@ publish versionType="patch":
 prepublish versionType="prerelease":
   git pull;
   rm -rf {{justfile_directory()}}/dist;
-  # just test;
+  just test;
   just build;
   just _common-publish {{versionType}};
 
-# test *FLAGS:
-#   {{justfile_directory()}}/node_modules/mocha/bin/mocha.js --require browser.js {{FLAGS}}
+[no-cd]
+test:
+  pnpm test run
