@@ -215,6 +215,12 @@ export class Text extends DisplayObject {
 
     ctx.font = `${this._fontWeight} ${this._fontSize}px ${this._fontFamily}`;
 
+    // 获取字体度量，用于精确计算文本高度和垂直居中
+    const fontMetrics = ctx.measureText("X");
+    const fontAscent = fontMetrics.actualBoundingBoxAscent || this._fontSize * 0.8;
+    const fontDescent = fontMetrics.actualBoundingBoxDescent || this._fontSize * 0.2;
+    const fontVisualHeight = fontAscent + fontDescent;
+
     const effectiveLineHeight = this.lineHeight;
     let textWidth: number;
     let textHeight: number;
@@ -300,7 +306,8 @@ export class Text extends DisplayObject {
         maxLineWidth = Math.max(maxLineWidth, getTextWidth(line));
       }
       textWidth = maxLineWidth;
-      textHeight = lines.length * effectiveLineHeight;
+      // 使用实际字体视觉高度计算总高度，增加顶部 padding 防止中文裁剪
+      textHeight = lines.length * fontVisualHeight + (lines.length - 1) * Math.max(0, effectiveLineHeight - fontVisualHeight);
     } else {
       lines = linesFromBreaks;
 
@@ -314,11 +321,14 @@ export class Text extends DisplayObject {
       }
 
       textWidth = maxLineWidth;
-      textHeight = lines.length * effectiveLineHeight;
+      // 使用实际字体视觉高度计算总高度，增加顶部 padding 防止中文裁剪
+      textHeight = lines.length * fontVisualHeight + (lines.length - 1) * Math.max(0, effectiveLineHeight - fontVisualHeight);
     }
 
+    // 顶部增加额外 padding (4px) 防止中文顶部笔画被裁剪
+    const topPadding = 4;
     const originalWidth = textWidth + 4;
-    const originalHeight = textHeight + 4;
+    const originalHeight = textHeight + 4 + topPadding;
 
     this.textureWidth = nextPowerOfTwo(originalWidth);
     this.textureHeight = nextPowerOfTwo(originalHeight);
@@ -328,7 +338,7 @@ export class Text extends DisplayObject {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.font = `${this._fontWeight} ${this._fontSize}px ${this._fontFamily}`;
-    ctx.textBaseline = "top";
+    ctx.textBaseline = "alphabetic";
     ctx.fillStyle = this._color;
     ctx.textAlign = this._align;
 
@@ -339,8 +349,18 @@ export class Text extends DisplayObject {
       x = originalWidth - 2;
     }
 
+    // 计算行间距（使用 lineHeight 和实际字体高度的差值）
+    const lineSpacing = Math.max(0, effectiveLineHeight - fontVisualHeight);
+
     for (let i = 0; i < lines.length; i++) {
-      ctx.fillText(lines[i], x, i * effectiveLineHeight + 2);
+      // 计算当前行的垂直位置
+      // 行内容顶部 = topPadding + padding(2) + 前面所有行的高度 + 前面所有行间距
+      const lineTop = topPadding + 2 + i * fontVisualHeight + i * lineSpacing;
+      // 行内容中心 = 行顶部 + 字体视觉高度 / 2
+      const lineCenterY = lineTop + fontVisualHeight / 2;
+      // 文本基线位置 = 行中心 + (ascent - descent) / 2
+      const baselineY = lineCenterY + (fontAscent - fontDescent) / 2;
+      ctx.fillText(lines[i], x, baselineY);
     }
 
     this.setWidth(originalWidth);
