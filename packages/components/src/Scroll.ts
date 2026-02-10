@@ -1,4 +1,10 @@
-import type { TinyUI, Container, DisplayObject, Graphics, UIEvent } from "@shuizhongyueming/tiny-ui-core";
+import type {
+  TinyUI,
+  Container,
+  DisplayObject,
+  Graphics,
+  UIEvent,
+} from "@shuizhongyueming/tiny-ui-core";
 import TinyUICore from "@shuizhongyueming/tiny-ui-core";
 import { ShapeRect } from "./ShapeRect";
 
@@ -22,7 +28,12 @@ export interface ScrollProps {
   momentum?: boolean;
   scrollbar?: ScrollbarConfig;
   autoUpdate?: boolean;
-  onScroll?: (pos: { x: number; y: number; progressX: number; progressY: number }) => void;
+  onScroll?: (pos: {
+    x: number;
+    y: number;
+    progressX: number;
+    progressY: number;
+  }) => void;
 }
 
 export interface ScrollResult {
@@ -63,16 +74,17 @@ export function Scroll({
   onScroll,
 }: ScrollProps): ScrollResult {
   const scrollbar = { ...DEFAULT_SCROLLBAR, ...scrollbarConfig };
-  
+
   // 主容器
   const container = app.createContainer("Scroll/Root");
   container.width = width;
   container.height = height;
 
   // 遮罩层（拦截事件，定义可视区域）
-  const maskLayer = ShapeRect(app, { width, height }, "transparent");
+  const maskLayer = ShapeRect(app, { width, height }, "#ffffff");
   maskLayer.anchorX = 0;
   maskLayer.anchorY = 0;
+  maskLayer.alpha = 0;
   container.addChild(maskLayer);
 
   // 内容容器
@@ -153,14 +165,15 @@ export function Scroll({
     if (scrollbarY) {
       const contentHeight = contentBounds.height;
       const ratio = height / contentHeight;
-      
+
       if (ratio >= 1) {
         scrollbarY.visible = false;
       } else {
         scrollbarY.visible = true;
         const thumbHeight = Math.max(scrollbar.minLength, height * ratio);
-        const trackY = -scrollPos.y / (contentHeight - height) * (height - thumbHeight);
-        
+        const trackY =
+          (-scrollPos.y / (contentHeight - height)) * (height - thumbHeight);
+
         scrollbarY.clear();
         scrollbarY.drawRoundedRect(
           width - scrollbar.width - 2,
@@ -168,7 +181,7 @@ export function Scroll({
           scrollbar.width,
           thumbHeight,
           scrollbar.radius,
-          scrollbar.color
+          scrollbar.color,
         );
       }
     }
@@ -176,14 +189,15 @@ export function Scroll({
     if (scrollbarX) {
       const contentWidth = contentBounds.width;
       const ratio = width / contentWidth;
-      
+
       if (ratio >= 1) {
         scrollbarX.visible = false;
       } else {
         scrollbarX.visible = true;
         const thumbWidth = Math.max(scrollbar.minLength, width * ratio);
-        const trackX = -scrollPos.x / (contentWidth - width) * (width - thumbWidth);
-        
+        const trackX =
+          (-scrollPos.x / (contentWidth - width)) * (width - thumbWidth);
+
         scrollbarX.clear();
         scrollbarX.drawRoundedRect(
           trackX,
@@ -191,7 +205,7 @@ export function Scroll({
           thumbWidth,
           scrollbar.width,
           scrollbar.radius,
-          scrollbar.color
+          scrollbar.color,
         );
       }
     }
@@ -234,7 +248,10 @@ export function Scroll({
       if (scrollbarX && scrollbarX.alpha > 0) {
         scrollbarX.alpha -= 0.1;
       }
-      if ((scrollbarY && scrollbarY.alpha > 0) || (scrollbarX && scrollbarX.alpha > 0)) {
+      if (
+        (scrollbarY && scrollbarY.alpha > 0) ||
+        (scrollbarX && scrollbarX.alpha > 0)
+      ) {
         requestAnimationFrame(fade);
       }
     };
@@ -249,9 +266,13 @@ export function Scroll({
     const minVelocity = 0.5;
 
     function animate(): void {
-      const shouldAnimateX = (direction === "horizontal" || direction === "both") && Math.abs(velocity.x) >= minVelocity;
-      const shouldAnimateY = (direction === "vertical" || direction === "both") && Math.abs(velocity.y) >= minVelocity;
-      
+      const shouldAnimateX =
+        (direction === "horizontal" || direction === "both") &&
+        Math.abs(velocity.x) >= minVelocity;
+      const shouldAnimateY =
+        (direction === "vertical" || direction === "both") &&
+        Math.abs(velocity.y) >= minVelocity;
+
       if (!shouldAnimateX && !shouldAnimateY) {
         if (bounce) {
           springBack();
@@ -317,7 +338,7 @@ export function Scroll({
     if (targetX === scrollPos.x && targetY === scrollPos.y) return;
 
     const spring = 0.1;
-    
+
     function animate(): void {
       const dx = targetX - scrollPos.x;
       const dy = targetY - scrollPos.y;
@@ -350,7 +371,7 @@ export function Scroll({
   // 事件处理
   function onTouchStart(e: UIEvent): void {
     if (isDragging) return;
-    
+
     isDragging = true;
     startTouch = { x: e.x, y: e.y };
     startScroll = { ...scrollPos };
@@ -364,7 +385,7 @@ export function Scroll({
     }
 
     showScrollbars();
-    
+
     // 阻止事件穿透到下层
     e.stopPropagation();
 
@@ -412,17 +433,17 @@ export function Scroll({
     const dt = now - lastTime;
     if (dt > 0) {
       if (direction === "horizontal" || direction === "both") {
-        velocity.x = (e.x - lastTouch.x) / dt * 16;
+        velocity.x = ((e.x - lastTouch.x) / dt) * 16;
       }
       if (direction === "vertical" || direction === "both") {
-        velocity.y = (e.y - lastTouch.y) / dt * 16;
+        velocity.y = ((e.y - lastTouch.y) / dt) * 16;
       }
     }
     lastTouch = { x: e.x, y: e.y };
     lastTime = now;
 
     updateScrollbars();
-    
+
     // 阻止事件穿透到下层
     e.stopPropagation();
   }
@@ -431,10 +452,10 @@ export function Scroll({
     if (!isDragging) return;
     isDragging = false;
     startMomentum();
-    
+
     // 解绑全局事件
     unbindGlobalEvents();
-    
+
     // 阻止事件穿透到下层
     e.stopPropagation();
   }
@@ -443,19 +464,31 @@ export function Scroll({
   function bindGlobalEvents(): void {
     globalTouchMoveHandler = onTouchMove;
     globalTouchEndHandler = onTouchEnd;
-    
-    app.root.addEventListener(TinyUICore.EventName.TouchMove, globalTouchMoveHandler);
-    app.root.addEventListener(TinyUICore.EventName.TouchEnd, globalTouchEndHandler);
+
+    app.root.addEventListener(
+      TinyUICore.EventName.TouchMove,
+      globalTouchMoveHandler,
+    );
+    app.root.addEventListener(
+      TinyUICore.EventName.TouchEnd,
+      globalTouchEndHandler,
+    );
   }
 
   // 解绑全局事件
   function unbindGlobalEvents(): void {
     if (globalTouchMoveHandler) {
-      app.root.removeEventListener(TinyUICore.EventName.TouchMove, globalTouchMoveHandler);
+      app.root.removeEventListener(
+        TinyUICore.EventName.TouchMove,
+        globalTouchMoveHandler,
+      );
       globalTouchMoveHandler = null;
     }
     if (globalTouchEndHandler) {
-      app.root.removeEventListener(TinyUICore.EventName.TouchEnd, globalTouchEndHandler);
+      app.root.removeEventListener(
+        TinyUICore.EventName.TouchEnd,
+        globalTouchEndHandler,
+      );
       globalTouchEndHandler = null;
     }
   }
@@ -524,8 +557,14 @@ export function Scroll({
       const maxX = Math.max(0, contentBounds.width - width);
       const maxY = Math.max(0, contentBounds.height - height);
 
-      const targetX = pos.x !== undefined ? Math.max(-maxX, Math.min(0, -pos.x)) : scrollPos.x;
-      const targetY = pos.y !== undefined ? Math.max(-maxY, Math.min(0, -pos.y)) : scrollPos.y;
+      const targetX =
+        pos.x !== undefined
+          ? Math.max(-maxX, Math.min(0, -pos.x))
+          : scrollPos.x;
+      const targetY =
+        pos.y !== undefined
+          ? Math.max(-maxY, Math.min(0, -pos.y))
+          : scrollPos.y;
 
       if (animated) {
         animateScroll(targetX, targetY);
@@ -562,13 +601,13 @@ export function Scroll({
       if (rafId) cancelAnimationFrame(rafId);
       if (rafUpdateId) cancelAnimationFrame(rafUpdateId);
       if (hideScrollbarTimer) clearTimeout(hideScrollbarTimer);
-      
+
       unsubscribeChildren?.();
       unsubscribeResize?.();
-      
+
       // 清理全局事件绑定
       unbindGlobalEvents();
-      
+
       container.destroy();
     },
   };
