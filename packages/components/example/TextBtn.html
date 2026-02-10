@@ -353,15 +353,112 @@
     tinyUI.root.addChild(btn6c);
     adjustTo(label6, false)(btn6c, { h: 'center', v: 'bottom' }, { x: scale(150), y: scale(50) + scale(10) });
 
+    // ========== 第7行: 圆角按钮 ==========
+    const label7 = tinyUI.createText('7. 圆角按钮 Rounded Buttons');
+    label7.color = '#666666';
+    label7.fontSize = fontSize.label;
+    label7.updateTexture();
+    tinyUI.root.addChild(label7);
+    adjustTo(btn6b, false)(label7, { h: 'center', v: 'bottom' }, { y: fontSize.label + scale(40) });
+
+    const btn7a = TextBtn({
+      app: tinyUI,
+      text: 'Radius 8',
+      width: btnSize.standard.w,
+      height: btnSize.standard.h,
+      fontSize: scale(18),
+      radius: 8,
+      bgColor: '#8b5cf6',
+      onClick: () => {
+        console.log('Radius 8 clicked');
+        // 动态切换到更大的圆角
+        btn7a.setRadius(16);
+        console.log('Changed to radius 16');
+      }
+    });
+    tinyUI.root.addChild(btn7a);
+    adjustTo(label7, false)(btn7a, { h: 'center', v: 'bottom' }, { x: -scale(180), y: btnSize.standard.h + scale(10) });
+
+    const btn7b = TextBtn({
+      app: tinyUI,
+      text: 'Radius 16',
+      width: btnSize.standard.w,
+      height: btnSize.standard.h,
+      fontSize: scale(18),
+      radius: 16,
+      bgColor: '#8b5cf6',
+      onClick: () => console.log('Radius 16 clicked')
+    });
+    tinyUI.root.addChild(btn7b);
+    adjustTo(label7, false)(btn7b, { h: 'center', v: 'bottom' }, { y: btnSize.standard.h + scale(10) });
+
+    const btn7c = TextBtn({
+      app: tinyUI,
+      text: 'Pill Button',
+      width: btnSize.standard.w,
+      height: btnSize.standard.h,
+      fontSize: scale(18),
+      radius: btnSize.standard.h / 2,
+      bgColor: '#8b5cf6',
+      onClick: () => {
+        console.log('Pill button clicked');
+        // 动态切换背景色
+        btn7c.setBgColor('#ec4899');
+        console.log('Changed background color to pink');
+      }
+    });
+    tinyUI.root.addChild(btn7c);
+    adjustTo(label7, false)(btn7c, { h: 'center', v: 'bottom' }, { x: scale(180), y: btnSize.standard.h + scale(10) });
+
+    // ========== 第8行: 圆角动态调整测试 ==========
+    const label8 = tinyUI.createText('8. 动态调整测试 Dynamic Test (点击切换)');
+    label8.color = '#666666';
+    label8.fontSize = fontSize.label;
+    label8.updateTexture();
+    tinyUI.root.addChild(label8);
+    adjustTo(btn7b, false)(label8, { h: 'center', v: 'bottom' }, { y: fontSize.label + scale(40) });
+
+    let currentRadiusState = 0;
+    const radiusValues = [0, 8, 16, btnSize.standard.h / 2];
+    const radiusLabels = ['Square', 'Radius 8', 'Radius 16', 'Pill'];
+    const radiusColors = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6'];
+
+    const btn8 = TextBtn({
+      app: tinyUI,
+      text: 'Square',
+      width: scale(200),
+      height: btnSize.standard.h,
+      fontSize: scale(20),
+      radius: 0,
+      bgColor: '#ef4444',
+      onClick: () => {
+        currentRadiusState = (currentRadiusState + 1) % radiusValues.length;
+        const newRadius = radiusValues[currentRadiusState];
+        const btnText = btn8.children[1];
+        btnText.text = radiusLabels[currentRadiusState];
+        btnText.updateTexture();
+        btn8.setRadius(newRadius);
+        btn8.setBgColor(radiusColors[currentRadiusState]);
+        console.log(`Changed to ${radiusLabels[currentRadiusState]} (radius: ${newRadius})`);
+      }
+    });
+    tinyUI.root.addChild(btn8);
+    adjustTo(label8, false)(btn8, { h: 'center', v: 'bottom' }, { y: btnSize.standard.h + scale(10) });
+
     // ========== 底部说明 ==========
-    const hint = tinyUI.createText('检查所有按钮文本是否垂直居中对齐 | Check vertical alignment');
+    const hint = tinyUI.createText('检查所有按钮文本是否垂直居中对齐 | Click buttons to test rounded corners');
     hint.color = '#999999';
     hint.fontSize = scale(14);
     hint.updateTexture();
     tinyUI.root.addChild(hint);
-    adjustTo(btn6b, false)(hint, { h: 'center', v: 'bottom' }, { y: scale(80) });
+    adjustTo(btn8, false)(hint, { h: 'center', v: 'bottom' }, { y: scale(80) });
 
-    requestAnimationFrame(() => tinyUI.render());
+    // 持续渲染以支持动态更新
+    function renderLoop() {
+      tinyUI.render();
+      requestAnimationFrame(renderLoop);
+    }
+    renderLoop();
     </script>
   </body>
 </html>
