@@ -101,7 +101,7 @@
     tinyUI.root.addChild(label1);
     adjustTo(title, false)(label1, { h: 'center', v: 'bottom' }, { y: fontSize.label + scale(30) });
 
-    const btn1 = TextBtn({
+    const { container: btn1 } = TextBtn({
       app: tinyUI,
       text: 'Open Basic Confirm',
       bgColor: '#3b82f6',
@@ -159,7 +159,7 @@
     tinyUI.root.addChild(label2);
     adjustTo(btn1, false)(label2, { h: 'center', v: 'bottom' }, { y: fontSize.label + scale(30) });
 
-    const btn2 = TextBtn({
+    const { container: btn2 } = TextBtn({
       app: tinyUI,
       text: 'Open with Cancel',
       bgColor: '#10b981',
@@ -224,7 +224,7 @@
     adjustTo(btn2, false)(label3, { h: 'center', v: 'bottom' }, { y: fontSize.label + scale(30) });
 
     // 使用一个容器来包裹三个按钮，方便布局
-    const btn3 = TextBtn({
+    const { container: btn3 } = TextBtn({
       app: tinyUI,
       text: 'Small',
       bgColor: '#f59e0b',
@@ -237,7 +237,7 @@
     // 三个按钮都相对于 label3 水平居中，通过 x 偏移实现均匀分布
     adjustTo(label3, false)(btn3, { h: 'center', v: 'bottom' }, { x: -scale(140), y: btnSize.small.h + scale(15) });
 
-    const btn4 = TextBtn({
+    const { container: btn4 } = TextBtn({
       app: tinyUI,
       text: 'Normal',
       bgColor: '#f59e0b',
@@ -249,7 +249,7 @@
     tinyUI.root.addChild(btn4);
     adjustTo(label3, false)(btn4, { h: 'center', v: 'bottom' }, { y: btnSize.small.h + scale(15) });
 
-    const btn5 = TextBtn({
+    const { container: btn5 } = TextBtn({
       app: tinyUI,
       text: 'Large',
       bgColor: '#f59e0b',
@@ -310,7 +310,7 @@
     // 基于 label3 定位（居中）
     adjustTo(label3, false)(label4, { h: 'center', v: 'bottom' }, { y: fontSize.label + scale(80) });
 
-    const btn6 = TextBtn({
+    const { container: btn6 } = TextBtn({
       app: tinyUI,
       text: 'Open Multi-page',
       bgColor: '#8b5cf6',

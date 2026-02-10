@@ -115,7 +115,7 @@
     // label1 位于 title 下方（label 的下边缘对齐 title 的下边缘，偏移 label 高度 + 间距）
     adjustTo(title, false)(label1, { h: 'center', v: 'bottom' }, { y: fontSize.label + scale(20) });
 
-    const btn1 = TextBtn({
+    const { container: btn1 } = TextBtn({
       app: tinyUI,
       text: 'Open Fullscreen',
       bgColor: '#3b82f6',
@@ -138,7 +138,7 @@
         popup.addChild(content);
         adjustTo(popup, true)(content, { h: 'center', v: 'center' });
 
-        const closeBtn = TextBtn({
+        const { container: closeBtn } = TextBtn({
           app: tinyUI,
           text: 'Close',
           bgColor: '#ef4444',
@@ -169,7 +169,7 @@
     // label2 位于 btn1 下方（label 的下边缘对齐 btn1 的下边缘，偏移 label 高度 + 间距）
     adjustTo(btn1, false)(label2, { h: 'center', v: 'bottom' }, { y: fontSize.label + scale(20) });
 
-    const btn2 = TextBtn({
+    const { container: btn2 } = TextBtn({
       app: tinyUI,
       text: 'Open Custom Size',
       bgColor: '#10b981',
@@ -193,7 +193,7 @@
         popup.addChild(content);
         adjustTo(popup, true)(content, { h: 'center', v: 'center' });
 
-        const closeBtn = TextBtn({
+        const { container: closeBtn } = TextBtn({
           app: tinyUI,
           text: 'Close',
           bgColor: '#64748b',
@@ -224,7 +224,7 @@
     // label3 位于 btn2 下方
     adjustTo(btn2, false)(label3, { h: 'center', v: 'bottom' }, { y: fontSize.label + scale(20) });
 
-    const btn3 = TextBtn({
+    const { container: btn3 } = TextBtn({
       app: tinyUI,
       text: 'Light (0.3)',
       bgColor: '#8b5cf6',
@@ -237,7 +237,7 @@
     // btn3 位于 label3 下方
     adjustTo(label3, false)(btn3, { h: 'left', v: 'bottom' }, { x: -scale(180), y: btnSize.colorBtn.h + scale(10) });
 
-    const btn4 = TextBtn({
+    const { container: btn4 } = TextBtn({
       app: tinyUI,
       text: 'Medium (0.6)',
       bgColor: '#8b5cf6',
@@ -249,7 +249,7 @@
     tinyUI.root.addChild(btn4);
     adjustTo(label3, false)(btn4, { h: 'center', v: 'bottom' }, { y: btnSize.colorBtn.h + scale(10) });
 
-    const btn5 = TextBtn({
+    const { container: btn5 } = TextBtn({
       app: tinyUI,
       text: 'Dark (0.9)',
       bgColor: '#8b5cf6',
@@ -277,7 +277,7 @@
       popup.addChild(content);
       adjustTo(popup, true)(content, { h: 'center', v: 'center' });
 
-      const closeBtn = TextBtn({
+      const { container: closeBtn } = TextBtn({
         app: tinyUI,
         text: 'Close',
         bgColor: '#ef4444',
@@ -312,7 +312,7 @@
     ];
 
     const colorBtns = colors.map((item, index) => {
-      const btn = TextBtn({
+      const { container: btn } = TextBtn({
         app: tinyUI,
         text: item.name,
         bgColor: item.color,
@@ -335,7 +335,7 @@
           popup.addChild(content);
           adjustTo(popup, true)(content, { h: 'center', v: 'center' });
 
-          const closeBtn = TextBtn({
+          const { container: closeBtn } = TextBtn({
             app: tinyUI,
             text: 'Close',
             bgColor: '#ffffff',

@@ -1,6 +1,5 @@
 import type { TinyUI, Callback, Container, Graphics } from "@shuizhongyueming/tiny-ui-core";
 import { adjustTo } from "./utils/adjustTo";
-import { ShapeRect } from "./ShapeRect";
 
 export interface TextBtnProps {
   app: TinyUI;
@@ -15,7 +14,8 @@ export interface TextBtnProps {
   onClick?: Callback;
 }
 
-export interface TextBtnInstance extends Container {
+export interface TextBtnInstance {
+  container: Container;
   setRadius: (radius: number | { tl: number; tr: number; br: number; bl: number }) => void;
   setBgColor: (color: string) => void;
 }
@@ -37,7 +37,7 @@ export function TextBtn({
     height = height || 68;
   }
 
-  const btnContainer = app.createContainer("TextBtn/Container") as TextBtnInstance;
+  const btnContainer = app.createContainer("TextBtn/Container");
 
   const btnText = app.createText(text, "TextBtn/Text");
   btnText.color = textColor;
@@ -59,12 +59,26 @@ export function TextBtn({
   let currentRadius = radius;
   let currentBgColor = bgColor;
 
-  const redrawBg = (): Graphics => {
-    const btnBg = ShapeRect(app, { width, height, radius: currentRadius }, currentBgColor);
-    return btnBg;
+  // 创建背景 Graphics
+  const btnBg = app.createGraphics("TextBtn/Bg");
+
+  // 绘制背景的辅助函数
+  const redrawBg = () => {
+    btnBg.clear();
+
+    const hasRadius = currentRadius !== undefined &&
+      (typeof currentRadius === "number"
+        ? currentRadius > 0
+        : Object.values(currentRadius).some((r) => r > 0));
+
+    if (hasRadius) {
+      btnBg.drawRoundedRect(0, 0, width, height, currentRadius, currentBgColor);
+    } else {
+      btnBg.drawRect(0, 0, width, height, currentBgColor);
+    }
   };
 
-  let btnBg = redrawBg();
+  redrawBg();
   btnContainer.addChild(btnBg);
   btnContainer.addChild(btnText);
   adjustToBtn(btnBg, { h: "left", v: "top" });
@@ -74,33 +88,15 @@ export function TextBtn({
     btnBg.addEventListener(app.EventName.TouchStart, onClick);
   }
 
-  // 动态调整圆角
-  btnContainer.setRadius = (newRadius: typeof currentRadius) => {
-    currentRadius = newRadius;
-    const newBg = redrawBg();
-    btnContainer.removeChild(btnBg);
-    btnBg.destroy();
-    btnBg = newBg;
-    btnContainer.addChildAt(btnBg, 0);
-    adjustToBtn(btnBg, { h: "left", v: "top" });
-    if (onClick) {
-      btnBg.addEventListener(app.EventName.TouchStart, onClick);
-    }
+  return {
+    container: btnContainer,
+    setRadius: (newRadius: typeof currentRadius) => {
+      currentRadius = newRadius;
+      redrawBg();
+    },
+    setBgColor: (newColor: string) => {
+      currentBgColor = newColor;
+      redrawBg();
+    },
   };
-
-  // 动态调整背景色
-  btnContainer.setBgColor = (newColor: string) => {
-    currentBgColor = newColor;
-    const newBg = redrawBg();
-    btnContainer.removeChild(btnBg);
-    btnBg.destroy();
-    btnBg = newBg;
-    btnContainer.addChildAt(btnBg, 0);
-    adjustToBtn(btnBg, { h: "left", v: "top" });
-    if (onClick) {
-      btnBg.addEventListener(app.EventName.TouchStart, onClick);
-    }
-  };
-
-  return btnContainer;
 }

@@ -55,7 +55,7 @@ const tinyUI = new TinyUI(canvas);
 
 **Demo 1：创建按钮**
 ```javascript
-const btn = TextBtn({
+const { container: btn } = TextBtn({
   app: tinyUI,
   text: 'Click Me',
   bgColor: '#6584cd',
@@ -99,7 +99,7 @@ function showConfirm(message, onYes, onNo) {
   msg.y = tinyUI.stageHeight / 2 - 60;
   popup.addChild(msg);
   
-  const yesBtn = TextBtn({
+  const { container: yesBtn } = TextBtn({
     app: tinyUI,
     text: 'Yes',
     bgColor: '#4caf50',
@@ -115,7 +115,7 @@ function showConfirm(message, onYes, onNo) {
   yesBtn.y = tinyUI.stageHeight / 2 + 20;
   popup.addChild(yesBtn);
   
-  const noBtn = TextBtn({
+  const { container: noBtn } = TextBtn({
     app: tinyUI,
     text: 'No',
     bgColor: '#f44336',
@@ -225,17 +225,28 @@ interface TextBtnProps {
   fontSize?: number;           // 默认 28
   width?: number;              // 固定宽度（与 responsive 互斥）
   height?: number;             // 固定高度（与 responsive 互斥）
+  radius?: number | { tl: number; tr: number; br: number; bl: number };
   responsive?: boolean;        // 自适应尺寸，默认 false
   onClick?: Callback;          // 点击回调
 }
 
-function TextBtn(props: TextBtnProps): Container;
+interface TextBtnInstance {
+  container: Container;
+  setRadius: (radius: number | { tl: number; tr: number; br: number; bl: number }) => void;
+  setBgColor: (color: string) => void;
+}
+
+function TextBtn(props: TextBtnProps): TextBtnInstance;
 ```
 
 **语义约定**：
 1. `responsive = true` 时，按钮尺寸根据文字内容自动计算
 2. `responsive = false` 时，需指定 `width/height`，或使用默认尺寸 (180×68)
-3. 返回的是 Container，包含背景和文本两个子节点
+3. 返回 `{container, setRadius, setBgColor}`，其中：
+   - `container`: 按钮容器，可添加到场景中
+   - `setRadius()`: 动态修改圆角（无需销毁重建）
+   - `setBgColor()`: 动态修改背景色（无需销毁重建）
+4. `radius` 支持数字（统一圆角）或对象 `{tl, tr, br, bl}`（分别控制四个角）
 
 **常见坑**：
 - 点击事件绑定在背景节点上，透明区域不响应点击
@@ -244,7 +255,7 @@ function TextBtn(props: TextBtnProps): Container;
 **最小 demo**：
 ```javascript
 // 固定尺寸按钮
-const fixedBtn = TextBtn({
+const { container: fixedBtn } = TextBtn({
   app: tinyUI,
   text: 'Fixed',
   width: 150,
@@ -254,7 +265,7 @@ const fixedBtn = TextBtn({
 });
 
 // 响应式按钮
-const respBtn = TextBtn({
+const { container: respBtn } = TextBtn({
   app: tinyUI,
   text: 'Responsive Button',
   responsive: true,
@@ -262,8 +273,24 @@ const respBtn = TextBtn({
 });
 respBtn.y = 100;
 
+// 圆角按钮
+const { container: roundedBtn, setRadius, setBgColor } = TextBtn({
+  app: tinyUI,
+  text: 'Pill Button',
+  radius: 25,  // 圆角半径
+  bgColor: '#8b5cf6'
+});
+roundedBtn.y = 200;
+
+// 动态调整圆角和颜色
+roundedBtn.addEventListener('touchstart', () => {
+  setRadius(8);
+  setBgColor('#ec4899');
+});
+
 tinyUI.root.addChild(fixedBtn);
 tinyUI.root.addChild(respBtn);
+tinyUI.root.addChild(roundedBtn);
 tinyUI.render();
 ```
 
@@ -724,7 +751,7 @@ function createSettingsDialog(tinyUI) {
   musicLabel.y = 120;
   dialog.addChild(musicLabel);
   
-  const musicToggle = TextBtn({
+  const { container: musicToggle } = TextBtn({
     app: tinyUI,
     text: 'ON',
     bgColor: '#4caf50',
@@ -742,7 +769,7 @@ function createSettingsDialog(tinyUI) {
   dialog.addChild(musicToggle);
   
   // 5. 添加确认按钮
-  const confirmBtn = TextBtn({
+  const { container: confirmBtn } = TextBtn({
     app: tinyUI,
     text: 'Save',
     bgColor: '#2196f3',
@@ -834,7 +861,7 @@ function createResponsiveUI(tinyUI) {
   footer.addChild(footerBg);
   
   // 左右两个按钮
-  const playBtn = TextBtn({
+  const { container: playBtn } = TextBtn({
     app: tinyUI,
     text: 'Play',
     bgColor: '#4caf50',
@@ -845,7 +872,7 @@ function createResponsiveUI(tinyUI) {
   adjustTo(footer)(playBtn, { h: 'left', v: 'center' });
   playBtn.x = 40;
   
-  const shopBtn = TextBtn({
+  const { container: shopBtn } = TextBtn({
     app: tinyUI,
     text: 'Shop',
     bgColor: '#ff9800',

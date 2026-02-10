@@ -102,7 +102,7 @@
     tinyUI.root.addChild(label1);
     adjustTo(title, false)(label1, { h: 'center', v: 'bottom' }, { y: fontSize.label + scale(30) });
 
-    const btn1 = TextBtn({
+    const { container: btn1 } = TextBtn({
       app: tinyUI,
       text: 'Open Popup with CloseBtn',
       bgColor: '#3b82f6',
@@ -182,7 +182,7 @@
     tinyUI.root.addChild(label2);
     adjustTo(btn1, false)(label2, { h: 'center', v: 'bottom' }, { y: fontSize.label + scale(30) });
 
-    const btn2 = TextBtn({
+    const { container: btn2 } = TextBtn({
       app: tinyUI,
       text: 'Open Corner Demo',
       bgColor: '#10b981',
@@ -263,7 +263,7 @@
     tinyUI.root.addChild(label3);
     adjustTo(btn2, false)(label3, { h: 'center', v: 'bottom' }, { y: fontSize.label + scale(30) });
 
-    const btn3 = TextBtn({
+    const { container: btn3 } = TextBtn({
       app: tinyUI,
       text: 'Open with Delay',
       bgColor: '#f59e0b',
