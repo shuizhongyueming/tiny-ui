@@ -12,8 +12,32 @@ This is a pnpm monorepo using `just` as the task runner. Commands must be run fr
 - `just commit msg="<message>"` - Commit with package name prefix
 
 ### Testing
-**Note**: No automated test suite exists yet (the `test` script exits with error).
-- Manual testing: Open `packages/core/example/*.html` files in browser
+Three-tier test architecture is now in place:
+
+**1. Unit Tests** (`pnpm run test:unit`)
+- Location: `packages/core/tests/unit/`
+- Tools: Vitest + jsdom
+- Purpose: Pure logic tests (Matrix, Container, DisplayObject)
+
+**2. Integration Tests** (`pnpm run test:integration`)
+- Location: `packages/core/tests/integration/`
+- Tools: Vitest Browser mode + Playwright
+- Purpose: Component interaction, lifecycle, patch mode
+
+**3. Visual Regression Tests** (`pnpm run test:visual`)
+- Location: `packages/core/tests/visual/`
+- Tools: Playwright with screenshot comparison
+- Purpose: Example HTML screenshot regression testing
+- Commands:
+  - `just test-visual` - Run visual tests
+  - `just test-visual-update` - Update baseline screenshots
+  - `just test-visual-report` - View test report
+- Notes:
+  - Screenshots stored in `tests/visual/__snapshots__/` (gitignored)
+  - Threshold: 100 pixel difference, 10% color tolerance
+  - Requires `dist/` to be built first
+
+**Manual Testing**: Open `packages/core/example/*.html` files in browser
 - Use `TinyUI.testRender()` for quick visual verification
 - Each package has its own `justfile` with commands
 

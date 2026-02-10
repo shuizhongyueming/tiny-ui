@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CloseBtn Example - Tiny UI Components</title>
+    <style>
+    * {
+      padding: 0;
+      margin: 0;
+    }
+    html,body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+      -ms-touch-action: none;
+      touch-action: none;
+    }
+    canvas {
+      -ms-touch-action: none;
+      touch-action: none;
+      touch-action-delay: none;
+      -webkit-tap-highlight-color: rgba(0,0,0,0);
+      -moz-tap-highlight-color: rgba(0,0,0,0);
+      user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      outline: none;
+      border: none;
+      width: 100%;
+      height: 100%;
+    }
+    #info {
+      position: fixed;
+      bottom: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 12px;
+      border-radius: 4px;
+      pointer-events: none;
+      z-index: 1000;
+    }
+    </style>
+  </head>
+  <body>
+    <div id="info">
+      <div>CloseBtn Demo (DPR: <span id="dpr">1</span>x)</div>
+      <div>Click buttons to test</div>
+    </div>
+    <canvas id="game"></canvas>
+    <script src="/core/dist/tiny-ui-core.js"></script>
+    <script src="/components/dist/tiny-ui-components.js"></script>
+    <script>
+    const canvas = document.getElementById('game');
+    const tinyUI = new TinyUI(canvas);
+    const { CloseBtn, TextBtn, ShapeRect } = TinyUIComponents;
+    const { adjustTo } = TinyUIComponents.utils;
+
+    // DPR scaling
+    const dpr = window.devicePixelRatio || 1;
+    document.getElementById('dpr').textContent = dpr.toFixed(1);
+    const scale = (val) => val * Math.min(dpr, 2);
+
+    // Sizes
+    const fontSize = {
+      title: scale(36),
+      label: scale(20),
+      content: scale(24)
+    };
+    
+    const btnSize = {
+      standard: { w: scale(250), h: scale(60) },
+      normal: { w: scale(200), h: scale(60) }
+    };
+
+    // 背景
+    const bg = tinyUI.createGraphics();
+    bg.drawRect(0, 0, tinyUI.stageWidth, tinyUI.stageHeight, '#f8fafc');
+    tinyUI.root.addChild(bg);
+    adjustTo(tinyUI.root, true)(bg, { h: 'left', v: 'top' });
+
+    // 标题
+    const title = tinyUI.createText('CloseBtn Component Demo');
+    title.color = '#333333';
+    title.fontSize = fontSize.title;
+    title.updateTexture();
+    tinyUI.root.addChild(title);
+    adjustTo(tinyUI.root, true)(title, { h: 'center', v: 'top' }, { y: scale(50) });
+
+    // ========== 示例1: 带关闭按钮的弹窗 ==========
+    const label1 = tinyUI.createText('1. Popup with Close Button');
+    label1.color = '#666666';
+    label1.fontSize = fontSize.label;
+    label1.updateTexture();
+    tinyUI.root.addChild(label1);
+    adjustTo(title, false)(label1, { h: 'center', v: 'bottom' }, { y: fontSize.label + scale(30) });
+
+    const btn1 = TextBtn({
+      app: tinyUI,
+      text: 'Open Popup with CloseBtn',
+      bgColor: '#3b82f6',
+      width: btnSize.standard.w,
+      height: btnSize.standard.h,
+      fontSize: fontSize.label,
+      onClick: () => {
+        const container = tinyUI.createContainer();
+        container.width = scale(400);
+        container.height = scale(300);
+        tinyUI.root.addChild(container);
+        adjustTo(tinyUI.root, true)(container, { h: 'center', v: 'center' });
+
+        // 背景
+        const bgRect = ShapeRect(tinyUI, { width: scale(400), height: scale(300) }, '#ffffff');
+        bgRect.alpha = 0.95;
+        container.addChild(bgRect);
+        adjustTo(container, true)(bgRect, { h: 'left', v: 'top' });
+
+        // 边框
+        const border = tinyUI.createGraphics();
+        border.drawRoundedRect(0, 0, scale(400), scale(300), scale(10), '#3b82f6');
+        container.addChild(border);
+        adjustTo(container, true)(border, { h: 'left', v: 'top' });
+
+        // 内容居中
+        const content = tinyUI.createText('Popup with Close Button');
+        content.color = '#333333';
+        content.fontSize = fontSize.content;
+        content.updateTexture();
+        container.addChild(content);
+        adjustTo(container, true)(content, { h: 'center', v: 'center' });
+
+        // 创建关闭图片
+        const closeCanvas = document.createElement('canvas');
+        closeCanvas.width = 64;
+        closeCanvas.height = 64;
+        const ctx = closeCanvas.getContext('2d');
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(16, 16);
+        ctx.lineTo(48, 48);
+        ctx.moveTo(48, 16);
+        ctx.lineTo(16, 48);
+        ctx.stroke();
+        
+        const closeImg = new Image();
+        closeImg.src = closeCanvas.toDataURL();
+        
+        closeImg.onload = () => {
+          CloseBtn({
+            app: tinyUI,
+            size: scale(40),
+            closeImg: closeImg,
+            handleClose: () => {
+              container.destroy();
+              requestAnimationFrame(() => tinyUI.render());
+            },
+            parentNode: container,
+            position: 'top-right'
+          });
+          requestAnimationFrame(() => tinyUI.render());
+        };
+
+        requestAnimationFrame(() => tinyUI.render());
+      }
+    });
+    tinyUI.root.addChild(btn1);
+    adjustTo(label1, false)(btn1, { h: 'center', v: 'bottom' }, { y: btnSize.standard.h + scale(15) });
+
+    // ========== 示例2: 四个角落的关闭按钮 ==========
+    const label2 = tinyUI.createText('2. Close Buttons in All Corners');
+    label2.color = '#666666';
+    label2.fontSize = fontSize.label;
+    label2.updateTexture();
+    tinyUI.root.addChild(label2);
+    adjustTo(btn1, false)(label2, { h: 'center', v: 'bottom' }, { y: fontSize.label + scale(30) });
+
+    const btn2 = TextBtn({
+      app: tinyUI,
+      text: 'Open Corner Demo',
+      bgColor: '#10b981',
+      width: btnSize.normal.w,
+      height: btnSize.normal.h,
+      fontSize: fontSize.label,
+      onClick: () => {
+        const container = tinyUI.createContainer();
+        container.width = scale(500);
+        container.height = scale(400);
+        tinyUI.root.addChild(container);
+        adjustTo(tinyUI.root, true)(container, { h: 'center', v: 'center' });
+
+        const bgRect = ShapeRect(tinyUI, { width: scale(500), height: scale(400) }, '#ecfdf5');
+        container.addChild(bgRect);
+        adjustTo(container, true)(bgRect, { h: 'left', v: 'top' });
+
+        const border = tinyUI.createGraphics();
+        border.drawRoundedRect(0, 0, scale(500), scale(400), scale(10), '#10b981');
+        container.addChild(border);
+        adjustTo(container, true)(border, { h: 'left', v: 'top' });
+
+        const content = tinyUI.createText('Click any close button');
+        content.color = '#059669';
+        content.fontSize = scale(28);
+        content.updateTexture();
+        container.addChild(content);
+        adjustTo(container, true)(content, { h: 'center', v: 'center' });
+
+        // 创建关闭图片
+        const closeCanvas = document.createElement('canvas');
+        closeCanvas.width = 64;
+        closeCanvas.height = 64;
+        const ctx = closeCanvas.getContext('2d');
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(16, 16);
+        ctx.lineTo(48, 48);
+        ctx.moveTo(48, 16);
+        ctx.lineTo(16, 48);
+        ctx.stroke();
+        
+        const closeImg = new Image();
+        closeImg.src = closeCanvas.toDataURL();
+        
+        closeImg.onload = () => {
+          const positions = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
+          
+          positions.forEach(pos => {
+            CloseBtn({
+              app: tinyUI,
+              size: scale(35),
+              closeImg: closeImg,
+              handleClose: () => {
+                container.destroy();
+                requestAnimationFrame(() => tinyUI.render());
+              },
+              parentNode: container,
+              position: pos
+            });
+          });
+          
+          requestAnimationFrame(() => tinyUI.render());
+        };
+
+        requestAnimationFrame(() => tinyUI.render());
+      }
+    });
+    tinyUI.root.addChild(btn2);
+    adjustTo(label2, false)(btn2, { h: 'center', v: 'bottom' }, { y: btnSize.normal.h + scale(15) });
+
+    // ========== 示例3: 带延迟关闭的按钮 ==========
+    const label3 = tinyUI.createText('3. Close Button with Delay');
+    label3.color = '#666666';
+    label3.fontSize = fontSize.label;
+    label3.updateTexture();
+    tinyUI.root.addChild(label3);
+    adjustTo(btn2, false)(label3, { h: 'center', v: 'bottom' }, { y: fontSize.label + scale(30) });
+
+    const btn3 = TextBtn({
+      app: tinyUI,
+      text: 'Open with Delay',
+      bgColor: '#f59e0b',
+      width: btnSize.normal.w,
+      height: btnSize.normal.h,
+      fontSize: fontSize.label,
+      onClick: () => {
+        const container = tinyUI.createContainer();
+        container.width = scale(400);
+        container.height = scale(250);
+        tinyUI.root.addChild(container);
+        adjustTo(tinyUI.root, true)(container, { h: 'center', v: 'center' });
+
+        const bgRect = ShapeRect(tinyUI, { width: scale(400), height: scale(250) }, '#fffbeb');
+        container.addChild(bgRect);
+        adjustTo(container, true)(bgRect, { h: 'left', v: 'top' });
+
+        const content = tinyUI.createText('Closes after 1 second delay');
+        content.color = '#92400e';
+        content.fontSize = scale(22);
+        content.updateTexture();
+        container.addChild(content);
+        adjustTo(container, true)(content, { h: 'center', v: 'center' });
+
+        // 创建关闭图片
+        const closeCanvas = document.createElement('canvas');
+        closeCanvas.width = 64;
+        closeCanvas.height = 64;
+        const ctx = closeCanvas.getContext('2d');
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(16, 16);
+        ctx.lineTo(48, 48);
+        ctx.moveTo(48, 16);
+        ctx.lineTo(16, 48);
+        ctx.stroke();
+        
+        const closeImg = new Image();
+        closeImg.src = closeCanvas.toDataURL();
+        
+        closeImg.onload = () => {
+          CloseBtn({
+            app: tinyUI,
+            size: scale(40),
+            closeImg: closeImg,
+            handleClose: () => {
+              container.destroy();
+              requestAnimationFrame(() => tinyUI.render());
+            },
+            closeDelay: 1000,
+            parentNode: container,
+            position: 'top-right'
+          });
+          requestAnimationFrame(() => tinyUI.render());
+        };
+
+        requestAnimationFrame(() => tinyUI.render());
+      }
+    });
+    tinyUI.root.addChild(btn3);
+    adjustTo(label3, false)(btn3, { h: 'center', v: 'bottom' }, { y: btnSize.normal.h + scale(15) });
+
+    // 将按钮暴露给测试
+    window.testButtons = {
+      popup: btn1,
+      cornerDemo: btn2,
+      withDelay: btn3
+    };
+
+    requestAnimationFrame(() => tinyUI.render());
+    </script>
+  </body>
+</html>

@@ -9,7 +9,11 @@
     "url": "https://github.com/shuizhongyueming/tiny-ui.git"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:visual": "playwright test --config playwright.visual.config.ts tests/visual",
+    "test:visual:update": "playwright test --config playwright.visual.config.ts tests/visual --update-snapshots",
+    "test:watch": "vitest"
   },
   "keywords": [],
   "author": "",
@@ -20,8 +24,11 @@
   },
   "devDependencies": {
     "@fal-works/esbuild-plugin-global-externals": "^2.1.2",
+    "@types/node": "^25.2.2",
     "esbuild": "^0.25.1",
-    "typescript": "^5.8.2"
+    "jsdom": "^28.0.0",
+    "typescript": "^5.8.2",
+    "vitest": "^4.0.18"
   },
   "files": [
     "dist",

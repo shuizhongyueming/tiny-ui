@@ -28,9 +28,13 @@ export function CloseBtn({
   close.addEventListener(app.EventName.TouchStart, () => {
     if (handleClick) {
       const canClose = handleClick();
-      if (canClose) {
-        setTimeout(handleClose, closeDelay);
+      if (!canClose) {
+        return;
       }
+    }
+    // 无论是否有 handleClick，只要有 closeDelay 就延迟关闭
+    if (closeDelay > 0) {
+      setTimeout(handleClose, closeDelay);
     } else {
       handleClose();
     }

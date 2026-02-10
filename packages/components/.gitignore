@@ -1,0 +1,19 @@
+# Test outputs
+tests/visual/__snapshots__/
+test-results/
+playwright-report/
+
+# Coverage
+coverage/
+
+# Build
+dist/
+types/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

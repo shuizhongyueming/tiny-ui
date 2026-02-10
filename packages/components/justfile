@@ -1,0 +1,14 @@
+test:
+    pnpm test
+
+test-unit:
+    pnpm run test:unit
+
+test-visual:
+    pnpm run test:visual
+
+test-visual-update:
+    pnpm run test:visual:update
+
+test-watch:
+    pnpm run test:watch

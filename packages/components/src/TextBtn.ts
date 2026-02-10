@@ -35,6 +35,9 @@ export function TextBtn({
   const btnText = app.createText(text, 'TextBtn/Text');
   btnText.color = textColor;
   btnText.fontSize = fontSize;
+  
+  // 强制更新纹理以获取准确尺寸
+  btnText.updateTexture();
 
   if (responsive) {
     const charNum = text.length;

@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Popup Example - Tiny UI Components</title>
+    <style>
+    * {
+      padding: 0;
+      margin: 0;
+    }
+    html,body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+      -ms-touch-action: none;
+      touch-action: none;
+    }
+    canvas {
+      -ms-touch-action: none;
+      touch-action: none;
+      touch-action-delay: none;
+      -webkit-tap-highlight-color: rgba(0,0,0,0);
+      -moz-tap-highlight-color: rgba(0,0,0,0);
+      user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      outline: none;
+      border: none;
+      width: 100%;
+      height: 100%;
+    }
+    #info {
+      position: fixed;
+      bottom: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 12px;
+      border-radius: 4px;
+      pointer-events: none;
+      z-index: 1000;
+    }
+    </style>
+  </head>
+  <body>
+    <div id="info">
+      <div>Popup Demo (DPR: <span id="dpr">1</span>x)</div>
+      <div>Click buttons to open popups</div>
+    </div>
+    <canvas id="game"></canvas>
+    <script src="/core/dist/tiny-ui-core.js"></script>
+    <script src="/components/dist/tiny-ui-components.js"></script>
+    <script>
+    const canvas = document.getElementById('game');
+    const tinyUI = new TinyUI(canvas);
+    const { Popup, TextBtn } = TinyUIComponents;
+    const { adjustTo } = TinyUIComponents.utils;
+    
+    // DPR scaling
+    const dpr = window.devicePixelRatio || 1;
+    document.getElementById('dpr').textContent = dpr.toFixed(1);
+    
+    // Scaled values based on DPR
+    const scale = (val) => val * Math.min(dpr, 2);
+    
+    // Sizes
+    const fontSize = {
+      title: scale(36),
+      label: scale(20),
+      popup: scale(32),
+      popupSmall: scale(24)
+    };
+    
+    const btnSize = {
+      standard: { w: scale(200), h: scale(60) },
+      colorBtn: { w: scale(140), h: scale(50) },
+      smallColor: { w: scale(90), h: scale(45) },
+      closeBtn: { w: scale(120), h: scale(50) },
+      closeBtnSmall: { w: scale(100), h: scale(40) }
+    };
+    
+    // Spacing: v:'bottom' 是下边缘对齐，所以偏移需要加上元素本身高度
+    const spacing = {
+      titleY: scale(50),
+      sectionGap: scale(30)  // 额外的组间间距
+    };
+
+    // 背景
+    const bg = tinyUI.createGraphics();
+    bg.drawRect(0, 0, tinyUI.stageWidth, tinyUI.stageHeight, '#f0f4f8');
+    tinyUI.root.addChild(bg);
+    adjustTo(tinyUI.root, true)(bg, { h: 'left', v: 'top' });
+
+    // ========== 标题 ==========
+    const title = tinyUI.createText('Popup Component Demo');
+    title.color = '#333333';
+    title.fontSize = fontSize.title;
+    title.updateTexture();
+    tinyUI.root.addChild(title);
+    adjustTo(tinyUI.root, true)(title, { h: 'center', v: 'top' }, { y: spacing.titleY });
+
+    // ========== 示例1: 全屏弹窗 ==========
+    const label1 = tinyUI.createText('1. Full Screen Popup');
+    label1.color = '#666666';
+    label1.fontSize = fontSize.label;
+    label1.updateTexture();
+    tinyUI.root.addChild(label1);
+    // label1 位于 title 下方（label 的下边缘对齐 title 的下边缘，偏移 label 高度 + 间距）
+    adjustTo(title, false)(label1, { h: 'center', v: 'bottom' }, { y: fontSize.label + scale(20) });
+
+    const btn1 = TextBtn({
+      app: tinyUI,
+      text: 'Open Fullscreen',
+      bgColor: '#3b82f6',
+      width: btnSize.standard.w,
+      height: btnSize.standard.h,
+      fontSize: fontSize.label,
+      onClick: () => {
+        const popup = Popup({
+          app: tinyUI,
+          bgColor: '#000000',
+          alpha: 0.7
+        });
+        tinyUI.root.addChild(popup);
+        adjustTo(tinyUI.root, true)(popup, { h: 'center', v: 'center' });
+
+        const content = tinyUI.createText('Fullscreen Popup');
+        content.color = '#ffffff';
+        content.fontSize = fontSize.popup;
+        content.updateTexture();
+        popup.addChild(content);
+        adjustTo(popup, true)(content, { h: 'center', v: 'center' });
+
+        const closeBtn = TextBtn({
+          app: tinyUI,
+          text: 'Close',
+          bgColor: '#ef4444',
+          width: btnSize.closeBtn.w,
+          height: btnSize.closeBtn.h,
+          fontSize: fontSize.label,
+          onClick: () => {
+            popup.destroy();
+            requestAnimationFrame(() => tinyUI.render());
+          }
+        });
+        popup.addChild(closeBtn);
+        adjustTo(content, false)(closeBtn, { h: 'center', v: 'bottom' }, { y: btnSize.closeBtn.h + scale(30) });
+
+        requestAnimationFrame(() => tinyUI.render());
+      }
+    });
+    tinyUI.root.addChild(btn1);
+    // btn1 位于 label1 下方（btn1 的下边缘对齐 label1 的下边缘，偏移 btn1 高度 + 间距）
+    adjustTo(label1, false)(btn1, { h: 'center', v: 'bottom' }, { y: btnSize.standard.h + scale(10) });
+
+    // ========== 示例2: 自定义尺寸弹窗 ==========
+    const label2 = tinyUI.createText('2. Custom Size Popup');
+    label2.color = '#666666';
+    label2.fontSize = fontSize.label;
+    label2.updateTexture();
+    tinyUI.root.addChild(label2);
+    // label2 位于 btn1 下方（label 的下边缘对齐 btn1 的下边缘，偏移 label 高度 + 间距）
+    adjustTo(btn1, false)(label2, { h: 'center', v: 'bottom' }, { y: fontSize.label + scale(20) });
+
+    const btn2 = TextBtn({
+      app: tinyUI,
+      text: 'Open Custom Size',
+      bgColor: '#10b981',
+      width: btnSize.standard.w,
+      height: btnSize.standard.h,
+      fontSize: fontSize.label,
+      onClick: () => {
+        const popup = Popup({
+          app: tinyUI,
+          size: { width: scale(400), height: scale(300) },
+          bgColor: '#1e293b',
+          alpha: 0.95
+        });
+        tinyUI.root.addChild(popup);
+        adjustTo(tinyUI.root, true)(popup, { h: 'center', v: 'center' });
+
+        const content = tinyUI.createText('Custom Size: 400x300');
+        content.color = '#ffffff';
+        content.fontSize = fontSize.popupSmall;
+        content.updateTexture();
+        popup.addChild(content);
+        adjustTo(popup, true)(content, { h: 'center', v: 'center' });
+
+        const closeBtn = TextBtn({
+          app: tinyUI,
+          text: 'Close',
+          bgColor: '#64748b',
+          width: btnSize.closeBtnSmall.w,
+          height: btnSize.closeBtnSmall.h,
+          fontSize: fontSize.label,
+          onClick: () => {
+            popup.destroy();
+            requestAnimationFrame(() => tinyUI.render());
+          }
+        });
+        popup.addChild(closeBtn);
+        adjustTo(content, false)(closeBtn, { h: 'center', v: 'bottom' }, { y: btnSize.closeBtnSmall.h + scale(20) });
+
+        requestAnimationFrame(() => tinyUI.render());
+      }
+    });
+    tinyUI.root.addChild(btn2);
+    // btn2 位于 label2 下方
+    adjustTo(label2, false)(btn2, { h: 'center', v: 'bottom' }, { y: btnSize.standard.h + scale(10) });
+
+    // ========== 示例3: 不同透明度 ==========
+    const label3 = tinyUI.createText('3. Different Alpha Values');
+    label3.color = '#666666';
+    label3.fontSize = fontSize.label;
+    label3.updateTexture();
+    tinyUI.root.addChild(label3);
+    // label3 位于 btn2 下方
+    adjustTo(btn2, false)(label3, { h: 'center', v: 'bottom' }, { y: fontSize.label + scale(20) });
+
+    const btn3 = TextBtn({
+      app: tinyUI,
+      text: 'Light (0.3)',
+      bgColor: '#8b5cf6',
+      width: btnSize.colorBtn.w,
+      height: btnSize.colorBtn.h,
+      fontSize: fontSize.label,
+      onClick: () => openAlphaPopup(0.3)
+    });
+    tinyUI.root.addChild(btn3);
+    // btn3 位于 label3 下方
+    adjustTo(label3, false)(btn3, { h: 'left', v: 'bottom' }, { x: -scale(180), y: btnSize.colorBtn.h + scale(10) });
+
+    const btn4 = TextBtn({
+      app: tinyUI,
+      text: 'Medium (0.6)',
+      bgColor: '#8b5cf6',
+      width: btnSize.colorBtn.w,
+      height: btnSize.colorBtn.h,
+      fontSize: fontSize.label,
+      onClick: () => openAlphaPopup(0.6)
+    });
+    tinyUI.root.addChild(btn4);
+    adjustTo(label3, false)(btn4, { h: 'center', v: 'bottom' }, { y: btnSize.colorBtn.h + scale(10) });
+
+    const btn5 = TextBtn({
+      app: tinyUI,
+      text: 'Dark (0.9)',
+      bgColor: '#8b5cf6',
+      width: btnSize.colorBtn.w,
+      height: btnSize.colorBtn.h,
+      fontSize: fontSize.label,
+      onClick: () => openAlphaPopup(0.9)
+    });
+    tinyUI.root.addChild(btn5);
+    adjustTo(label3, false)(btn5, { h: 'right', v: 'bottom' }, { x: scale(180), y: btnSize.colorBtn.h + scale(10) });
+
+    function openAlphaPopup(alpha) {
+      const popup = Popup({
+        app: tinyUI,
+        bgColor: '#000000',
+        alpha: alpha
+      });
+      tinyUI.root.addChild(popup);
+      adjustTo(tinyUI.root, true)(popup, { h: 'center', v: 'center' });
+
+      const content = tinyUI.createText(`Alpha: ${alpha}`);
+      content.color = '#ffffff';
+      content.fontSize = fontSize.popup;
+      content.updateTexture();
+      popup.addChild(content);
+      adjustTo(popup, true)(content, { h: 'center', v: 'center' });
+
+      const closeBtn = TextBtn({
+        app: tinyUI,
+        text: 'Close',
+        bgColor: '#ef4444',
+        width: btnSize.closeBtn.w,
+        height: btnSize.closeBtn.h,
+        fontSize: fontSize.label,
+        onClick: () => {
+          popup.destroy();
+          requestAnimationFrame(() => tinyUI.render());
+        }
+      });
+      popup.addChild(closeBtn);
+      adjustTo(content, false)(closeBtn, { h: 'center', v: 'bottom' }, { y: btnSize.closeBtn.h + scale(30) });
+
+      requestAnimationFrame(() => tinyUI.render());
+    }
+
+    // ========== 示例4: 自定义背景色 ==========
+    const label4 = tinyUI.createText('4. Custom Background Colors');
+    label4.color = '#666666';
+    label4.fontSize = fontSize.label;
+    label4.updateTexture();
+    tinyUI.root.addChild(label4);
+    // label4 位于 btn3/btn4/btn5 下方（基于 btn4）
+    adjustTo(btn4, false)(label4, { h: 'center', v: 'bottom' }, { y: fontSize.label + scale(30) });
+
+    const colors = [
+      { name: 'Blue', color: '#3b82f6' },
+      { name: 'Red', color: '#ef4444' },
+      { name: 'Green', color: '#10b981' },
+      { name: 'Purple', color: '#8b5cf6' }
+    ];
+
+    const colorBtns = colors.map((item, index) => {
+      const btn = TextBtn({
+        app: tinyUI,
+        text: item.name,
+        bgColor: item.color,
+        width: btnSize.smallColor.w,
+        height: btnSize.smallColor.h,
+        fontSize: fontSize.label,
+        onClick: () => {
+          const popup = Popup({
+            app: tinyUI,
+            bgColor: item.color,
+            alpha: 0.8
+          });
+          tinyUI.root.addChild(popup);
+          adjustTo(tinyUI.root, true)(popup, { h: 'center', v: 'center' });
+
+          const content = tinyUI.createText(`${item.name} Background`);
+          content.color = '#ffffff';
+          content.fontSize = fontSize.popup;
+          content.updateTexture();
+          popup.addChild(content);
+          adjustTo(popup, true)(content, { h: 'center', v: 'center' });
+
+          const closeBtn = TextBtn({
+            app: tinyUI,
+            text: 'Close',
+            bgColor: '#ffffff',
+            textColor: item.color,
+            width: btnSize.closeBtn.w,
+            height: btnSize.closeBtn.h,
+            fontSize: fontSize.label,
+            onClick: () => {
+              popup.destroy();
+              requestAnimationFrame(() => tinyUI.render());
+            }
+          });
+          popup.addChild(closeBtn);
+          adjustTo(content, false)(closeBtn, { h: 'center', v: 'bottom' }, { y: btnSize.closeBtn.h + scale(30) });
+
+          requestAnimationFrame(() => tinyUI.render());
+        }
+      });
+      return btn;
+    });
+
+    colorBtns.forEach((btn, index) => {
+      const xOffset = (index - 1.5) * scale(100);
+      tinyUI.root.addChild(btn);
+      // 小按钮位于 label4 下方
+      adjustTo(label4, false)(btn, { h: 'center', v: 'bottom' }, { x: xOffset, y: btnSize.smallColor.h + scale(10) });
+    });
+
+    // 将按钮暴露给测试
+    window.testButtons = {
+      fullscreen: btn1,
+      customSize: btn2,
+      lightAlpha: btn3,
+      mediumAlpha: btn4,
+      darkAlpha: btn5,
+      blueBg: colorBtns[0],
+      redBg: colorBtns[1],
+      greenBg: colorBtns[2],
+      purpleBg: colorBtns[3]
+    };
+
+    requestAnimationFrame(() => tinyUI.render());
+    </script>
+  </body>
+</html>

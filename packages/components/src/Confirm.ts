@@ -40,7 +40,7 @@ export interface ConfirmResult {
   btnPrev: Bitmap;
   btnOK?: Bitmap;
   btnCancel?: Bitmap;
-  setContents: (contents: string[]) => void;
+  setContents: (contents: HTMLImageElement[]) => void;
   adjustToContent: (
     target: DisplayObject,
     adjust: Partial<OptionAdjust>,
@@ -91,13 +91,13 @@ export function Confirm({
   adjustToContent(confirmTitle, { v: 'top', h: 'center' }, { y: confirmTitle.height * -0.5 });
   contentContainer.addChild(confirmTitle);
 
-  const imgContent = app.createBitmapFromImage(imgs.contents[0]);
+  const imgContentRef = { current: app.createBitmapFromImage(imgs.contents[0]) };
   scaleToSize(
-    imgContent,
-    fitSize(imgContent.getSize(), scaleSize(contentSize, 0.9))
+    imgContentRef.current,
+    fitSize(imgContentRef.current.getSize(), scaleSize(contentSize, 0.9))
   );
-  adjustToContent(imgContent, { v: 'center', h: 'center' });
-  contentContainer.addChild(imgContent);
+  adjustToContent(imgContentRef.current, { v: 'center', h: 'center' });
+  contentContainer.addChild(imgContentRef.current);
 
 
   const btnNext = app.createBitmapFromImage(imgs.btnNext);
@@ -135,28 +135,52 @@ export function Confirm({
   }
 
   let pageIndex = 0;
-  let contents: string[] = [];
+  let contents: HTMLImageElement[] = [];
+  
   const updateContent = () => {
-    imgContent.src = contents[pageIndex];
+    if (contents.length === 0 || pageIndex >= contents.length) return;
+    
+    // 重新创建 Bitmap 来更新图片
+    const newBitmap = app.createBitmapFromImage(contents[pageIndex]);
+    newBitmap.x = imgContentRef.current.x;
+    newBitmap.y = imgContentRef.current.y;
+    newBitmap.scaleX = imgContentRef.current.scaleX;
+    newBitmap.scaleY = imgContentRef.current.scaleY;
+    newBitmap.anchorX = imgContentRef.current.anchorX;
+    newBitmap.anchorY = imgContentRef.current.anchorY;
+    
+    // 替换旧 Bitmap
+    contentContainer.removeChild(imgContentRef.current);
+    contentContainer.addChild(newBitmap);
+    imgContentRef.current = newBitmap;
+    
     btnNext.visible = pageIndex < contents.length - 1;
     btnPrev.visible = pageIndex > 0;
+    
+    // 重新渲染
+    requestAnimationFrame(() => app.render());
   };
+  
   btnNext.addEventListener(app.EventName.TouchStart, () => {
-    pageIndex = Math.min(pageIndex + 1, contents.length - 1);
-    updateContent();
+    if (pageIndex < contents.length - 1) {
+      pageIndex++;
+      updateContent();
+    }
   });
   btnPrev.addEventListener(app.EventName.TouchStart, () => {
-    pageIndex = Math.max(pageIndex - 1, 0);
-    updateContent();
+    if (pageIndex > 0) {
+      pageIndex--;
+      updateContent();
+    }
   });
 
-  const setContents = (urls: string[]) => {
+  const setContents = (imgs: HTMLImageElement[]) => {
     pageIndex = 0;
-    contents = urls;
+    contents = imgs;
     updateContent();
   };
 
-  setContents(imgs.contents.map(n => n.src))
+  setContents(imgs.contents)
 
   const res: ConfirmResult = {
     container,
@@ -164,7 +188,7 @@ export function Confirm({
     contentContainer,
     contentBg,
     title: confirmTitle,
-    imgContent,
+    imgContent: imgContentRef.current,
     btnNext,
     btnPrev,
     btnOK,
