@@ -12,5 +12,5 @@
     "skipLibCheck": true,
     "allowJs": false
   },
-  "exclude": ["node_modules/", "dist/", "types/"]
+  "exclude": ["node_modules/", "dist/", "types/", "tests/", "*.config.ts", "playwright.*.config.ts"]
 }
