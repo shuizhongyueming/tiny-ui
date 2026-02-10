@@ -45,7 +45,3 @@ prepublish versionType="prerelease":
   just test;
   just build;
   just _common-publish {{versionType}};
-
-[no-cd]
-test:
-  pnpm test run
