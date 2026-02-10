@@ -854,11 +854,14 @@ export class Text extends DisplayObject {
     if (!this._text || this._text.length === 0) return;
 
     // 如果文本纹理不存在或文本内容变化，重新生成纹理
-    if (!this.texture || this.textureNeedsUpdate) {
+    if (this.textureNeedsUpdate) {
       this.updateTexture();
     }
 
-    if (!this.texture) return;
+    // 如果纹理未就绪（首次渲染 upload 排队中，或在 safe section 外），跳过渲染
+    if (!this.texture || this.textureUploadPending) {
+      return;
+    }
 
     const gl = this.app.gl;
 
