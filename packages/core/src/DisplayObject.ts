@@ -234,7 +234,7 @@ export class DisplayObject extends Emitter {
 
   // 检测点是否在对象内
   hitTest(x: number, y: number): boolean {
-    if (!this.visible || this.alpha <= 0) return false;
+    if (!this.visible) return false;
 
     // 获取全局变换矩阵
     const matrix = this.getGlobalTransformMatrix();
