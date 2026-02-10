@@ -552,6 +552,81 @@ export class Text extends DisplayObject {
         currentBaseline = 0;
       }
 
+      // If unit itself exceeds maxWidth, split it by characters (like plain text)
+      if (this._maxWidth > 0 && unit.width > this._maxWidth) {
+        // Flush current line first if it has content
+        if (currentLineUnits.length > 0) {
+          lines.push({
+            units: currentLineUnits,
+            width: currentLineWidth,
+            height: currentLineHeight,
+            baseline: currentBaseline,
+          });
+          currentLineUnits = [];
+          currentLineWidth = 0;
+          currentLineHeight = 0;
+          currentBaseline = 0;
+        }
+
+        // Split the long unit by characters - similar to plain text approach
+        const chars = unit.text.split('');
+        let charLine = '';
+        let charWidth = 0;
+        const ctx = this.canvas!.getContext('2d')!;
+        ctx.font = buildFontString(unit.style);
+
+        for (const char of chars) {
+          const charW = ctx.measureText(char).width;
+          
+          if (charWidth + charW <= this._maxWidth) {
+            charLine += char;
+            charWidth += charW;
+          } else {
+            // Flush current char line as a complete line
+            if (charLine.length > 0) {
+              const charUnit: RenderUnit = {
+                text: charLine,
+                style: { ...unit.style },
+                x: 0,
+                y: 0,
+                width: charWidth,
+                height: unit.height,
+                ascent: unit.ascent,
+                lineIndex: lines.length,
+              };
+              lines.push({
+                units: [charUnit],
+                width: charWidth,
+                height: unit.height,
+                baseline: unit.ascent,
+              });
+            }
+            charLine = char;
+            charWidth = charW;
+          }
+        }
+
+        // Remaining chars become the "current line" (like plain text's currentLine)
+        // This allows the remaining chars to potentially merge with the next unit
+        if (charLine.length > 0) {
+          const charUnit: RenderUnit = {
+            text: charLine,
+            style: { ...unit.style },
+            x: 0,
+            y: 0,
+            width: charWidth,
+            height: unit.height,
+            ascent: unit.ascent,
+            lineIndex: lines.length,
+          };
+          currentLineUnits.push(charUnit);
+          currentLineWidth = charWidth;
+          currentLineHeight = unit.height;
+          currentBaseline = unit.ascent;
+        }
+        continue;
+      }
+
       // Add to current line
       unit.lineIndex = lines.length;
       currentLineUnits.push(unit);

@@ -520,14 +520,216 @@
     forceUpdateTexture(notice13);
     tinyUI.root.addChild(notice13);
 
+    // 计算第三列的结束位置
+    const col3EndY = yOffset + 35 + text13.height + 50;
+    
+    // ============================================
+    // BBCode 测试区域（紧贴着前面的测试）
+    // ============================================
+    
+    // 计算 BBCode 区域的起始 y 位置（取所有列的最大值）
+    // 第一列结束: Test 4 (text4)
+    // 第二列结束: Test 9 (notice9)
+    // 第三列结束: Test 13 (notice13)
+    const col1EndY = text4.y + text4.height + 100;
+    const col2EndY = notice9.y + notice9.height + 50;
+    const maxYOffset = Math.max(col1EndY, col2EndY, col3EndY) + 60;
+    
+    // 重置 yOffset 用于 BBCode 测试（使用第一列位置）
+    yOffset = maxYOffset;
+
+    const bbcodeTitle = tinyUI.createText('=== BBCode Text Wrapping Tests ===');
+    bbcodeTitle.color = '#fbbf24';
+    bbcodeTitle.fontSize = 28;
+    bbcodeTitle.anchorX = 0;
+    bbcodeTitle.anchorY = 0;
+    bbcodeTitle.x = 50;
+    bbcodeTitle.y = yOffset;
+    tinyUI.root.addChild(bbcodeTitle);
+
+    yOffset += 50;
+
+    // 测试 14: BBCode 普通文本换行
+    const label14 = tinyUI.createText('Test 14: BBCode Normal Text (maxWidth=350)');
+    label14.color = '#cbd5e0';
+    label14.fontSize = 18;
+    label14.anchorX = 0;
+    label14.anchorY = 0;
+    label14.x = xBase;
+    label14.y = yOffset;
+    tinyUI.root.addChild(label14);
+
+    const text14 = tinyUI.createText('[b]This is a bold paragraph[/b] with regular English words. It should [color=#ec4899]wrap correctly[/color] based on word boundaries when reaching the maximum width limit.');
+    text14.bbcodeEnabled = true;
+    text14.color = '#ffffff';
+    text14.fontSize = 20;
+    text14.maxWidth = testWidth;
+    text14.anchorX = 0;
+    text14.anchorY = 0;
+    text14.x = xBase;
+    text14.y = yOffset + 30;
+    forceUpdateTexture(text14);
+    tinyUI.root.addChild(text14);
+
+    const bg14 = tinyUI.createGraphics();
+    bg14.anchorX = 0;
+    bg14.anchorY = 0;
+    bg14.drawRect(0, 0, testWidth, text14.height, 'rgba(251, 191, 36, 0.3)');
+    bg14.x = xBase;
+    bg14.y = yOffset + 30;
+    tinyUI.root.addChild(bg14);
+
+    const col1YOffset = yOffset + text14.height + 100;
+
+    // 测试 15: BBCode 超长无空格字符串
+    const label15 = tinyUI.createText('Test 15: BBCode Long String Without Spaces (maxWidth=350)');
+    label15.color = '#cbd5e0';
+    label15.fontSize = 18;
+    label15.anchorX = 0;
+    label15.anchorY = 0;
+    label15.x = xBase;
+    label15.y = col1YOffset;
+    tinyUI.root.addChild(label15);
+
+    const text15 = tinyUI.createText('[b][color=#fbbf24]verylooooongwordwithoutanyspaces[/color][/b]atallthisshouldstillbedisplayedbutwillexceedthemaxwidthlimitbecauseitcannotbewrapped');
+    text15.bbcodeEnabled = true;
+    text15.color = '#fbbf24';
+    text15.fontSize = 20;
+    text15.maxWidth = testWidth;
+    text15.anchorX = 0;
+    text15.anchorY = 0;
+    text15.x = xBase;
+    text15.y = col1YOffset + 30;
+    forceUpdateTexture(text15);
+    tinyUI.root.addChild(text15);
+
+    const bg15 = tinyUI.createGraphics();
+    bg15.anchorX = 0;
+    bg15.anchorY = 0;
+    bg15.drawRect(0, 0, testWidth, text15.height, 'rgba(251, 191, 36, 0.2)');
+    bg15.x = xBase;
+    bg15.y = col1YOffset + 30;
+    tinyUI.root.addChild(bg15);
+
+    // 第二列 BBCode 测试
+    yOffset = maxYOffset + 60;
+
+    // 测试 16: BBCode 中文文本换行
+    const label16 = tinyUI.createText('Test 16: BBCode Chinese Text (maxWidth=350)');
+    label16.color = '#cbd5e0';
+    label16.fontSize = 18;
+    label16.anchorX = 0;
+    label16.anchorY = 0;
+    label16.x = xBase2;
+    label16.y = yOffset;
+    tinyUI.root.addChild(label16);
+
+    const text16 = tinyUI.createText('[b][color=#34d399]这是一段中文测试文本[/color][/b]，用于验证 BBCode 模式下没有空格分隔的语言是否能够正确处理换行。');
+    text16.bbcodeEnabled = true;
+    text16.color = '#34d399';
+    text16.fontSize = 20;
+    text16.maxWidth = testWidth;
+    text16.anchorX = 0;
+    text16.anchorY = 0;
+    text16.x = xBase2;
+    text16.y = yOffset + 30;
+    forceUpdateTexture(text16);
+    tinyUI.root.addChild(text16);
+
+    const bg16 = tinyUI.createGraphics();
+    bg16.anchorX = 0;
+    bg16.anchorY = 0;
+    bg16.drawRect(0, 0, testWidth, text16.height, 'rgba(52, 211, 153, 0.3)');
+    bg16.x = xBase2;
+    bg16.y = yOffset + 30;
+    tinyUI.root.addChild(bg16);
+
+    const notice16 = tinyUI.createText('✅ BBCode Chinese wraps (char by char)');
+    notice16.color = '#4ade80';
+    notice16.fontSize = 14;
+    notice16.anchorX = 0;
+    notice16.anchorY = 0;
+    notice16.x = xBase2;
+    notice16.y = yOffset + 35 + text16.height;
+    forceUpdateTexture(notice16);
+    tinyUI.root.addChild(notice16);
+
+    // 测试 17: BBCode 混合超长内容
+    const label17 = tinyUI.createText('Test 17: BBCode Mixed Long Content (maxWidth=350)');
+    label17.color = '#cbd5e0';
+    label17.fontSize = 18;
+    label17.anchorX = 0;
+    label17.anchorY = 0;
+    label17.x = xBase2;
+    label17.y = yOffset + text16.height + 80;
+    tinyUI.root.addChild(label17);
+
+    const text17 = tinyUI.createText('Normal [b]bold text[/b] and [color=#ec4899]superlongunbreakablewordwithoutanyspacesatall[/color] and then more [u]underlined text[/u] after that.');
+    text17.bbcodeEnabled = true;
+    text17.color = '#ec4899';
+    text17.fontSize = 20;
+    text17.maxWidth = testWidth;
+    text17.anchorX = 0;
+    text17.anchorY = 0;
+    text17.x = xBase2;
+    text17.y = yOffset + text16.height + 110;
+    forceUpdateTexture(text17);
+    tinyUI.root.addChild(text17);
+
+    const bg17 = tinyUI.createGraphics();
+    bg17.anchorX = 0;
+    bg17.anchorY = 0;
+    bg17.drawRect(0, 0, testWidth, text17.height, 'rgba(236, 72, 153, 0.2)');
+    bg17.x = xBase2;
+    bg17.y = yOffset + text16.height + 110;
+    tinyUI.root.addChild(bg17);
+
+    // 第三列 BBCode 测试
+    // 测试 18: BBCode 多标签嵌套
+    const label18 = tinyUI.createText('Test 18: BBCode Nested Tags (maxWidth=350)');
+    label18.color = '#cbd5e0';
+    label18.fontSize = 18;
+    label18.anchorX = 0;
+    label18.anchorY = 0;
+    label18.x = xBase3;
+    label18.y = yOffset;
+    tinyUI.root.addChild(label18);
+
+    const text18 = tinyUI.createText('[size=1.2][b][color=#60a5fa]Large Bold Blue[/color][/b][/size] and then some regular text that should wrap correctly when it reaches the maximum width limit set for this test case.');
+    text18.bbcodeEnabled = true;
+    text18.color = '#ffffff';
+    text18.fontSize = 20;
+    text18.maxWidth = testWidth;
+    text18.anchorX = 0;
+    text18.anchorY = 0;
+    text18.x = xBase3;
+    text18.y = yOffset + 30;
+    forceUpdateTexture(text18);
+    tinyUI.root.addChild(text18);
+
+    const bg18 = tinyUI.createGraphics();
+    bg18.anchorX = 0;
+    bg18.anchorY = 0;
+    bg18.drawRect(0, 0, testWidth, text18.height, 'rgba(96, 165, 250, 0.3)');
+    bg18.x = xBase3;
+    bg18.y = yOffset + 30;
+    tinyUI.root.addChild(bg18);
+
+    // 计算 BBCode 各列的结束位置
+    const bbcodeCol1End = col1YOffset + text15.height + 50;
+    const bbcodeCol2End = yOffset + 35 + text16.height + text17.height + 150;
+    const bbcodeCol3End = yOffset + 30 + text18.height + 50;
+    
     // 图例说明
-    const legend = tinyUI.createText('Legend: Colored backgrounds show maxWidth boundary | ✅ All text now wraps (char-level for CJK)');
+    const finalYOffset = Math.max(bbcodeCol1End, bbcodeCol2End, bbcodeCol3End);
+    
+    const legend = tinyUI.createText('Legend: Colored backgrounds show maxWidth boundary | ✅ All text now wraps (char-level for CJK) | BBCode: Yellow/Green/Blue show maxWidth');
     legend.color = '#94a3b8';
     legend.fontSize = 16;
     legend.anchorX = 0;
     legend.anchorY = 0;
     legend.x = 50;
-    legend.y = tinyUI.stageHeight - 40;
+    legend.y = finalYOffset + 40;
     forceUpdateTexture(legend);
     tinyUI.root.addChild(legend);
 
