@@ -1,5 +1,15 @@
 set dotenv-load
 
+# build all packages
+build-all:
+  cd packages/components && just build
+  cd packages/core && just build
+
+# dev all packages
+dev-all:
+  cd packages/components && just dev
+  cd packages/core && just dev
+
 [no-cd]
 build *FLAGS:
   NODE_ENV=production node esbuild.js {{FLAGS}}
