@@ -89,13 +89,14 @@ describe('DisplayObject', () => {
     expect(obj.hitTest(50, 50)).toBe(false);
   });
 
-  it('should respect alpha for hit test', () => {
+  it('should allow hit test when alpha is 0', () => {
     const obj = new DisplayObject(mockApp);
     obj.setWidth(100);
     obj.setHeight(100);
     obj.alpha = 0;
     
-    expect(obj.hitTest(50, 50)).toBe(false);
+    // alpha 为 0 只是不可见，但仍然可以交互
+    expect(obj.hitTest(50, 50)).toBe(true);
   });
 
   it('should manage event listeners', () => {
