@@ -85,7 +85,7 @@ export function TextBtn({
   adjustToBtn(btnText, { h: "center", v: "center" });
 
   if (onClick) {
-    btnBg.addEventListener(app.EventName.TouchStart, onClick);
+    btnBg.addEventListener('touchstart', onClick);
   }
 
   return {

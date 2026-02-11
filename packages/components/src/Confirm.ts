@@ -161,13 +161,13 @@ export function Confirm({
     requestAnimationFrame(() => app.render());
   };
   
-  btnNext.addEventListener(app.EventName.TouchStart, () => {
+  btnNext.addEventListener('touchstart', () => {
     if (pageIndex < contents.length - 1) {
       pageIndex++;
       updateContent();
     }
   });
-  btnPrev.addEventListener(app.EventName.TouchStart, () => {
+  btnPrev.addEventListener('touchstart', () => {
     if (pageIndex > 0) {
       pageIndex--;
       updateContent();
@@ -198,7 +198,7 @@ export function Confirm({
     updateContent
   }
 
-  btnOK.addEventListener(app.EventName.TouchStart, () => {
+  btnOK.addEventListener('touchstart', () => {
     if (onOK) {
       onOK(res);
     } else {
@@ -206,7 +206,7 @@ export function Confirm({
     }
   });
   if (btnCancel) {
-    btnCancel.addEventListener(app.EventName.TouchStart, () => {
+    btnCancel.addEventListener('touchstart', () => {
       if (onCancel) {
         onCancel(res);
       } else {

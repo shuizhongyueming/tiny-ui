@@ -3,7 +3,7 @@ import { Text } from "./Text";
 import { Container } from "./Container";
 import { DisplayObject } from "./DisplayObject";
 import { Graphics } from "./Graphics";
-import { EventName, Size, type Color } from "./type";
+import { type Size, type Color, type EventName } from "./type";
 import { EventManager, TouchEventListeningHandler } from "./utils/EventManager";
 import { Matrix } from "./utils/Matrix";
 import { ShaderManager } from "./utils/ShaderManager";
@@ -78,9 +78,7 @@ interface TinyUIOption {
 }
 
 class TinyUI {
-  static EventName = EventName;
   static GLState = GLState;
-  EventName = EventName;
   canvas: HTMLCanvasElement;
   gl: WebGLRenderingContext;
   contextOptions: WebGLContextAttributes;

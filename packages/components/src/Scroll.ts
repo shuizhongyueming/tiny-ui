@@ -466,11 +466,11 @@ export function Scroll({
     globalTouchEndHandler = onTouchEnd;
 
     app.root.addEventListener(
-      TinyUICore.EventName.TouchMove,
+      'touchmove',
       globalTouchMoveHandler,
     );
     app.root.addEventListener(
-      TinyUICore.EventName.TouchEnd,
+      'touchend',
       globalTouchEndHandler,
     );
   }
@@ -479,14 +479,14 @@ export function Scroll({
   function unbindGlobalEvents(): void {
     if (globalTouchMoveHandler) {
       app.root.removeEventListener(
-        TinyUICore.EventName.TouchMove,
+        'touchmove',
         globalTouchMoveHandler,
       );
       globalTouchMoveHandler = null;
     }
     if (globalTouchEndHandler) {
       app.root.removeEventListener(
-        TinyUICore.EventName.TouchEnd,
+        'touchend',
         globalTouchEndHandler,
       );
       globalTouchEndHandler = null;
@@ -494,7 +494,7 @@ export function Scroll({
   }
 
   // 绑定初始事件（只在 maskLayer 上监听 touchstart）
-  maskLayer.addEventListener(TinyUICore.EventName.TouchStart, onTouchStart);
+  maskLayer.addEventListener('touchstart', onTouchStart);
 
   // 自动更新
   let unsubscribeChildren: (() => void) | null = null;

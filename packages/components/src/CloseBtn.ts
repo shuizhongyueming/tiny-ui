@@ -25,7 +25,7 @@ export function CloseBtn({
 }: CloseBtnProps): Bitmap {
   const close = app.createBitmapFromImage(closeImg);
   close.scaleToFit(size, size);
-  close.addEventListener(app.EventName.TouchStart, () => {
+  close.addEventListener('touchstart', () => {
     if (handleClick) {
       const canClose = handleClick();
       if (!canClose) {
