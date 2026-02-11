@@ -122,6 +122,13 @@ class TinyUI {
   private _glTasks: Array<() => void> = [];
   private _glSafeDepth: number = 0;
 
+  // tick 机制
+  private _tickCallbacks: Array<(delta: number) => void> = [];
+  private _lastTickTime: number = 0;
+  private _autoRender: boolean = false;
+  private _isTickLoopRunning: boolean = false;
+  private _rafId: number | null = null;
+
   constructor(
     canvas: HTMLCanvasElement,
     glContextArrtibutes: WebGLContextAttributes = {},
@@ -278,6 +285,9 @@ class TinyUI {
 
     this._glSafeDepth++;
     try {
+      // 在 _flushGLTasks 之前执行 tick
+      this._executeTicks();
+      
       this._flushGLTasks();
 
       const gl = this.gl;
@@ -656,6 +666,126 @@ class TinyUI {
 
     // 恢复GL状态
     this.restoreGlState();
+
+    // 停止 tick 循环
+    this._stopTickLoop();
+    this._tickCallbacks = [];
+  }
+
+  // ========== tick 机制 ==========
+
+  /**
+   * 获取当前时间戳（兼容性处理）
+   * 优先使用 performance.now()，如果不存在则使用 Date.now()
+   */
+  private _now(): number {
+    if (typeof performance !== "undefined" && performance.now) {
+      return performance.now();
+    }
+    return Date.now();
+  }
+
+  /**
+   * 计算时间差并执行所有 tick 回调
+   * 包含：计算 delta、更新 _lastTickTime、执行回调
+   */
+  private _executeTicks(): void {
+    const now = this._now();
+    const delta = this._lastTickTime === 0 ? 0 : now - this._lastTickTime;
+    this._lastTickTime = now;
+
+    // 执行 tick 回调（传入计算好的 delta）
+    for (let i = 0; i < this._tickCallbacks.length; i++) {
+      try {
+        this._tickCallbacks[i](delta);
+      } catch (err) {
+        console.error("[TinyUI] Tick callback error:", err);
+      }
+    }
+  }
+
+  /**
+   * 注册 tick 回调函数
+   * 纯数组操作，幂等：同一回调多次添加只会注册一次
+   * 注意：需要调用 setAutoRender(true) 启动 RAF 循环才能执行 tick
+   */
+  addTick(callback: (delta: number) => void): void {
+    // 检查是否已存在（幂等）
+    if (this._tickCallbacks.indexOf(callback) === -1) {
+      this._tickCallbacks.push(callback);
+    }
+  }
+
+  /**
+   * 解绑 tick 回调函数
+   * 纯数组操作，不影响 RAF 循环状态
+   */
+  removeTick(callback: (delta: number) => void): void {
+    const index = this._tickCallbacks.indexOf(callback);
+    if (index !== -1) {
+      this._tickCallbacks.splice(index, 1);
+    }
+  }
+
+  /**
+   * 设置是否在 tick 后自动 render，并控制 RAF 循环
+   * 默认 false
+   * 设为 true 时启动 RAF 循环（如果尚未运行）
+   * 设为 false 时停止 RAF 循环（如果正在运行）
+   */
+  setAutoRender(value: boolean): void {
+    this._autoRender = value;
+    if (value) {
+      this._startTickLoop();
+    } else {
+      this._stopTickLoop();
+    }
+  }
+
+  /**
+   * 获取当前的 autoRender 状态
+   */
+  getAutoRender(): boolean {
+    return this._autoRender;
+  }
+
+  /**
+   * 启动 tick 循环（内部方法）
+   */
+  private _startTickLoop(): void {
+    if (this._isTickLoopRunning) return;
+    this._isTickLoopRunning = true;
+    this._runTickLoop();
+  }
+
+  /**
+   * 停止 tick 循环（内部方法）
+   */
+  private _stopTickLoop(): void {
+    this._isTickLoopRunning = false;
+    if (this._rafId !== null) {
+      cancelAnimationFrame(this._rafId);
+      this._rafId = null;
+    }
+  }
+
+  /**
+   * RAF 循环（内部方法）
+   * 只触发 render，delta 计算在 render 中通过 _executeTicks 统一处理
+   */
+  private _runTickLoop(): void {
+    if (!this._isTickLoopRunning) return;
+
+    if (this._autoRender) {
+      try {
+        this.render();
+      } catch (err) {
+        console.error("[TinyUI] Auto render error:", err);
+      }
+    }
+
+    // 继续下一帧
+    this._rafId = requestAnimationFrame(() => this._runTickLoop());
   }
 
   async createBitmapFromUrl(url: string): Promise<Bitmap> {
