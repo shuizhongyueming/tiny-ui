@@ -22,17 +22,17 @@ export interface EventManagerOptions {
 }
 
 // touch 到 mouse 的事件映射
-const TOUCH_TO_MOUSE_MAP: Record<EventName, EventName> = {
-  'touchstart': 'mousedown',
-  'touchmove': 'mousemove',
-  'touchend': 'mouseup',
+const TOUCH_TO_MOUSE_MAP: Record<TouchEventName, MouseEventName> = {
+  touchstart: "mousedown",
+  touchmove: "mousemove",
+  touchend: "mouseup",
 };
 
 // mouse 到 touch 的反向映射
-const MOUSE_TO_TOUCH_MAP: Record<EventName, EventName> = {
-  'mousedown': 'touchstart',
-  'mousemove': 'touchmove',
-  'mouseup': 'touchend',
+const MOUSE_TO_TOUCH_MAP: Record<MouseEventName, TouchEventName> = {
+  mousedown: "touchstart",
+  mousemove: "touchmove",
+  mouseup: "touchend",
 };
 
 export class EventManager {
@@ -53,7 +53,7 @@ export class EventManager {
 
   private setupEventListeners(options: EventManagerOptions): void {
     // 触摸开始事件
-    const touchStartListener = this.createTouchListener('touchstart');
+    const touchStartListener = this.createTouchListener("touchstart");
     if (options.handleTouchEventListening) {
       options.handleTouchEventListening(
         "touchstart",
@@ -65,7 +65,7 @@ export class EventManager {
     this.eventListeners.set("touchstart", touchStartListener);
 
     // 触摸移动事件
-    const touchMoveListener = this.createTouchListener('touchmove');
+    const touchMoveListener = this.createTouchListener("touchmove");
     if (options.handleTouchEventListening) {
       options.handleTouchEventListening(
         "touchmove",
@@ -77,7 +77,7 @@ export class EventManager {
     this.eventListeners.set("touchmove", touchMoveListener);
 
     // 触摸结束事件
-    const touchEndListener = this.createTouchListener('touchend');
+    const touchEndListener = this.createTouchListener("touchend");
     if (options.handleTouchEventListening) {
       options.handleTouchEventListening(
         "touchend",
@@ -89,15 +89,15 @@ export class EventManager {
     this.eventListeners.set("touchend", touchEndListener);
 
     // Mouse 事件 - 不使用 handleTouchEventListening
-    const mouseDownListener = this.createMouseListener('mousedown');
+    const mouseDownListener = this.createMouseListener("mousedown");
     this.canvas.addEventListener("mousedown", mouseDownListener);
     this.eventListeners.set("mousedown", mouseDownListener);
 
-    const mouseMoveListener = this.createMouseListener('mousemove');
+    const mouseMoveListener = this.createMouseListener("mousemove");
     this.canvas.addEventListener("mousemove", mouseMoveListener);
     this.eventListeners.set("mousemove", mouseMoveListener);
 
-    const mouseUpListener = this.createMouseListener('mouseup');
+    const mouseUpListener = this.createMouseListener("mouseup");
     this.canvas.addEventListener("mouseup", mouseUpListener);
     this.eventListeners.set("mouseup", mouseUpListener);
   }
