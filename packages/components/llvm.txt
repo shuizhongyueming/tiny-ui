@@ -220,13 +220,16 @@ tinyUI.render();
 interface TextBtnProps {
   app: TinyUI;
   text: string;
-  bgColor?: string;            // 默认 '#6584cd'
+  name?: string;               // 组件名称前缀，默认 'TextBtn'
+  bgColor?: string;            // 默认 '#6584cd'，传 'transparent' 表示透明
   textColor?: string;          // 默认 '#ffffff'
   fontSize?: number;           // 默认 28
+  fontWeight?: 'normal' | 'bold';  // 字重，默认 'normal'
   width?: number;              // 固定宽度（与 responsive 互斥）
   height?: number;             // 固定高度（与 responsive 互斥）
   radius?: number | { tl: number; tr: number; br: number; bl: number };
   responsive?: boolean;        // 自适应尺寸，默认 false
+  pressEffect?: boolean;       // 按压动画效果，默认 false
   onClick?: Callback;          // 点击回调
 }
 

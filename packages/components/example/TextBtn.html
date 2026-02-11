@@ -5,39 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>TextBtn Example - Tiny UI Components</title>
     <style>
-    * {
-      padding: 0;
-      margin: 0;
-    }
-    html,body {
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-      width: 100%;
-      height: 100%;
-      -ms-touch-action: none;
-      touch-action: none;
-    }
-    canvas {
-      -ms-touch-action: none;
-      touch-action: none;
-      touch-action-delay: none;
+    * { padding: 0; margin: 0; }
+    html,body { margin: 0; padding: 0; overflow: hidden; width: 100%; height: 100%; }
+    canvas { 
+      touch-action: none; 
       -webkit-tap-highlight-color: rgba(0,0,0,0);
-      -moz-tap-highlight-color: rgba(0,0,0,0);
       user-select: none;
-      -webkit-touch-callout: none;
-      -webkit-user-select: none;
-      -moz-user-select: none;
-      -ms-user-select: none;
-      outline: none;
-      border: none;
-      width: 100%;
-      height: 100%;
+      width: 100%; height: 100%; 
     }
     #info {
       position: fixed;
-      bottom: 10px;
-      left: 10px;
+      bottom: 10px; left: 10px;
       background: rgba(0, 0, 0, 0.7);
       color: white;
       padding: 10px;
@@ -51,8 +29,8 @@
   </head>
   <body>
     <div id="info">
-      <div>TextBtn Demo (DPR: <span id="dpr">1</span>x)</div>
-      <div>Click buttons to test</div>
+      <div>TextBtn (DPR: <span id="dpr">1</span>x)</div>
+      <div>单列布局</div>
     </div>
     <canvas id="game"></canvas>
     <script src="/core/dist/tiny-ui-core.js"></script>
@@ -63,397 +41,341 @@
     const { TextBtn } = TinyUIComponents;
     const { adjustTo } = TinyUIComponents.utils;
 
-    // DPR scaling
     const dpr = window.devicePixelRatio || 1;
     document.getElementById('dpr').textContent = dpr.toFixed(1);
     const scale = (val) => val * Math.min(dpr, 2);
 
-    // Sizes
-    const fontSize = {
-      title: scale(36),
-      label: scale(18)
-    };
-    
-    const btnSize = {
-      standard: { w: scale(160), h: scale(50) },
-      small: { w: scale(100), h: scale(40) },
-      normal: { w: scale(140), h: scale(50) },
-      large: { w: scale(180), h: scale(60) }
-    };
+    // 布局参数
+    const colWidth = scale(300);       // 列宽
+    const rowHeight = scale(80);       // 每行高度
+    const startY = scale(70);          // 起始 Y
 
     // 背景
     const bg = tinyUI.createGraphics();
+    bg.anchorX = 0;
+    bg.anchorY = 0;
     bg.drawRect(0, 0, tinyUI.stageWidth, tinyUI.stageHeight, '#f8fafc');
     tinyUI.root.addChild(bg);
-    adjustTo(tinyUI.root, true)(bg, { h: 'left', v: 'top' });
 
-    // ========== 标题 ==========
-    const title = tinyUI.createText('TextBtn - 垂直居中文本测试');
+    // 标题
+    const title = tinyUI.createText('TextBtn - 单列布局');
     title.color = '#333333';
-    title.fontSize = fontSize.title;
+    title.fontSize = scale(28);
     title.updateTexture();
     tinyUI.root.addChild(title);
-    adjustTo(tinyUI.root, true)(title, { h: 'center', v: 'top' }, { y: scale(30) });
+    adjustTo(tinyUI.root, true)(title, { h: 'center', v: 'top' }, { y: scale(20) });
 
-    // ========== 第1行: 纯英文 ==========
-    const label1 = tinyUI.createText('1. English Only');
-    label1.color = '#666666';
-    label1.fontSize = fontSize.label;
-    label1.updateTexture();
-    tinyUI.root.addChild(label1);
-    adjustTo(title, false)(label1, { h: 'center', v: 'bottom' }, { y: fontSize.label + scale(20) });
+    // ========== 容器 ==========
+    const mainContainer = tinyUI.createContainer('MainContainer');
+    mainContainer.setSize({ width: colWidth, height: rowHeight * 10 });
+    tinyUI.root.addChild(mainContainer);
+    adjustTo(tinyUI.root, true)(mainContainer, { h: 'center', v: 'top' }, { y: startY });
 
-    const { container: btn1a } = TextBtn({
-      app: tinyUI,
-      text: 'Start Game',
-      width: btnSize.standard.w,
-      height: btnSize.standard.h,
-      fontSize: scale(20),
-      onClick: () => console.log('Start clicked')
+    // 容器背景（调试用）
+    const containerBg = tinyUI.createGraphics('ContainerBg');
+    containerBg.alpha = 0.1;
+    containerBg.anchorX = 0;
+    containerBg.anchorY = 0;
+    containerBg.drawRect(0, 0, colWidth, rowHeight * 10, '#3b82f6');
+    mainContainer.addChild(containerBg);
+
+    // 辅助函数：在容器内创建一行
+    function createSection(container, rowIndex, labelText, createButtonsFn) {
+      const y = rowIndex * rowHeight;
+
+      // Label
+      const label = tinyUI.createText(labelText);
+      label.color = '#666666';
+      label.fontSize = scale(14);
+      label.updateTexture();
+      container.addChild(label);
+      adjustTo(container, true)(label, { h: 'left', v: 'top' }, { x: scale(10), y: y + scale(5) });
+
+      // Buttons 容器
+      const btnContainer = tinyUI.createContainer('BtnRow');
+      btnContainer.setSize({ width: colWidth - scale(20), height: scale(45) });
+      container.addChild(btnContainer);
+      adjustTo(container, true)(btnContainer, { h: 'left', v: 'top' }, { x: scale(10), y: y + scale(28) });
+
+      createButtonsFn(btnContainer);
+    }
+
+    // ========== 第一部分 ==========
+    
+    // 1: 基础
+    createSection(mainContainer, 0, '1. 基础 Basic', (container) => {
+      const { container: btn } = TextBtn({
+        app: tinyUI,
+        text: 'Button',
+        width: scale(120),
+        height: scale(40),
+        fontSize: scale(16),
+        onClick: () => console.log('Basic clicked')
+      });
+      container.addChild(btn);
+      adjustTo(container, true)(btn, { h: 'left', v: 'top' });
     });
-    tinyUI.root.addChild(btn1a);
-    adjustTo(label1, false)(btn1a, { h: 'center', v: 'bottom' }, { x: -scale(180), y: btnSize.standard.h + scale(10) });
 
-    const { container: btn1b } = TextBtn({
-      app: tinyUI,
-      text: 'Settings',
-      width: btnSize.standard.w,
-      height: btnSize.standard.h,
-      fontSize: scale(20),
-      bgColor: '#10b981',
-      onClick: () => console.log('Settings clicked')
+    // 2: 颜色
+    createSection(mainContainer, 1, '2. 颜色 Colors', (container) => {
+      const { container: btn1 } = TextBtn({
+        app: tinyUI,
+        text: 'Green',
+        width: scale(80),
+        height: scale(40),
+        fontSize: scale(14),
+        bgColor: '#10b981',
+        onClick: () => console.log('Green clicked')
+      });
+      container.addChild(btn1);
+      adjustTo(container, true)(btn1, { h: 'left', v: 'top' });
+
+      const { container: btn2 } = TextBtn({
+        app: tinyUI,
+        text: 'Red',
+        width: scale(80),
+        height: scale(40),
+        fontSize: scale(14),
+        bgColor: '#ef4444',
+        onClick: () => console.log('Red clicked')
+      });
+      container.addChild(btn2);
+      adjustTo(container, true)(btn2, { h: 'left', v: 'top' }, { x: scale(90) });
     });
-    tinyUI.root.addChild(btn1b);
-    adjustTo(label1, false)(btn1b, { h: 'center', v: 'bottom' }, { y: btnSize.standard.h + scale(10) });
 
-    const { container: btn1c } = TextBtn({
-      app: tinyUI,
-      text: 'Quit App',
-      width: btnSize.standard.w,
-      height: btnSize.standard.h,
-      fontSize: scale(20),
-      bgColor: '#ef4444',
-      onClick: () => console.log('Quit clicked')
+    // 3: 圆角
+    createSection(mainContainer, 2, '3. 圆角 Radius', (container) => {
+      const { container: btn1 } = TextBtn({
+        app: tinyUI,
+        text: 'R8',
+        width: scale(60),
+        height: scale(40),
+        fontSize: scale(14),
+        radius: 8,
+        bgColor: '#8b5cf6',
+        onClick: () => console.log('R8 clicked')
+      });
+      container.addChild(btn1);
+      adjustTo(container, true)(btn1, { h: 'left', v: 'top' });
+
+      const { container: btn2 } = TextBtn({
+        app: tinyUI,
+        text: 'R16',
+        width: scale(60),
+        height: scale(40),
+        fontSize: scale(14),
+        radius: 16,
+        bgColor: '#8b5cf6',
+        onClick: () => console.log('R16 clicked')
+      });
+      container.addChild(btn2);
+      adjustTo(container, true)(btn2, { h: 'left', v: 'top' }, { x: scale(70) });
+
+      const { container: btn3 } = TextBtn({
+        app: tinyUI,
+        text: 'Pill',
+        width: scale(60),
+        height: scale(40),
+        fontSize: scale(14),
+        radius: scale(20),
+        bgColor: '#8b5cf6',
+        onClick: () => console.log('Pill clicked')
+      });
+      container.addChild(btn3);
+      adjustTo(container, true)(btn3, { h: 'left', v: 'top' }, { x: scale(140) });
     });
-    tinyUI.root.addChild(btn1c);
-    adjustTo(label1, false)(btn1c, { h: 'center', v: 'bottom' }, { x: scale(180), y: btnSize.standard.h + scale(10) });
 
-    // ========== 第2行: 纯中文 ==========
-    const label2 = tinyUI.createText('2. 纯中文');
-    label2.color = '#666666';
-    label2.fontSize = fontSize.label;
-    label2.updateTexture();
-    tinyUI.root.addChild(label2);
-    adjustTo(btn1b, false)(label2, { h: 'center', v: 'bottom' }, { y: fontSize.label + scale(40) });
+    // 4: 按压效果
+    createSection(mainContainer, 3, '4. 按压 Press', (container) => {
+      const { container: btn1 } = TextBtn({
+        app: tinyUI,
+        text: 'Off',
+        width: scale(80),
+        height: scale(40),
+        fontSize: scale(14),
+        pressEffect: false,
+        bgColor: '#64748b',
+        onClick: () => console.log('Off clicked')
+      });
+      container.addChild(btn1);
+      adjustTo(container, true)(btn1, { h: 'left', v: 'top' });
 
-    const { container: btn2a } = TextBtn({
-      app: tinyUI,
-      text: '开始游戏',
-      width: btnSize.standard.w,
-      height: btnSize.standard.h,
-      fontSize: scale(20),
-      onClick: () => console.log('开始游戏 clicked')
+      const { container: btn2 } = TextBtn({
+        app: tinyUI,
+        text: 'On',
+        width: scale(80),
+        height: scale(40),
+        fontSize: scale(14),
+        pressEffect: true,
+        bgColor: '#64748b',
+        onClick: () => console.log('On clicked')
+      });
+      container.addChild(btn2);
+      adjustTo(container, true)(btn2, { h: 'left', v: 'top' }, { x: scale(90) });
     });
-    tinyUI.root.addChild(btn2a);
-    adjustTo(label2, false)(btn2a, { h: 'center', v: 'bottom' }, { x: -scale(180), y: btnSize.standard.h + scale(10) });
 
-    const { container: btn2b } = TextBtn({
-      app: tinyUI,
-      text: '设置选项',
-      width: btnSize.standard.w,
-      height: btnSize.standard.h,
-      fontSize: scale(20),
-      bgColor: '#10b981',
-      onClick: () => console.log('设置选项 clicked')
+    // 5: 字号
+    createSection(mainContainer, 4, '5. 字号 Size', (container) => {
+      const { container: btn1 } = TextBtn({
+        app: tinyUI,
+        text: '14px',
+        width: scale(70),
+        height: scale(40),
+        fontSize: scale(14),
+        bgColor: '#0ea5e9',
+        onClick: () => console.log('14px clicked')
+      });
+      container.addChild(btn1);
+      adjustTo(container, true)(btn1, { h: 'left', v: 'top' });
+
+      const { container: btn2 } = TextBtn({
+        app: tinyUI,
+        text: '20px',
+        width: scale(70),
+        height: scale(40),
+        fontSize: scale(20),
+        bgColor: '#0ea5e9',
+        onClick: () => console.log('20px clicked')
+      });
+      container.addChild(btn2);
+      adjustTo(container, true)(btn2, { h: 'left', v: 'top' }, { x: scale(80) });
     });
-    tinyUI.root.addChild(btn2b);
-    adjustTo(label2, false)(btn2b, { h: 'center', v: 'bottom' }, { y: btnSize.standard.h + scale(10) });
 
-    const { container: btn2c } = TextBtn({
-      app: tinyUI,
-      text: '退出应用',
-      width: btnSize.standard.w,
-      height: btnSize.standard.h,
-      fontSize: scale(20),
-      bgColor: '#ef4444',
-      onClick: () => console.log('退出应用 clicked')
+    // ========== 第二部分（原红列）==========
+    
+    // 6: 自适应
+    createSection(mainContainer, 5, '6. 自适应 Responsive', (container) => {
+      const { container: btn } = TextBtn({
+        app: tinyUI,
+        text: '自适应宽度',
+        responsive: true,
+        bgColor: '#6366f1',
+        fontSize: scale(14),
+        onClick: () => console.log('Responsive clicked')
+      });
+      container.addChild(btn);
+      adjustTo(container, true)(btn, { h: 'left', v: 'top' });
     });
-    tinyUI.root.addChild(btn2c);
-    adjustTo(label2, false)(btn2c, { h: 'center', v: 'bottom' }, { x: scale(180), y: btnSize.standard.h + scale(10) });
 
-    // ========== 第3行: 中英混排 ==========
-    const label3 = tinyUI.createText('3. 中英混排 Mixed');
-    label3.color = '#666666';
-    label3.fontSize = fontSize.label;
-    label3.updateTexture();
-    tinyUI.root.addChild(label3);
-    adjustTo(btn2b, false)(label3, { h: 'center', v: 'bottom' }, { y: fontSize.label + scale(40) });
+    // 7: 动态
+    createSection(mainContainer, 6, '7. 动态 Dynamic', (container) => {
+      let state = 0;
+      const colors = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6'];
+      const labels = ['Red', 'Orange', 'Green', 'Blue'];
 
-    const { container: btn3a } = TextBtn({
-      app: tinyUI,
-      text: 'Play 开始',
-      width: btnSize.standard.w,
-      height: btnSize.standard.h,
-      fontSize: scale(20),
-      onClick: () => console.log('Play 开始 clicked')
+      const { container: btn, setBgColor } = TextBtn({
+        app: tinyUI,
+        text: 'Click Me',
+        width: scale(140),
+        height: scale(40),
+        fontSize: scale(16),
+        bgColor: colors[0],
+        onClick: () => {
+          state = (state + 1) % colors.length;
+          setBgColor(colors[state]);
+          console.log(`Changed to ${labels[state]}`);
+        }
+      });
+      container.addChild(btn);
+      adjustTo(container, true)(btn, { h: 'left', v: 'top' });
     });
-    tinyUI.root.addChild(btn3a);
-    adjustTo(label3, false)(btn3a, { h: 'center', v: 'bottom' }, { x: -scale(180), y: btnSize.standard.h + scale(10) });
 
-    const { container: btn3b } = TextBtn({
-      app: tinyUI,
-      text: 'VIP会员',
-      width: btnSize.standard.w,
-      height: btnSize.standard.h,
-      fontSize: scale(20),
-      bgColor: '#8b5cf6',
-      onClick: () => console.log('VIP会员 clicked')
+    // 8: 圆角切换
+    createSection(mainContainer, 7, '8. 圆角切换', (container) => {
+      let rState = 0;
+      const radii = [0, 8, 16, scale(20)];
+      const rLabels = ['□', 'R8', 'R16', '●'];
+
+      const { container: btn, setRadius } = TextBtn({
+        app: tinyUI,
+        text: '□',
+        width: scale(140),
+        height: scale(40),
+        fontSize: scale(16),
+        radius: 0,
+        bgColor: '#06b6d4',
+        onClick: () => {
+          rState = (rState + 1) % radii.length;
+          setRadius(radii[rState]);
+          const txt = btn.children[1];
+          txt.text = rLabels[rState];
+          txt.updateTexture();
+          console.log(`Radius: ${radii[rState]}`);
+        }
+      });
+      container.addChild(btn);
+      adjustTo(container, true)(btn, { h: 'left', v: 'top' });
     });
-    tinyUI.root.addChild(btn3b);
-    adjustTo(label3, false)(btn3b, { h: 'center', v: 'bottom' }, { y: btnSize.standard.h + scale(10) });
 
-    const { container: btn3c } = TextBtn({
-      app: tinyUI,
-      text: '领取 Reward',
-      width: btnSize.standard.w,
-      height: btnSize.standard.h,
-      fontSize: scale(18),
-      bgColor: '#f59e0b',
-      onClick: () => console.log('领取 Reward clicked')
+    // 9: 透明
+    createSection(mainContainer, 8, '9. 透明 Transparent', (container) => {
+      const { container: btn1 } = TextBtn({
+        app: tinyUI,
+        text: '透明效果',
+        width: scale(90),
+        height: scale(40),
+        fontSize: scale(14),
+        pressEffect: true,
+        bgColor: 'transparent',
+        textColor: '#64748b',
+        onClick: () => console.log('透明 clicked')
+      });
+      container.addChild(btn1);
+      adjustTo(container, true)(btn1, { h: 'left', v: 'top' });
+
+      const { container: btn2 } = TextBtn({
+        app: tinyUI,
+        text: '无效果',
+        width: scale(80),
+        height: scale(40),
+        fontSize: scale(14),
+        pressEffect: false,
+        bgColor: 'transparent',
+        textColor: '#64748b',
+        onClick: () => console.log('无效果 clicked')
+      });
+      container.addChild(btn2);
+      adjustTo(container, true)(btn2, { h: 'left', v: 'top' }, { x: scale(100) });
     });
-    tinyUI.root.addChild(btn3c);
-    adjustTo(label3, false)(btn3c, { h: 'center', v: 'bottom' }, { x: scale(180), y: btnSize.standard.h + scale(10) });
 
-    // ========== 第4行: 不同字号对比 ==========
-    const label4 = tinyUI.createText('4. 字号对比 Font Sizes');
-    label4.color = '#666666';
-    label4.fontSize = fontSize.label;
-    label4.updateTexture();
-    tinyUI.root.addChild(label4);
-    adjustTo(btn3b, false)(label4, { h: 'center', v: 'bottom' }, { y: fontSize.label + scale(40) });
+    // 10: 字重
+    createSection(mainContainer, 9, '10. 字重 Font Weight', (container) => {
+      const { container: btn1 } = TextBtn({
+        app: tinyUI,
+        text: 'Normal',
+        width: scale(80),
+        height: scale(40),
+        fontSize: scale(14),
+        fontWeight: 'normal',
+        bgColor: '#0ea5e9',
+        onClick: () => console.log('Normal clicked')
+      });
+      container.addChild(btn1);
+      adjustTo(container, true)(btn1, { h: 'left', v: 'top' });
 
-    const { container: btn4a } = TextBtn({
-      app: tinyUI,
-      text: '小字',
-      fontSize: scale(16),
-      width: btnSize.small.w,
-      height: btnSize.small.h,
-      bgColor: '#06b6d4',
-      onClick: () => console.log('小字 clicked')
+      const { container: btn2 } = TextBtn({
+        app: tinyUI,
+        text: 'Bold',
+        width: scale(80),
+        height: scale(40),
+        fontSize: scale(14),
+        fontWeight: 'bold',
+        bgColor: '#0ea5e9',
+        onClick: () => console.log('Bold clicked')
+      });
+      container.addChild(btn2);
+      adjustTo(container, true)(btn2, { h: 'left', v: 'top' }, { x: scale(90) });
     });
-    tinyUI.root.addChild(btn4a);
-    adjustTo(label4, false)(btn4a, { h: 'center', v: 'bottom' }, { x: -scale(200), y: btnSize.small.h + scale(10) });
 
-    const { container: btn4b } = TextBtn({
-      app: tinyUI,
-      text: '中字 Text',
-      fontSize: scale(22),
-      width: btnSize.normal.w,
-      height: btnSize.normal.h,
-      bgColor: '#06b6d4',
-      onClick: () => console.log('中字 clicked')
-    });
-    tinyUI.root.addChild(btn4b);
-    adjustTo(label4, false)(btn4b, { h: 'center', v: 'bottom' }, { y: btnSize.normal.h + scale(10) });
-
-    const { container: btn4c } = TextBtn({
-      app: tinyUI,
-      text: '大字 BIG',
-      fontSize: scale(28),
-      width: btnSize.large.w,
-      height: btnSize.large.h,
-      bgColor: '#06b6d4',
-      onClick: () => console.log('大字 clicked')
-    });
-    tinyUI.root.addChild(btn4c);
-    adjustTo(label4, false)(btn4c, { h: 'center', v: 'bottom' }, { x: scale(200), y: btnSize.large.h + scale(10) });
-
-    // ========== 第5行: 特殊字符测试 ==========
-    const label5 = tinyUI.createText('5. 特殊字符 Special Chars');
-    label5.color = '#666666';
-    label5.fontSize = fontSize.label;
-    label5.updateTexture();
-    tinyUI.root.addChild(label5);
-    adjustTo(btn4b, false)(label5, { h: 'center', v: 'bottom' }, { y: fontSize.label + scale(40) });
-
-    const { container: btn5a } = TextBtn({
-      app: tinyUI,
-      text: 'gyqp 下单',
-      width: btnSize.standard.w,
-      height: btnSize.standard.h,
-      fontSize: scale(18),
-      bgColor: '#ec4899',
-      onClick: () => console.log('gyqp clicked')
-    });
-    tinyUI.root.addChild(btn5a);
-    adjustTo(label5, false)(btn5a, { h: 'center', v: 'bottom' }, { x: -scale(180), y: btnSize.standard.h + scale(10) });
-
-    const { container: btn5b } = TextBtn({
-      app: tinyUI,
-      text: 'Level UP!',
-      width: btnSize.standard.w,
-      height: btnSize.standard.h,
-      fontSize: scale(20),
-      bgColor: '#ec4899',
-      onClick: () => console.log('Level UP clicked')
-    });
-    tinyUI.root.addChild(btn5b);
-    adjustTo(label5, false)(btn5b, { h: 'center', v: 'bottom' }, { y: btnSize.standard.h + scale(10) });
-
-    const { container: btn5c } = TextBtn({
-      app: tinyUI,
-      text: '100%领取',
-      width: btnSize.standard.w,
-      height: btnSize.standard.h,
-      fontSize: scale(18),
-      bgColor: '#ec4899',
-      onClick: () => console.log('100%领取 clicked')
-    });
-    tinyUI.root.addChild(btn5c);
-    adjustTo(label5, false)(btn5c, { h: 'center', v: 'bottom' }, { x: scale(180), y: btnSize.standard.h + scale(10) });
-
-    // ========== 第6行: Responsive 自适应宽度 ==========
-    const label6 = tinyUI.createText('6. 自适应宽度 Responsive');
-    label6.color = '#666666';
-    label6.fontSize = fontSize.label;
-    label6.updateTexture();
-    tinyUI.root.addChild(label6);
-    adjustTo(btn5b, false)(label6, { h: 'center', v: 'bottom' }, { y: fontSize.label + scale(40) });
-
-    const { container: btn6a } = TextBtn({
-      app: tinyUI,
-      text: 'OK',
-      responsive: true,
-      bgColor: '#6366f1',
-      fontSize: scale(18),
-      onClick: () => console.log('OK clicked')
-    });
-    tinyUI.root.addChild(btn6a);
-    adjustTo(label6, false)(btn6a, { h: 'center', v: 'bottom' }, { x: -scale(150), y: scale(50) + scale(10) });
-
-    const { container: btn6b } = TextBtn({
-      app: tinyUI,
-      text: '确认提交',
-      responsive: true,
-      bgColor: '#6366f1',
-      fontSize: scale(18),
-      onClick: () => console.log('确认提交 clicked')
-    });
-    tinyUI.root.addChild(btn6b);
-    adjustTo(label6, false)(btn6b, { h: 'center', v: 'bottom' }, { y: scale(50) + scale(10) });
-
-    const { container: btn6c } = TextBtn({
-      app: tinyUI,
-      text: 'Cancel 取消',
-      responsive: true,
-      bgColor: '#6366f1',
-      fontSize: scale(18),
-      onClick: () => console.log('Cancel 取消 clicked')
-    });
-    tinyUI.root.addChild(btn6c);
-    adjustTo(label6, false)(btn6c, { h: 'center', v: 'bottom' }, { x: scale(150), y: scale(50) + scale(10) });
-
-    // ========== 第7行: 圆角按钮 ==========
-    const label7 = tinyUI.createText('7. 圆角按钮 Rounded Buttons');
-    label7.color = '#666666';
-    label7.fontSize = fontSize.label;
-    label7.updateTexture();
-    tinyUI.root.addChild(label7);
-    adjustTo(btn6b, false)(label7, { h: 'center', v: 'bottom' }, { y: fontSize.label + scale(40) });
-
-    const { container: btn7a } = TextBtn({
-      app: tinyUI,
-      text: 'Radius 8',
-      width: btnSize.standard.w,
-      height: btnSize.standard.h,
-      fontSize: scale(18),
-      radius: 8,
-      bgColor: '#8b5cf6',
-      onClick: () => {
-        console.log('Radius 8 clicked');
-        // 动态切换到更大的圆角
-        btn7a.setRadius(16);
-        console.log('Changed to radius 16');
-      }
-    });
-    tinyUI.root.addChild(btn7a);
-    adjustTo(label7, false)(btn7a, { h: 'center', v: 'bottom' }, { x: -scale(180), y: btnSize.standard.h + scale(10) });
-
-    const { container: btn7b } = TextBtn({
-      app: tinyUI,
-      text: 'Radius 16',
-      width: btnSize.standard.w,
-      height: btnSize.standard.h,
-      fontSize: scale(18),
-      radius: 16,
-      bgColor: '#8b5cf6',
-      onClick: () => console.log('Radius 16 clicked')
-    });
-    tinyUI.root.addChild(btn7b);
-    adjustTo(label7, false)(btn7b, { h: 'center', v: 'bottom' }, { y: btnSize.standard.h + scale(10) });
-
-    const { container: btn7c } = TextBtn({
-      app: tinyUI,
-      text: 'Pill Button',
-      width: btnSize.standard.w,
-      height: btnSize.standard.h,
-      fontSize: scale(18),
-      radius: btnSize.standard.h / 2,
-      bgColor: '#8b5cf6',
-      onClick: () => {
-        console.log('Pill button clicked');
-        // 动态切换背景色
-        btn7c.setBgColor('#ec4899');
-        console.log('Changed background color to pink');
-      }
-    });
-    tinyUI.root.addChild(btn7c);
-    adjustTo(label7, false)(btn7c, { h: 'center', v: 'bottom' }, { x: scale(180), y: btnSize.standard.h + scale(10) });
-
-    // ========== 第8行: 圆角动态调整测试 ==========
-    const label8 = tinyUI.createText('8. 动态调整测试 Dynamic Test (点击切换)');
-    label8.color = '#666666';
-    label8.fontSize = fontSize.label;
-    label8.updateTexture();
-    tinyUI.root.addChild(label8);
-    adjustTo(btn7b, false)(label8, { h: 'center', v: 'bottom' }, { y: fontSize.label + scale(40) });
-
-    let currentRadiusState = 0;
-    const radiusValues = [0, 8, 16, btnSize.standard.h / 2];
-    const radiusLabels = ['Square', 'Radius 8', 'Radius 16', 'Pill'];
-    const radiusColors = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6'];
-
-    const { container: btn8, setRadius: setBtn8Radius, setBgColor: setBtn8BgColor } = TextBtn({
-      app: tinyUI,
-      text: 'Square',
-      width: scale(200),
-      height: btnSize.standard.h,
-      fontSize: scale(20),
-      radius: 0,
-      bgColor: '#ef4444',
-      onClick: () => {
-        currentRadiusState = (currentRadiusState + 1) % radiusValues.length;
-        const newRadius = radiusValues[currentRadiusState];
-        const btnText = btn8.children[1];
-        btnText.text = radiusLabels[currentRadiusState];
-        btnText.updateTexture();
-        setBtn8Radius(newRadius);
-        setBtn8BgColor(radiusColors[currentRadiusState]);
-        console.log(`Changed to ${radiusLabels[currentRadiusState]} (radius: ${newRadius})`);
-      }
-    });
-    tinyUI.root.addChild(btn8);
-    adjustTo(label8, false)(btn8, { h: 'center', v: 'bottom' }, { y: btnSize.standard.h + scale(10) });
-
-    // ========== 底部说明 ==========
-    const hint = tinyUI.createText('检查所有按钮文本是否垂直居中对齐 | Click buttons to test rounded corners');
+    // 底部说明
+    const hint = tinyUI.createText('检查文本垂直居中 | 长按测试按压效果 | 点击切换测试动态功能');
     hint.color = '#999999';
-    hint.fontSize = scale(14);
+    hint.fontSize = scale(12);
     hint.updateTexture();
     tinyUI.root.addChild(hint);
-    adjustTo(btn8, false)(hint, { h: 'center', v: 'bottom' }, { y: scale(80) });
+    adjustTo(tinyUI.root, true)(hint, { h: 'center', v: 'bottom' }, { y: -scale(15) });
 
-    // 持续渲染以支持动态更新
+    // 渲染循环
     function renderLoop() {
       tinyUI.render();
       requestAnimationFrame(renderLoop);
