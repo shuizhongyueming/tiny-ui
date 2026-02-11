@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ShowDialog & ShowToast Example - Tiny UI Components</title>
+    <style>
+    * {
+      padding: 0;
+      margin: 0;
+    }
+    html,body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+      -ms-touch-action: none;
+      touch-action: none;
+    }
+    canvas {
+      -ms-touch-action: none;
+      touch-action: none;
+      touch-action-delay: none;
+      -webkit-tap-highlight-color: rgba(0,0,0,0);
+      -moz-tap-highlight-color: rgba(0,0,0,0);
+      user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      outline: none;
+      border: none;
+      width: 100%;
+      height: 100%;
+    }
+    #info {
+      position: fixed;
+      bottom: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 12px;
+      border-radius: 4px;
+      pointer-events: none;
+      z-index: 1000;
+    }
+    </style>
+  </head>
+  <body>
+    <div id="info">
+      <div>Dialog & Toast Demo (DPR: <span id="dpr">1</span>x)</div>
+      <div>Click buttons to test</div>
+    </div>
+    <canvas id="game"></canvas>
+    <script src="/core/dist/tiny-ui-core.js"></script>
+    <script src="/components/dist/tiny-ui-components.js"></script>
+    <script>
+    const canvas = document.getElementById('game');
+    const tinyUI = new TinyUI(canvas);
+    const { showDialog, showToast, TextBtn } = TinyUIComponents;
+    const { adjustTo } = TinyUIComponents.utils;
+
+    // DPR scaling
+    const dpr = window.devicePixelRatio || 1;
+    document.getElementById('dpr').textContent = dpr.toFixed(1);
+    const scale = (val) => val * Math.min(dpr, 2);
+
+    // Sizes
+    const fontSize = {
+      title: scale(36),
+      label: scale(20)
+    };
+    
+    const btnSize = {
+      standard: { w: scale(200), h: scale(60) },
+      small: { w: scale(150), h: scale(45) }
+    };
+
+    // 背景
+    const bg = tinyUI.createGraphics();
+    bg.drawRect(0, 0, tinyUI.stageWidth, tinyUI.stageHeight, '#f0f9ff');
+    tinyUI.root.addChild(bg);
+    adjustTo(tinyUI.root, true)(bg, { h: 'left', v: 'top' });
+
+    // 标题
+    const title = tinyUI.createText('Dialog & Toast Demo');
+    title.color = '#1e3a5f';
+    title.fontSize = fontSize.title;
+    title.updateTexture();
+    tinyUI.root.addChild(title);
+    adjustTo(tinyUI.root, true)(title, { h: 'center', v: 'top' }, { y: scale(50) });
+
+    // ========== Dialog Examples ==========
+    const dialogLabel = tinyUI.createText('=== Dialog Examples ===');
+    dialogLabel.color = '#3b82f6';
+    dialogLabel.fontSize = fontSize.label;
+    dialogLabel.updateTexture();
+    tinyUI.root.addChild(dialogLabel);
+    adjustTo(title, false)(dialogLabel, { h: 'center', v: 'bottom' }, { y: fontSize.label + scale(30) });
+
+    // 示例1: 基本对话框
+    const label1 = tinyUI.createText('1. Basic Dialog');
+    label1.color = '#666666';
+    label1.fontSize = fontSize.label - 4;
+    label1.updateTexture();
+    tinyUI.root.addChild(label1);
+    adjustTo(dialogLabel, false)(label1, { h: 'center', v: 'bottom' }, { y: (fontSize.label - 4) + scale(20) });
+
+    const { container: btn1 } = TextBtn({
+      app: tinyUI,
+      text: 'Show Basic Dialog',
+      bgColor: '#3b82f6',
+      width: btnSize.standard.w,
+      height: btnSize.standard.h,
+      fontSize: fontSize.label - 4,
+      onClick: () => {
+        console.log('[TEST] btn1 (Basic Dialog) clicked');
+        showDialog(tinyUI, {
+          content: 'This is a basic dialog with confirm button only.',
+          showCancel: false,
+          confirmText: 'Got it',
+          success: (res) => {
+            console.log('Dialog result:', res);
+            showToast(tinyUI, {
+              title: res.confirm ? 'Confirmed!' : 'Cancelled!',
+              duration: 1500
+            });
+          }
+        });
+      }
+    });
+    tinyUI.root.addChild(btn1);
+    adjustTo(label1, false)(btn1, { h: 'center', v: 'bottom' }, { y: btnSize.standard.h + scale(10) });
+
+    // 示例2: 带取消按钮的对话框
+    const label2 = tinyUI.createText('2. Dialog with Cancel');
+    label2.color = '#666666';
+    label2.fontSize = fontSize.label - 4;
+    label2.updateTexture();
+    tinyUI.root.addChild(label2);
+    adjustTo(btn1, false)(label2, { h: 'center', v: 'bottom' }, { y: (fontSize.label - 4) + scale(20) });
+
+    const { container: btn2 } = TextBtn({
+      app: tinyUI,
+      text: 'Show with Cancel',
+      bgColor: '#10b981',
+      width: btnSize.standard.w,
+      height: btnSize.standard.h,
+      fontSize: fontSize.label - 4,
+      onClick: () => {
+        console.log('[TEST] btn2 (Dialog with Cancel) clicked');
+        showDialog(tinyUI, {
+          title: 'Confirm Action',
+          content: 'Are you sure you want to proceed with this action? This cannot be undone.',
+          showCancel: true,
+          cancelText: 'No',
+          confirmText: 'Yes',
+          success: (res) => {
+            console.log('Dialog result:', res);
+            showToast(tinyUI, {
+              title: res.confirm ? 'Action confirmed!' : 'Action cancelled',
+              duration: 1500
+            });
+          }
+        });
+      }
+    });
+    tinyUI.root.addChild(btn2);
+    adjustTo(label2, false)(btn2, { h: 'center', v: 'bottom' }, { y: btnSize.standard.h + scale(10) });
+
+    // 示例3: 长内容对话框
+    const label3 = tinyUI.createText('3. Long Content Dialog');
+    label3.color = '#666666';
+    label3.fontSize = fontSize.label - 4;
+    label3.updateTexture();
+    tinyUI.root.addChild(label3);
+    adjustTo(btn2, false)(label3, { h: 'center', v: 'bottom' }, { y: (fontSize.label - 4) + scale(20) });
+
+    const { container: btn3 } = TextBtn({
+      app: tinyUI,
+      text: 'Show Long Content',
+      bgColor: '#8b5cf6',
+      width: btnSize.standard.w,
+      height: btnSize.standard.h,
+      fontSize: fontSize.label - 4,
+      onClick: () => {
+        console.log('[TEST] btn3 (Long Content Dialog) clicked');
+        showDialog(tinyUI, {
+          title: 'Terms & Conditions',
+          content: 'This is a very long content that demonstrates how the dialog handles multiple lines of text. The dialog should automatically adjust its height to accommodate all the content properly. Lorem ipsum dolor sit amet, consectetur adipiscing elit.',
+          showCancel: true,
+          cancelText: 'Decline',
+          confirmText: 'Accept',
+          success: (res) => {
+            console.log('Dialog result:', res);
+            showToast(tinyUI, {
+              title: res.confirm ? 'Terms accepted!' : 'Terms declined',
+              duration: 1500
+            });
+          }
+        });
+      }
+    });
+    tinyUI.root.addChild(btn3);
+    adjustTo(label3, false)(btn3, { h: 'center', v: 'bottom' }, { y: btnSize.standard.h + scale(10) });
+
+    // ========== Toast Examples ==========
+    const toastLabel = tinyUI.createText('=== Toast Examples ===');
+    toastLabel.color = '#f59e0b';
+    toastLabel.fontSize = fontSize.label;
+    toastLabel.updateTexture();
+    tinyUI.root.addChild(toastLabel);
+    adjustTo(btn3, false)(toastLabel, { h: 'center', v: 'bottom' }, { y: fontSize.label + scale(30) });
+
+    // 示例4: 基础 Toast
+    const label4 = tinyUI.createText('4. Basic Toast');
+    label4.color = '#666666';
+    label4.fontSize = fontSize.label - 4;
+    label4.updateTexture();
+    tinyUI.root.addChild(label4);
+    adjustTo(toastLabel, false)(label4, { h: 'center', v: 'bottom' }, { y: (fontSize.label - 4) + scale(20) });
+
+    const { container: btn4 } = TextBtn({
+      app: tinyUI,
+      text: 'Show Toast',
+      bgColor: '#f59e0b',
+      width: btnSize.small.w,
+      height: btnSize.small.h,
+      fontSize: fontSize.label - 4,
+      onClick: () => {
+        console.log('[TEST] btn4 (Basic Toast) clicked');
+        showToast(tinyUI, {
+          title: 'Operation successful!',
+          duration: 2000
+        });
+      }
+    });
+    tinyUI.root.addChild(btn4);
+    adjustTo(label4, false)(btn4, { h: 'center', v: 'bottom' }, { y: btnSize.small.h + scale(10) });
+
+    // 示例5: 短 Toast
+    const label5 = tinyUI.createText('5. Short Duration Toast');
+    label5.color = '#666666';
+    label5.fontSize = fontSize.label - 4;
+    label5.updateTexture();
+    tinyUI.root.addChild(label5);
+    adjustTo(btn4, false)(label5, { h: 'center', v: 'bottom' }, { y: (fontSize.label - 4) + scale(20) });
+
+    const { container: btn5 } = TextBtn({
+      app: tinyUI,
+      text: 'Quick Toast',
+      bgColor: '#ef4444',
+      width: btnSize.small.w,
+      height: btnSize.small.h,
+      fontSize: fontSize.label - 4,
+      onClick: () => {
+        console.log('[TEST] btn5 (Quick Toast) clicked');
+        showToast(tinyUI, {
+          title: 'Quick!',
+          duration: 800
+        });
+      }
+    });
+    tinyUI.root.addChild(btn5);
+    adjustTo(label5, false)(btn5, { h: 'center', v: 'bottom' }, { y: btnSize.small.h + scale(10) });
+
+    // 示例6: 长文本 Toast
+    const label6 = tinyUI.createText('6. Long Text Toast');
+    label6.color = '#666666';
+    label6.fontSize = fontSize.label - 4;
+    label6.updateTexture();
+    tinyUI.root.addChild(label6);
+    adjustTo(btn5, false)(label6, { h: 'center', v: 'bottom' }, { y: (fontSize.label - 4) + scale(20) });
+
+    const { container: btn6 } = TextBtn({
+      app: tinyUI,
+      text: 'Long Toast',
+      bgColor: '#06b6d4',
+      width: btnSize.small.w,
+      height: btnSize.small.h,
+      fontSize: fontSize.label - 4,
+      onClick: () => {
+        console.log('[TEST] btn6 (Long Toast) clicked');
+        showToast(tinyUI, {
+          title: 'This is a longer toast message that should wrap to multiple lines',
+          duration: 3000
+        });
+      }
+    });
+    tinyUI.root.addChild(btn6);
+    adjustTo(label6, false)(btn6, { h: 'center', v: 'bottom' }, { y: btnSize.small.h + scale(10) });
+
+    // 示例7: 连续显示 Toast
+    const label7 = tinyUI.createText('7. Sequential Toasts');
+    label7.color = '#666666';
+    label7.fontSize = fontSize.label - 4;
+    label7.updateTexture();
+    tinyUI.root.addChild(label7);
+    adjustTo(btn6, false)(label7, { h: 'center', v: 'bottom' }, { y: (fontSize.label - 4) + scale(20) });
+
+    const { container: btn7 } = TextBtn({
+      app: tinyUI,
+      text: 'Sequence',
+      bgColor: '#ec4899',
+      width: btnSize.small.w,
+      height: btnSize.small.h,
+      fontSize: fontSize.label - 4,
+      onClick: () => {
+        console.log('[TEST] btn7 (Sequential Toast) clicked');
+        showToast(tinyUI, { title: 'First toast!', duration: 1000 });
+        setTimeout(() => showToast(tinyUI, { title: 'Second toast!', duration: 1000 }), 500);
+        setTimeout(() => showToast(tinyUI, { title: 'Third toast!', duration: 1000 }), 1000);
+      }
+    });
+    tinyUI.root.addChild(btn7);
+    adjustTo(label7, false)(btn7, { h: 'center', v: 'bottom' }, { y: btnSize.small.h + scale(10) });
+
+    // 将按钮暴露给测试
+    window.testButtons = {
+      basicDialog: btn1,
+      cancelDialog: btn2,
+      longDialog: btn3,
+      basicToast: btn4,
+      quickToast: btn5,
+      longToast: btn6,
+      sequentialToast: btn7
+    };
+
+    // 开启自动渲染（这样 tick 更新后会自动 render）
+    tinyUI.setAutoRender(true);
+
+    // 初始渲染一次
+    tinyUI.render();
+    </script>
+  </body>
+</html>
