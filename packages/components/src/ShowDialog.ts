@@ -1,6 +1,7 @@
 import type { TinyUI, Container, Graphics, Text } from "@shuizhongyueming/tiny-ui-core";
 import { adjustTo } from "./utils/adjustTo";
 import { blockInputEvents } from "./utils/blockInputEvents";
+import { TextBtn } from "./TextBtn";
 
 // Dialog 状态枚举
 enum DialogState {
@@ -86,37 +87,8 @@ function getScale(dialogWidth: number): number {
   return dialogWidth > DIALOG_CONFIG.maxWidth ? dialogWidth / DIALOG_CONFIG.maxWidth : 1;
 }
 
-function createButton(
-  app: TinyUI,
-  text: string,
-  isBold: boolean,
-  onClick: () => void,
-  width: number,
-  buttonFontSize: number,
-  buttonHeight: number
-): Container {
-  const btn = app.createContainer("Dialog/Button");
-
-  const btnText = app.createText(text, `Dialog/Button/Text`);
-  btnText.fontSize = buttonFontSize;
-  btnText.color = DIALOG_CONFIG.themeColor;
-  btnText.align = "center";
-  btnText.anchorX = 0.5;
-  btnText.anchorY = 0.5;
-  btnText.fontWeight = isBold ? "500" : "400";
-  btnText.updateTexture();
-  btn.addChild(btnText);
-
-  btn.addEventListener('touchstart', () => {
-    onClick();
-  });
-
-  btn.setSize({ width, height: buttonHeight });
-
-  btnText.x = width / 2;
-  btnText.y = buttonHeight / 2;
-
-  return btn;
+function hexToCssColor(hex: number): string {
+  return `#${hex.toString(16).padStart(6, '0')}`;
 }
 
 function createDialog(app: TinyUI, options: DialogOptions): DialogInstance {
@@ -170,7 +142,7 @@ function createDialog(app: TinyUI, options: DialogOptions): DialogInstance {
   if (title) {
     titleText = app.createText(title, `Dialog/TitleText/${id}`);
     titleText.fontSize = titleFontSize;
-    titleText.fontWeight = "600";
+    titleText.fontWeight = "bold";
     titleText.color = 0x000000;
     titleText.align = "center";
     titleText.anchorX = 0.5;
@@ -244,29 +216,37 @@ function createDialog(app: TinyUI, options: DialogOptions): DialogInstance {
   };
 
   if (showCancel) {
-    const cancelBtn = createButton(
+    const cancelBtn = TextBtn({
       app,
-      cancelText,
-      false,
-      onCancel,
-      dialogWidth / 2,
-      buttonFontSize,
-      buttonHeight
-    );
-    dialogContainer.addChild(cancelBtn);
-    adjustDialog(cancelBtn, { v: "bottom", h: "left" });
+      text: cancelText,
+      name: "Dialog/Button",
+      bgColor: "transparent",
+      textColor: hexToCssColor(DIALOG_CONFIG.themeColor),
+      fontSize: buttonFontSize,
+      fontWeight: "normal",
+      width: dialogWidth / 2,
+      height: buttonHeight,
+      pressEffect: true,
+      onClick: onCancel,
+    });
+    dialogContainer.addChild(cancelBtn.container);
+    adjustDialog(cancelBtn.container, { v: "bottom", h: "left" });
 
-    const confirmBtn = createButton(
+    const confirmBtn = TextBtn({
       app,
-      confirmText,
-      true,
-      onConfirm,
-      dialogWidth / 2,
-      buttonFontSize,
-      buttonHeight
-    );
-    dialogContainer.addChild(confirmBtn);
-    adjustDialog(confirmBtn, { v: "bottom", h: "right" });
+      text: confirmText,
+      name: "Dialog/Button",
+      bgColor: "transparent",
+      textColor: hexToCssColor(DIALOG_CONFIG.themeColor),
+      fontSize: buttonFontSize,
+      fontWeight: "bold",
+      width: dialogWidth / 2,
+      height: buttonHeight,
+      pressEffect: true,
+      onClick: onConfirm,
+    });
+    dialogContainer.addChild(confirmBtn.container);
+    adjustDialog(confirmBtn.container, { v: "bottom", h: "right" });
 
     const middleDivider = app.createGraphics(`Dialog/Button/MiddleDivider/${id}`);
     middleDivider.alpha = DIALOG_CONFIG.dividerAlpha;
@@ -274,17 +254,21 @@ function createDialog(app: TinyUI, options: DialogOptions): DialogInstance {
     dialogContainer.addChild(middleDivider);
     adjustDialog(middleDivider, { v: "bottom", h: "center" }, { y: buttonHeight * -0.3 });
   } else {
-    const confirmBtn = createButton(
+    const confirmBtn = TextBtn({
       app,
-      confirmText,
-      true,
-      onConfirm,
-      dialogWidth,
-      buttonFontSize,
-      buttonHeight
-    );
-    dialogContainer.addChild(confirmBtn);
-    adjustDialog(confirmBtn, { v: "bottom", h: "center" });
+      text: confirmText,
+      name: "Dialog/Button",
+      bgColor: "transparent",
+      textColor: hexToCssColor(DIALOG_CONFIG.themeColor),
+      fontSize: buttonFontSize,
+      fontWeight: "bold",
+      width: dialogWidth,
+      height: buttonHeight,
+      pressEffect: true,
+      onClick: onConfirm,
+    });
+    dialogContainer.addChild(confirmBtn.container);
+    adjustDialog(confirmBtn.container, { v: "bottom", h: "center" });
   }
 
   return {
