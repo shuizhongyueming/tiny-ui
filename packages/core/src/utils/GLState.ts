@@ -695,36 +695,6 @@ export class GLState {
         orig.activeTexture(snapshot.activeTexture);
       }
 
-      // 修复：即使没有绑定 VAO，也应该恢复顶点属性
-      const shouldRestoreAttribs = !this.hasVAO() || snapshot.vao === null;
-      if (shouldRestoreAttribs && orig.disableVertexAttribArray) {
-        let max = this.maxAttribIndexSeen + 1;
-        for (const k of Object.keys(snapshot.attribs)) {
-          const idx = parseInt(k);
-          if (idx + 1 > max) max = idx + 1;
-        }
-        if (max < 0) max = 0;
-
-        for (let i = 0; i < max; i++) {
-          orig.disableVertexAttribArray(i);
-        }
-        for (const k of Object.keys(snapshot.attribs)) {
-          const idx = parseInt(k);
-          const a = snapshot.attribs[idx];
-          if (!a || !a.enabled) continue;
-          orig.enableVertexAttribArray(idx);
-          if (orig.bindBuffer) orig.bindBuffer(this.gl.ARRAY_BUFFER, a.buffer);
-          orig.vertexAttribPointer(
-            idx,
-            a.size,
-            a.type,
-            a.normalized,
-            a.stride,
-            a.offset,
-          );
-        }
-      }
-
       this.restoreUniforms();
 
       if (orig.viewport)
@@ -819,17 +789,13 @@ export class GLState {
       } else {
         if (orig.disable) orig.disable(this.gl.DITHER);
       }
-
       if (snapshot.polygonOffsetFillEnabled) {
         if (orig.enable) orig.enable(this.gl.POLYGON_OFFSET_FILL);
       } else {
         if (orig.disable) orig.disable(this.gl.POLYGON_OFFSET_FILL);
       }
       if (orig.polygonOffset)
-        orig.polygonOffset(
-          snapshot.polygonOffsetFactor,
-          snapshot.polygonOffsetUnits,
-        );
+        orig.polygonOffset(snapshot.polygonOffsetFactor, snapshot.polygonOffsetUnits);
 
       if (snapshot.sampleCoverageEnabled) {
         if (orig.enable) orig.enable(this.gl.SAMPLE_COVERAGE);
@@ -837,12 +803,9 @@ export class GLState {
         if (orig.disable) orig.disable(this.gl.SAMPLE_COVERAGE);
       }
       if (orig.sampleCoverage)
-        orig.sampleCoverage(
-          snapshot.sampleCoverageValue,
-          snapshot.sampleCoverageInvert,
-        );
+        orig.sampleCoverage(snapshot.sampleCoverageValue, snapshot.sampleCoverageInvert);
 
-      // Restore pixelStorei states (tracked for safe section texture uploads)
+      // Restore pixelStorei states
       if (orig.pixelStorei) {
         if (orig.pixelStorei) {
           orig.pixelStorei(
@@ -851,16 +814,10 @@ export class GLState {
           );
         }
         if (orig.pixelStorei) {
-          orig.pixelStorei(
-            this.gl.UNPACK_ALIGNMENT,
-            snapshot.unpackAlignment,
-          );
+          orig.pixelStorei(this.gl.UNPACK_ALIGNMENT, snapshot.unpackAlignment);
         }
         if (orig.pixelStorei) {
-          orig.pixelStorei(
-            this.gl.UNPACK_FLIP_Y_WEBGL,
-            snapshot.unpackFlipY,
-          );
+          orig.pixelStorei(this.gl.UNPACK_FLIP_Y_WEBGL, snapshot.unpackFlipY);
         }
         if (orig.pixelStorei) {
           orig.pixelStorei(
@@ -870,7 +827,6 @@ export class GLState {
         }
       }
     });
-
     this.setTrackingEnabled(true);
   }
 

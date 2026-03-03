@@ -10,6 +10,18 @@ import { ShaderManager } from "./utils/ShaderManager";
 import { TextureManager } from "./utils/TextureManager";
 import { GLState } from "./utils/GLState";
 
+type AttribSnapshot = {
+  index: number;
+  enabled: boolean;
+  buffer: WebGLBuffer | null;
+  size: number;
+  type: number;
+  normalized: boolean;
+  stride: number;
+  offset: number;
+  current: Float32Array;
+};
+
 // WebGL基础着色器
 const VERTEX_SHADER_SOURCE = `
 attribute vec2 a_position;
@@ -280,6 +292,74 @@ class TinyUI {
     this.indexBuffer = this.gl.createBuffer();
   }
 
+  private snapshotAttribs(indices: number[]): AttribSnapshot[] {
+    const gl = this.gl;
+    return indices.map((index) => {
+      const enabled = gl.getVertexAttrib(index, gl.VERTEX_ATTRIB_ARRAY_ENABLED);
+      const buffer = gl.getVertexAttrib(
+        index,
+        gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING,
+      ) as WebGLBuffer | null;
+      const size = gl.getVertexAttrib(
+        index,
+        gl.VERTEX_ATTRIB_ARRAY_SIZE,
+      ) as number;
+      const type = gl.getVertexAttrib(
+        index,
+        gl.VERTEX_ATTRIB_ARRAY_TYPE,
+      ) as number;
+      const normalized = gl.getVertexAttrib(
+        index,
+        gl.VERTEX_ATTRIB_ARRAY_NORMALIZED,
+      ) as boolean;
+      const stride = gl.getVertexAttrib(
+        index,
+        gl.VERTEX_ATTRIB_ARRAY_STRIDE,
+      ) as number;
+      const offset = gl.getVertexAttribOffset(
+        index,
+        gl.VERTEX_ATTRIB_ARRAY_POINTER,
+      ) as number;
+      const current = gl.getVertexAttrib(
+        index,
+        gl.CURRENT_VERTEX_ATTRIB,
+      ) as Float32Array;
+
+      return {
+        index,
+        enabled: !!enabled,
+        buffer,
+        size,
+        type,
+        normalized: !!normalized,
+        stride,
+        offset,
+        current,
+      };
+    });
+  }
+
+  private restoreAttribs(states: AttribSnapshot[]) {
+    const gl = this.gl;
+    for (const state of states) {
+      if (state.enabled) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, state.buffer);
+        gl.enableVertexAttribArray(state.index);
+        gl.vertexAttribPointer(
+          state.index,
+          state.size,
+          state.type,
+          state.normalized,
+          state.stride,
+          state.offset,
+        );
+      } else {
+        gl.disableVertexAttribArray(state.index);
+        gl.vertexAttrib4fv(state.index, state.current);
+      }
+    }
+  }
+
   render(patch: boolean = false) {
     this.updateViewport(patch);
 
@@ -287,7 +367,7 @@ class TinyUI {
     try {
       // 在 _flushGLTasks 之前执行 tick
       this._executeTicks();
-      
+
       this._flushGLTasks();
 
       const gl = this.gl;
@@ -330,17 +410,25 @@ class TinyUI {
   }
 
   patchRender() {
+    const attribIndices = [
+      this.positionLocation,
+      this.texCoordLocation,
+      this.colorLocation,
+    ].filter((index) => index !== -1);
+
+    const attribSnapshot = this.snapshotAttribs(attribIndices);
+
     this.stashGlState();
     try {
       // 启用正确的混合模式
       // 注意：片段着色器已输出预乘 alpha 的颜色
       this.gl.enable(this.gl.BLEND);
       this.gl.blendFunc(this.gl.ONE, this.gl.ONE_MINUS_SRC_ALPHA);
-
       // 执行UI渲染
       this.render(true);
     } finally {
       this.restoreGlState();
+      this.restoreAttribs(attribSnapshot);
     }
   }
 
@@ -455,7 +543,10 @@ class TinyUI {
     ];
 
     // 应用变换矩阵到裁剪区域
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
     for (const corner of corners) {
       const transformed = matrix.transformPoint(corner.x, corner.y);
       minX = Math.min(minX, transformed.x);
@@ -468,13 +559,13 @@ class TinyUI {
     // minX/minY/maxX/maxY 已经是物理像素（TinyUI 使用物理像素坐标系）
     const viewportWidth = canvas.width;
     const viewportHeight = canvas.height;
-    
+
     // 直接使用物理像素坐标
     const physicalMinX = minX;
     const physicalMinY = minY;
     const physicalMaxX = maxX;
     const physicalMaxY = maxY;
-    
+
     // TinyUI: 左上角为原点，Y 向下
     // WebGL scissor: 左下角为原点，Y 向上
     // 转换 Y 坐标：scissorY 是距离视口底部的距离
@@ -482,19 +573,31 @@ class TinyUI {
     const rawScissorY = Math.round(viewportHeight - physicalMaxY);
     const rawScissorWidth = Math.round(physicalMaxX - physicalMinX);
     const rawScissorHeight = Math.round(physicalMaxY - physicalMinY);
-    
+
     // 裁剪到视口范围内（计算两个矩形的交集）
     // 视口矩形: (0, 0) 到 (viewportWidth, viewportHeight)
     // Scissor 矩形: (rawScissorX, rawScissorY) 到 (rawScissorX + rawScissorWidth, rawScissorY + rawScissorHeight)
     const intersectLeft = Math.max(0, rawScissorX);
     const intersectTop = Math.max(0, rawScissorY);
-    const intersectRight = Math.min(viewportWidth, rawScissorX + rawScissorWidth);
-    const intersectBottom = Math.min(viewportHeight, rawScissorY + rawScissorHeight);
-    
+    const intersectRight = Math.min(
+      viewportWidth,
+      rawScissorX + rawScissorWidth,
+    );
+    const intersectBottom = Math.min(
+      viewportHeight,
+      rawScissorY + rawScissorHeight,
+    );
+
     const scissorX = Math.round(intersectLeft);
     const scissorY = Math.round(intersectTop);
-    const scissorWidth = Math.max(0, Math.round(intersectRight - intersectLeft));
-    const scissorHeight = Math.max(0, Math.round(intersectBottom - intersectTop));
+    const scissorWidth = Math.max(
+      0,
+      Math.round(intersectRight - intersectLeft),
+    );
+    const scissorHeight = Math.max(
+      0,
+      Math.round(intersectBottom - intersectTop),
+    );
 
     // 确保有效范围
     if (scissorWidth <= 0 || scissorHeight <= 0) {
