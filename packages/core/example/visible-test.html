@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visible Test</title>
+    <style>
+    * { padding: 0; margin: 0; }
+    html,body { margin: 0; padding: 0; overflow: hidden; width: 100%; height: 100%; }
+    canvas { width: 100%; height: 100%; }
+    #controls {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(255,255,255,0.9);
+      padding: 10px;
+      border-radius: 5px;
+      font-family: monospace;
+    }
+    button { margin: 5px; padding: 5px 10px; }
+    </style>
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+    <div id="controls">
+      <div>Btn visible: <span id="btn-visible">true</span></div>
+      <div>Popup visible: <span id="popup-visible">true</span></div>
+      <button id="toggle-btn">Toggle Btn Visible</button>
+      <button id="toggle-popup">Toggle Popup Visible</button>
+      <button id="check-children">Check Root Children</button>
+    </div>
+    <script src="../dist/tiny-ui-core.js"></script>
+    <script>
+    const canvas = document.getElementById('game');
+    const tinyUI = new TinyUI(canvas);
+    
+    let btn, popup;
+    
+    // 创建一个简单的纹理（使用 canvas）
+    function createColorCanvas(color, w=100, h=100) {
+      const c = document.createElement('canvas');
+      c.width = w;
+      c.height = h;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = color;
+      ctx.fillRect(0, 0, w, h);
+      return c;
+    }
+    
+    // 创建红色按钮
+    btn = tinyUI.createBitmapFromCanvas(createColorCanvas('#ff0000', 100, 50));
+    btn.name = 'btn';
+    btn.x = 100;
+    btn.y = 100;
+    tinyUI.root.addChild(btn);
+    
+    // 点击 btn 创建 popup
+    btn.addEventListener('touchstart', () => {
+      console.log('Btn clicked');
+      if (!popup) {
+        popup = tinyUI.createContainer();
+        popup.name = 'popup';
+        const bg = tinyUI.createBitmapFromCanvas(createColorCanvas('#00ff00', 200, 150));
+        bg.name = 'popup-bg';
+        popup.addChild(bg);
+        popup.x = 200;
+        popup.y = 200;
+        tinyUI.root.addChild(popup);
+        console.log('Popup created and added to root');
+        updateStatus();
+      }
+    });
+    
+    // 创建初始 popup（用于测试）
+    popup = tinyUI.createContainer();
+    popup.name = 'popup';
+    const bg = tinyUI.createBitmapFromCanvas(createColorCanvas('#00ff00', 200, 150));
+    bg.name = 'popup-bg';
+    popup.addChild(bg);
+    popup.x = 200;
+    popup.y = 200;
+    tinyUI.root.addChild(popup);
+    
+    function updateStatus() {
+      document.getElementById('btn-visible').textContent = btn.visible;
+      document.getElementById('popup-visible').textContent = popup ? popup.visible : 'null';
+    }
+    
+    document.getElementById('toggle-btn').addEventListener('click', () => {
+      btn.visible = !btn.visible;
+      console.log('Btn visible set to:', btn.visible);
+      tinyUI.render();
+      updateStatus();
+    });
+    
+    document.getElementById('toggle-popup').addEventListener('click', () => {
+      if (popup) {
+        popup.visible = !popup.visible;
+        console.log('Popup visible set to:', popup.visible);
+        tinyUI.render();
+        updateStatus();
+      }
+    });
+    
+    document.getElementById('check-children').addEventListener('click', () => {
+      console.log('Root children count:', tinyUI.root.children.length);
+      tinyUI.root.children.forEach((child, i) => {
+        console.log(`  [${i}] name=${child.name}, visible=${child.visible}, type=${child.constructor.name}`);
+      });
+    });
+    
+    updateStatus();
+    tinyUI.render();
+    </script>
+  </body>
+</html>
