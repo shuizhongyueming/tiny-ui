@@ -185,6 +185,72 @@ export class GLState {
       }
     });
 
+    // Track deletion of framebuffers
+    wrap("deleteFramebuffer", (fb: WebGLFramebuffer) => {
+      if (this.trackingEnabled && fb && this.state.framebuffer === fb) {
+        this.state.framebuffer = null;
+      }
+    });
+
+    // Track deletion of renderbuffers
+    wrap("deleteRenderbuffer", (rb: WebGLRenderbuffer) => {
+      if (this.trackingEnabled && rb && this.state.renderbuffer === rb) {
+        this.state.renderbuffer = null;
+      }
+    });
+
+    // Track deletion of textures
+    wrap("deleteTexture", (tex: WebGLTexture) => {
+      if (this.trackingEnabled && tex) {
+        // Remove from texture units
+        for (let i = 0; i < this.state.texture2DByUnit.length; i++) {
+          if (this.state.texture2DByUnit[i] === tex) {
+            this.state.texture2DByUnit[i] = null;
+          }
+        }
+      }
+    });
+
+    // Track deletion of buffers
+    wrap("deleteBuffer", (buffer: WebGLBuffer) => {
+      if (this.trackingEnabled && buffer) {
+        if (this.state.arrayBuffer === buffer) {
+          this.state.arrayBuffer = null;
+        }
+        if (this.state.elementArrayBuffer === buffer) {
+          this.state.elementArrayBuffer = null;
+        }
+        // Also clear from attrib states
+        for (const key of Object.keys(this.state.attribs)) {
+          const idx = parseInt(key);
+          if (this.state.attribs[idx]?.buffer === buffer) {
+            this.state.attribs[idx].buffer = null;
+          }
+        }
+      }
+    });
+
+    // Track deletion of vertex arrays
+    if (this.isWebGL2) {
+      wrap("deleteVertexArray", (vao: WebGLVertexArrayObject) => {
+        if (this.trackingEnabled && vao && this.state.vao === vao) {
+          this.state.vao = null;
+        }
+      });
+    } else if (this.vaoExt) {
+      const ext = this.vaoExt;
+      const deleteName = "deleteVertexArrayOES";
+      if (typeof ext[deleteName] === "function") {
+        this.orig[deleteName] = ext[deleteName].bind(ext);
+        ext[deleteName] = (vao: any) => {
+          if (this.trackingEnabled && vao && this.state.vaoOES === vao) {
+            this.state.vaoOES = null;
+          }
+          return this.orig[deleteName](vao);
+        };
+      }
+    }
+
     wrap("bindFramebuffer", (target: number, fb: WebGLFramebuffer | null) => {
       if (target === this.gl.FRAMEBUFFER) {
         this.state.framebuffer = fb;
@@ -655,8 +721,8 @@ export class GLState {
   restore(): void {
     const snapshot = this.state;
 
-    this.withoutTracking(() => {
-      const orig: any = this.orig;
+      this.withoutTracking(() => {
+        const orig: any = this.orig;
 
       if (orig.useProgram) orig.useProgram(snapshot.program);
 
@@ -690,7 +756,14 @@ export class GLState {
 
         for (let unit = 0; unit < maxUnit; unit++) {
           orig.activeTexture(this.gl.TEXTURE0 + unit);
-          orig.bindTexture(this.gl.TEXTURE_2D, snapshot.texture2DByUnit[unit]);
+          const tex = snapshot.texture2DByUnit[unit];
+          // 检查 texture 是否仍然有效（可能已被其他渲染引擎删除）
+          if (tex === null || (this.gl as any).isTexture(tex)) {
+            orig.bindTexture(this.gl.TEXTURE_2D, tex);
+          }
+          else {
+            orig.bindTexture(this.gl.TEXTURE_2D, null);
+          }
         }
         orig.activeTexture(snapshot.activeTexture);
       }

@@ -360,76 +360,90 @@ class TinyUI {
     }
   }
 
+  private getManagedAttribIndices(): number[] {
+    return [this.positionLocation, this.texCoordLocation, this.colorLocation].filter(
+      (index) => index !== -1,
+    );
+  }
+
+  private withManagedGLState(renderFn: () => void) {
+    const attribSnapshot = this.snapshotAttribs(this.getManagedAttribIndices());
+
+    this.stashGLState();
+    try {
+      this._executeTicks();
+      this._flushGLTasks();
+      renderFn();
+    } finally {
+      this.restoreGLState();
+      this.restoreAttribs(attribSnapshot);
+    }
+  }
+
+  private applyRenderState() {
+    const gl = this.gl;
+
+    // 显式设置 UI 需要的基础状态，避免继承 3D 引擎留下的状态。
+    // PlayCanvas 会启用背面剔除；TinyUI 的屏幕四边形在当前顶点顺序下会被直接剔除。
+    gl.disable(gl.CULL_FACE);
+    gl.disable(gl.STENCIL_TEST);
+    gl.disable(gl.DEPTH_TEST);
+    gl.depthMask(false);
+    gl.colorMask(true, true, true, true);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+
+    gl.viewport(0, 0, this.viewportWidth, this.viewportHeight);
+    gl.useProgram(this.shaderProgram);
+    gl.uniform2f(
+      this.resolutionLocation,
+      this.viewportWidth,
+      this.viewportHeight,
+    );
+  }
+
   render(patch: boolean = false) {
     this.updateViewport(patch);
 
     this._glSafeDepth++;
     try {
-      // 在 _flushGLTasks 之前执行 tick
-      this._executeTicks();
-
-      this._flushGLTasks();
-
       const gl = this.gl;
 
-      if (!patch) {
-        // 清除画布
-        gl.clearColor(0, 0, 0, 0);
-        gl.clear(gl.COLOR_BUFFER_BIT);
-      }
+      this.withManagedGLState(() => {
+        if (!patch) {
+          // 检查 alpha 通道是否启用
+          const attrs = gl.getContextAttributes();
+          if (attrs && attrs.alpha) {
+            // 只有在 alpha 启用时才清除为透明
+            gl.clearColor(0, 0, 0, 0);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+          }
+          // 如果 alpha 为 false，不清除，直接覆盖渲染
+        }
 
-      // 设置视口
-      gl.viewport(0, 0, this.viewportWidth, this.viewportHeight);
+        this.applyRenderState();
 
-      // 使用着色器程序
-      gl.useProgram(this.shaderProgram);
+        // 重置当前变换矩阵
+        this.currentMatrix = new Matrix();
 
-      // 设置分辨率
-      gl.uniform2f(
-        this.resolutionLocation,
-        this.viewportWidth,
-        this.viewportHeight,
-      );
-
-      // 重置当前变换矩阵
-      this.currentMatrix = new Matrix();
-
-      // 渲染整个场景树
-      this._renderTree(this.root);
+        // 渲染整个场景树
+        this._renderTree(this.root);
+      });
     } finally {
       this._glSafeDepth--;
     }
   }
 
-  private stashGlState() {
+  private stashGLState() {
     this.glState.snapshot();
   }
 
-  private restoreGlState() {
+  private restoreGLState() {
     this.glState.restore();
   }
 
   patchRender() {
-    const attribIndices = [
-      this.positionLocation,
-      this.texCoordLocation,
-      this.colorLocation,
-    ].filter((index) => index !== -1);
-
-    const attribSnapshot = this.snapshotAttribs(attribIndices);
-
-    this.stashGlState();
-    try {
-      // 启用正确的混合模式
-      // 注意：片段着色器已输出预乘 alpha 的颜色
-      this.gl.enable(this.gl.BLEND);
-      this.gl.blendFunc(this.gl.ONE, this.gl.ONE_MINUS_SRC_ALPHA);
-      // 执行UI渲染
-      this.render(true);
-    } finally {
-      this.restoreGlState();
-      this.restoreAttribs(attribSnapshot);
-    }
+    this.render(true);
   }
 
   isInGLSafeSection(): boolean {
@@ -768,7 +782,7 @@ class TinyUI {
     this.root.destroy();
 
     // 恢复GL状态
-    this.restoreGlState();
+      this.restoreGLState();
 
     // 停止 tick 循环
     this._stopTickLoop();
