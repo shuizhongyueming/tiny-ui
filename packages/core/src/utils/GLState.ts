@@ -1140,6 +1140,41 @@ export class GLState {
         ? orig.getParameter(gl.COLOR_WRITEMASK)
         : gl.getParameter(gl.COLOR_WRITEMASK);
 
+      const clearColorP = orig.getParameter
+        ? orig.getParameter(gl.COLOR_CLEAR_VALUE)
+        : gl.getParameter(gl.COLOR_CLEAR_VALUE);
+      const clearDepth = orig.getParameter
+        ? orig.getParameter(gl.DEPTH_CLEAR_VALUE)
+        : gl.getParameter(gl.DEPTH_CLEAR_VALUE);
+      const clearStencil = orig.getParameter
+        ? orig.getParameter(gl.STENCIL_CLEAR_VALUE)
+        : gl.getParameter(gl.STENCIL_CLEAR_VALUE);
+      const blendColorP = orig.getParameter
+        ? orig.getParameter(gl.BLEND_COLOR)
+        : gl.getParameter(gl.BLEND_COLOR);
+
+      const ditherEnabled = orig.isEnabled
+        ? orig.isEnabled(gl.DITHER)
+        : gl.isEnabled(gl.DITHER);
+      const polygonOffsetFillEnabled = orig.isEnabled
+        ? orig.isEnabled(gl.POLYGON_OFFSET_FILL)
+        : gl.isEnabled(gl.POLYGON_OFFSET_FILL);
+      const polygonOffsetFactor = orig.getParameter
+        ? orig.getParameter(gl.POLYGON_OFFSET_FACTOR)
+        : gl.getParameter(gl.POLYGON_OFFSET_FACTOR);
+      const polygonOffsetUnits = orig.getParameter
+        ? orig.getParameter(gl.POLYGON_OFFSET_UNITS)
+        : gl.getParameter(gl.POLYGON_OFFSET_UNITS);
+      const sampleCoverageEnabled = orig.isEnabled
+        ? orig.isEnabled(gl.SAMPLE_COVERAGE)
+        : gl.isEnabled(gl.SAMPLE_COVERAGE);
+      const sampleCoverageValue = orig.getParameter
+        ? orig.getParameter(gl.SAMPLE_COVERAGE_VALUE)
+        : gl.getParameter(gl.SAMPLE_COVERAGE_VALUE);
+      const sampleCoverageInvert = orig.getParameter
+        ? orig.getParameter(gl.SAMPLE_COVERAGE_INVERT)
+        : gl.getParameter(gl.SAMPLE_COVERAGE_INVERT);
+
       const arrayBuffer = orig.getParameter
         ? orig.getParameter(gl.ARRAY_BUFFER_BINDING)
         : gl.getParameter(gl.ARRAY_BUFFER_BINDING);
@@ -1261,17 +1296,17 @@ export class GLState {
         vaoOES,
         attribs,
         uniformState: [],
-        clearColor: [0, 0, 0, 0],
-        clearDepth: 1,
-        clearStencil: 0,
-        blendColor: [0, 0, 0, 0],
-        ditherEnabled: true,
-        polygonOffsetFillEnabled: false,
-        polygonOffsetFactor: 0,
-        polygonOffsetUnits: 0,
-        sampleCoverageEnabled: false,
-        sampleCoverageValue: 1,
-        sampleCoverageInvert: false,
+        clearColor: [clearColorP[0], clearColorP[1], clearColorP[2], clearColorP[3]],
+        clearDepth,
+        clearStencil,
+        blendColor: [blendColorP[0], blendColorP[1], blendColorP[2], blendColorP[3]],
+        ditherEnabled,
+        polygonOffsetFillEnabled,
+        polygonOffsetFactor,
+        polygonOffsetUnits,
+        sampleCoverageEnabled,
+        sampleCoverageValue,
+        sampleCoverageInvert,
         // pixelStorei defaults per WebGL spec
         unpackPremultiplyAlpha: false,
         unpackAlignment: 4,
