@@ -104,7 +104,7 @@ class TinyUI {
   eventManager: EventManager;
 
   // 着色器程序
-  private shaderProgram: WebGLProgram;
+  public shaderProgram: WebGLProgram;
 
   // 着色器变量位置
   private positionLocation: number;
@@ -133,6 +133,7 @@ class TinyUI {
 
   private _glTasks: Array<() => void> = [];
   private _glSafeDepth: number = 0;
+  private _textRenderWarmupNode: Text | null = null;
 
   // tick 机制
   private _tickCallbacks: Array<(delta: number) => void> = [];
@@ -188,6 +189,11 @@ class TinyUI {
     this.root = new Container(this, "RootContainer");
     this.root.anchorX = 0;
     this.root.anchorY = 0;
+    // 某些宿主环境（已在 Honor + Laya 共存链路中验证）首个真实 Text
+    // 会出现异常缩放/渲染不稳定。这里提前插入一个屏幕外 Text，
+    // 让文本纹理上传和首个 Text draw 的冷启动成本先被消费掉。
+    // 这不是无意义节点，不要轻易删除；如果要调整，必须先在真机回归。
+    this._installTextRenderWarmup();
 
     const displayWidth = this.canvas.clientWidth * window.devicePixelRatio;
     const displayHeight = this.canvas.clientHeight * window.devicePixelRatio;
@@ -388,18 +394,28 @@ class TinyUI {
     gl.disable(gl.CULL_FACE);
     gl.disable(gl.STENCIL_TEST);
     gl.disable(gl.DEPTH_TEST);
+    gl.disable(gl.SCISSOR_TEST);
     gl.depthMask(false);
     gl.colorMask(true, true, true, true);
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
     gl.viewport(0, 0, this.viewportWidth, this.viewportHeight);
+    this.applyShaderUniformState();
+  }
+
+  public applyShaderUniformState(matrix?: Matrix): void {
+    const gl = this.gl;
     gl.useProgram(this.shaderProgram);
     gl.uniform2f(
       this.resolutionLocation,
       this.viewportWidth,
       this.viewportHeight,
     );
+
+    if (matrix) {
+      gl.uniformMatrix3fv(this.matrixLocation, false, matrix.toArray());
+    }
   }
 
   render(patch: boolean = false) {
@@ -428,6 +444,7 @@ class TinyUI {
 
         // 渲染整个场景树
         this._renderTree(this.root);
+        this._disposeTextRenderWarmup();
       });
     } finally {
       this._glSafeDepth--;
@@ -444,6 +461,38 @@ class TinyUI {
 
   patchRender() {
     this.render(true);
+  }
+
+  private _installTextRenderWarmup(): void {
+    if (this._textRenderWarmupNode) {
+      return;
+    }
+
+    const warmupText = new Text(this, "TextWarmup");
+    // 这里故意使用一个真正的 Text 节点而不是只做 texture/gl warmup。
+    // 现有排查结论表明：仅预热纹理、uniform 或 canvas 2D 都不足以稳定
+    // 修复 Honor + Laya 下的首个文本异常，必须让一次真实 Text render 先发生。
+    warmupText.text = "预热";
+    warmupText.fontSize = 32;
+    warmupText.lineHeight = 48;
+    warmupText.color = 0x000000;
+    warmupText.alpha = 0.01;
+    warmupText.x = -9999;
+    warmupText.y = -9999;
+    warmupText.updateTexture();
+    this.root.addChild(warmupText);
+    this._textRenderWarmupNode = warmupText;
+  }
+
+  private _disposeTextRenderWarmup(): void {
+    if (!this._textRenderWarmupNode) {
+      return;
+    }
+
+    // warmup 只需要参与首轮渲染，后续继续保留只会平白占用一次遍历和 draw。
+    // 因此在首轮 render 完成后立即销毁，既保留兼容修复，也避免长期成本。
+    this._textRenderWarmupNode.destroy();
+    this._textRenderWarmupNode = null;
   }
 
   isInGLSafeSection(): boolean {

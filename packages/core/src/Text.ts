@@ -869,9 +869,14 @@ export class Text extends DisplayObject {
     this.textureUpdateGen++;
   }
 
-  render(_matrix: Matrix): void {
+  render(matrix: Matrix): void {
     // 如果文本为空，不需要渲染
     if (!this._text || this._text.length === 0) return;
+
+    // Text 会重新切回 TinyUI 的 shader program，必须同步把当前节点矩阵
+    // 和分辨率 uniform 重写到这个 program 上，否则首个 Text 可能沿用宿主引擎
+    // 或上一个 program 的 uniform 状态，表现为首个文本缩放异常。
+    this.app.applyShaderUniformState(matrix);
 
     // 如果文本纹理不存在或文本内容变化，重新生成纹理
     if (this.textureNeedsUpdate) {
