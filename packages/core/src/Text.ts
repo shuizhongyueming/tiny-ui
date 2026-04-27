@@ -215,12 +215,6 @@ export class Text extends DisplayObject {
 
     ctx.font = `${this._fontWeight} ${this._fontSize}px ${this._fontFamily}`;
 
-    // 获取字体度量，用于精确计算文本高度和垂直居中
-    const fontMetrics = ctx.measureText("X");
-    const fontAscent = fontMetrics.actualBoundingBoxAscent || this._fontSize * 0.8;
-    const fontDescent = fontMetrics.actualBoundingBoxDescent || this._fontSize * 0.2;
-    const fontVisualHeight = fontAscent + fontDescent;
-
     const effectiveLineHeight = this.lineHeight;
     let textWidth: number;
     let textHeight: number;
@@ -300,33 +294,52 @@ export class Text extends DisplayObject {
           lines.push(currentLine);
         }
       }
-
-      let maxLineWidth = 0;
-      for (const line of lines) {
-        maxLineWidth = Math.max(maxLineWidth, getTextWidth(line));
-      }
-      textWidth = maxLineWidth;
-      // 使用实际字体视觉高度计算总高度，增加顶部 padding 防止中文裁剪
-      textHeight = lines.length * fontVisualHeight + (lines.length - 1) * Math.max(0, effectiveLineHeight - fontVisualHeight);
     } else {
       lines = linesFromBreaks;
 
       for (const line of lines) {
         getTextWidth(line);
       }
-
-      let maxLineWidth = 0;
-      for (const line of lines) {
-        maxLineWidth = Math.max(maxLineWidth, getTextWidth(line));
-      }
-
-      textWidth = maxLineWidth;
-      // 使用实际字体视觉高度计算总高度，增加顶部 padding 防止中文裁剪
-      textHeight = lines.length * fontVisualHeight + (lines.length - 1) * Math.max(0, effectiveLineHeight - fontVisualHeight);
     }
 
-    // 顶部增加额外 padding (4px) 防止中文顶部笔画被裁剪
-    const topPadding = 4;
+    let maxLineWidth = 0;
+    for (const line of lines) {
+      maxLineWidth = Math.max(maxLineWidth, getTextWidth(line));
+    }
+    textWidth = maxLineWidth;
+
+    // 基于实际文本内容测量最大 ascent/descent
+    // 优先使用 fontBoundingBoxAscent，它比 actualBoundingBoxAscent 更保守，
+    // 能覆盖某些浏览器/字体对 actualBoundingBoxAscent 度量偏小的问题
+    let maxAscent = 0;
+    let maxDescent = 0;
+    for (const line of lines) {
+      if (line.length > 0) {
+        const m = ctx.measureText(line);
+        maxAscent = Math.max(
+          maxAscent,
+          m.fontBoundingBoxAscent ||
+            m.actualBoundingBoxAscent ||
+            this._fontSize,
+        );
+        maxDescent = Math.max(
+          maxDescent,
+          m.fontBoundingBoxDescent ||
+            m.actualBoundingBoxDescent ||
+            this._fontSize * 0.2,
+        );
+      }
+    }
+    const fontAscent = maxAscent || this._fontSize;
+    const fontDescent = maxDescent || this._fontSize * 0.2;
+    const fontVisualHeight = fontAscent + fontDescent;
+
+    const lineHeight = Math.max(effectiveLineHeight, fontVisualHeight);
+    textHeight = lines.length * lineHeight;
+
+    // 顶部 padding：保守策略，至少 8px + fontSize 的 30%
+    // 配合 textBaseline = "top" 使用，fillText 的 y 即为文本顶部
+    const topPadding = Math.max(8, Math.ceil(this._fontSize * 0.3));
     const originalWidth = textWidth + 4;
     const originalHeight = textHeight + 4 + topPadding;
 
@@ -338,7 +351,7 @@ export class Text extends DisplayObject {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.font = `${this._fontWeight} ${this._fontSize}px ${this._fontFamily}`;
-    ctx.textBaseline = "alphabetic";
+    ctx.textBaseline = "top";
     ctx.fillStyle = this._color;
     ctx.textAlign = this._align;
 
@@ -349,18 +362,9 @@ export class Text extends DisplayObject {
       x = originalWidth - 2;
     }
 
-    // 计算行间距（使用 lineHeight 和实际字体高度的差值）
-    const lineSpacing = Math.max(0, effectiveLineHeight - fontVisualHeight);
-
     for (let i = 0; i < lines.length; i++) {
-      // 计算当前行的垂直位置
-      // 行内容顶部 = topPadding + padding(2) + 前面所有行的高度 + 前面所有行间距
-      const lineTop = topPadding + 2 + i * fontVisualHeight + i * lineSpacing;
-      // 行内容中心 = 行顶部 + 字体视觉高度 / 2
-      const lineCenterY = lineTop + fontVisualHeight / 2;
-      // 文本基线位置 = 行中心 + (ascent - descent) / 2
-      const baselineY = lineCenterY + (fontAscent - fontDescent) / 2;
-      ctx.fillText(lines[i], x, baselineY);
+      const y = topPadding + 2 + i * lineHeight;
+      ctx.fillText(lines[i], x, y);
     }
 
     this.setWidth(originalWidth);
@@ -420,8 +424,59 @@ export class Text extends DisplayObject {
       totalHeight += line.height;
     }
 
-    const originalWidth = maxWidth + 4 + this._canvasPadding * 2;
-    const originalHeight = totalHeight + 4 + this._canvasPadding * 2;
+    const padding = this._canvasPadding;
+
+    // 计算因 offsetY / 描边导致的顶部/底部溢出，防止内容被裁剪
+    let topOverflow = 0;
+    let bottomOverflow = 0;
+    for (const line of lines) {
+      for (const unit of line.units) {
+        const offsetY = unit.style.offsetY;
+        const hasStroke =
+          unit.style.stroke || unit.style.outline || unit.style.outlineBack;
+        const strokeWidth = hasStroke
+          ? unit.style.lineThickness * unit.style.fontSize
+          : 0;
+
+        const visualTop = unit.y + offsetY - strokeWidth / 2;
+        if (visualTop < 0) {
+          topOverflow = Math.max(topOverflow, -visualTop);
+        }
+
+        const visualBottom = unit.y + unit.height + offsetY + strokeWidth / 2;
+        const availableBottom = totalHeight + 2 + padding;
+        if (visualBottom > availableBottom) {
+          bottomOverflow = Math.max(
+            bottomOverflow,
+            visualBottom - availableBottom,
+          );
+        }
+      }
+    }
+
+    // 额外增加一个与 unit.ascent 无关的最小顶部保护
+    // 因为某些浏览器/字体的 actualBoundingBoxAscent 会偏小，导致 visualTop 计算不安全
+    let maxFontSize = 0;
+    for (const line of lines) {
+      for (const unit of line.units) {
+        maxFontSize = Math.max(maxFontSize, unit.style.fontSize);
+      }
+    }
+    const minTopExtra = Math.max(8, Math.ceil(maxFontSize * 0.3));
+    topOverflow = Math.max(topOverflow, minTopExtra);
+
+    // 整体下移，为顶部溢出留出空间
+    if (topOverflow > 0) {
+      for (const line of lines) {
+        for (const unit of line.units) {
+          unit.y += topOverflow;
+        }
+      }
+    }
+
+    const originalWidth = maxWidth + 4 + padding * 2;
+    const originalHeight =
+      totalHeight + 4 + padding * 2 + topOverflow + bottomOverflow;
 
     this.textureWidth = nextPowerOfTwo(originalWidth);
     this.textureHeight = nextPowerOfTwo(originalHeight);
@@ -459,17 +514,18 @@ export class Text extends DisplayObject {
 
   private buildRenderUnits(
     ctx: CanvasRenderingContext2D,
-    segments: ParsedSegment[]
+    segments: ParsedSegment[],
   ): RenderUnit[] {
     const units: RenderUnit[] = [];
     // Calculate line height ratio based on Text settings
-    const lineHeightRatio = this._lineHeight === 0 ? 1.2 : this._lineHeight / this._fontSize;
+    const lineHeightRatio =
+      this._lineHeight === 0 ? 1.2 : this._lineHeight / this._fontSize;
 
     for (const segment of segments) {
       let style = createDefaultStyle(
         this._fontSize,
         this._fontFamily,
-        this._color
+        this._color,
       );
 
       // Apply tags
@@ -504,7 +560,11 @@ export class Text extends DisplayObject {
             y: 0,
             width: metrics.width,
             height: style.fontSize * lineHeightRatio,
-            ascent: metrics.actualBoundingBoxAscent || style.fontSize * 0.8,
+            ascent: Math.max(
+              metrics.fontBoundingBoxAscent || 0,
+              metrics.actualBoundingBoxAscent || 0,
+              style.fontSize,
+            ),
             lineIndex: -1,
           });
         }
@@ -589,15 +649,15 @@ export class Text extends DisplayObject {
         }
 
         // Split the long unit by characters - similar to plain text approach
-        const chars = unit.text.split('');
-        let charLine = '';
+        const chars = unit.text.split("");
+        let charLine = "";
         let charWidth = 0;
-        const ctx = this.canvas!.getContext('2d')!;
+        const ctx = this.canvas!.getContext("2d")!;
         ctx.font = buildFontString(unit.style);
 
         for (const char of chars) {
           const charW = ctx.measureText(char).width;
-          
+
           if (charWidth + charW <= this._maxWidth) {
             charLine += char;
             charWidth += charW;
@@ -671,7 +731,8 @@ export class Text extends DisplayObject {
       maxContentWidth = Math.max(maxContentWidth, line.width);
     }
     // Use maxWidth if set, otherwise use content width
-    const containerWidth = this._maxWidth > 0 ? this._maxWidth : maxContentWidth;
+    const containerWidth =
+      this._maxWidth > 0 ? this._maxWidth : maxContentWidth;
 
     // Calculate positions with padding
     const padding = this._canvasPadding;
@@ -701,7 +762,10 @@ export class Text extends DisplayObject {
     return lines;
   }
 
-  private renderBBCodeLayers(ctx: CanvasRenderingContext2D, lines: LineInfo[]): void {
+  private renderBBCodeLayers(
+    ctx: CanvasRenderingContext2D,
+    lines: LineInfo[],
+  ): void {
     // Layer 0: outlineback
     for (const line of lines) {
       for (const unit of line.units) {
@@ -757,7 +821,10 @@ export class Text extends DisplayObject {
     }
   }
 
-  private renderOutlineBack(ctx: CanvasRenderingContext2D, unit: RenderUnit): void {
+  private renderOutlineBack(
+    ctx: CanvasRenderingContext2D,
+    unit: RenderUnit,
+  ): void {
     if (!unit.style.outlineBack) return;
 
     ctx.font = buildFontString(unit.style);
@@ -774,7 +841,10 @@ export class Text extends DisplayObject {
     ctx.globalAlpha = 1;
   }
 
-  private renderStrokedText(ctx: CanvasRenderingContext2D, unit: RenderUnit): void {
+  private renderStrokedText(
+    ctx: CanvasRenderingContext2D,
+    unit: RenderUnit,
+  ): void {
     ctx.font = buildFontString(unit.style);
     ctx.textBaseline = "alphabetic";
     ctx.lineWidth = unit.style.lineThickness * unit.style.fontSize;
@@ -792,7 +862,7 @@ export class Text extends DisplayObject {
   private renderOutlinedText(
     ctx: CanvasRenderingContext2D,
     unit: RenderUnit,
-    outlineColor: string
+    outlineColor: string,
   ): void {
     ctx.font = buildFontString(unit.style);
     ctx.textBaseline = "alphabetic";
@@ -808,7 +878,10 @@ export class Text extends DisplayObject {
     ctx.globalAlpha = 1;
   }
 
-  private renderFilledText(ctx: CanvasRenderingContext2D, unit: RenderUnit): void {
+  private renderFilledText(
+    ctx: CanvasRenderingContext2D,
+    unit: RenderUnit,
+  ): void {
     ctx.font = buildFontString(unit.style);
     ctx.textBaseline = "alphabetic";
     ctx.fillStyle = unit.style.color;
@@ -822,7 +895,10 @@ export class Text extends DisplayObject {
     ctx.globalAlpha = 1;
   }
 
-  private renderUnderline(ctx: CanvasRenderingContext2D, unit: RenderUnit): void {
+  private renderUnderline(
+    ctx: CanvasRenderingContext2D,
+    unit: RenderUnit,
+  ): void {
     const thickness = unit.style.lineThickness * unit.style.fontSize;
     const y = unit.y + unit.ascent + thickness;
 
@@ -832,13 +908,19 @@ export class Text extends DisplayObject {
 
     ctx.beginPath();
     ctx.moveTo(unit.x + unit.style.offsetX, y + unit.style.offsetY);
-    ctx.lineTo(unit.x + unit.width + unit.style.offsetX, y + unit.style.offsetY);
+    ctx.lineTo(
+      unit.x + unit.width + unit.style.offsetX,
+      y + unit.style.offsetY,
+    );
     ctx.stroke();
 
     ctx.globalAlpha = 1;
   }
 
-  private renderStrikethrough(ctx: CanvasRenderingContext2D, unit: RenderUnit): void {
+  private renderStrikethrough(
+    ctx: CanvasRenderingContext2D,
+    unit: RenderUnit,
+  ): void {
     const thickness = unit.style.lineThickness * unit.style.fontSize;
     const y = unit.y + unit.ascent * 0.6;
 
@@ -848,7 +930,10 @@ export class Text extends DisplayObject {
 
     ctx.beginPath();
     ctx.moveTo(unit.x + unit.style.offsetX, y + unit.style.offsetY);
-    ctx.lineTo(unit.x + unit.width + unit.style.offsetX, y + unit.style.offsetY);
+    ctx.lineTo(
+      unit.x + unit.width + unit.style.offsetX,
+      y + unit.style.offsetY,
+    );
     ctx.stroke();
 
     ctx.globalAlpha = 1;
