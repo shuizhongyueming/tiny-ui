@@ -19,7 +19,11 @@
     "overrides": {
       "@shuizhongyueming/tiny-ui-components": "link:packages/components",
       "@shuizhongyueming/tiny-ui-core": "link:packages/core"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "canvas",
+      "esbuild"
+    ]
   },
   "dependencies": {
     "@shuizhongyueming/tiny-ui-components": "link:packages/components",
