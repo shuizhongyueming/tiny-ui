@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Canvas textBaseline 排版效果对比</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: #f5f7fa;
+      padding: 24px;
+      color: #333;
+    }
+    h1 {
+      font-size: 20px;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+      background: #fff;
+      padding: 16px 20px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    label {
+      font-size: 14px;
+      color: #555;
+      white-space: nowrap;
+    }
+    select, input[type="text"], input[type="range"] {
+      font-size: 14px;
+      padding: 6px 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      background: #fff;
+    }
+    select { min-width: 140px; }
+    input[type="text"] { min-width: 320px; }
+    input[type="range"] { width: 120px; }
+    .font-size-value {
+      min-width: 36px;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 600;
+      color: #2563eb;
+    }
+    .canvas-wrapper {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      padding: 16px;
+      overflow-x: auto;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      max-width: 900px;
+      height: 320px;
+      margin: 0 auto;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      justify-content: center;
+      margin-top: 12px;
+      font-size: 13px;
+      color: #666;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .legend-color {
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+      border: 1px solid rgba(0,0,0,0.15);
+    }
+    .info {
+      text-align: center;
+      margin-top: 12px;
+      font-size: 13px;
+      color: #888;
+    }
+  </style>
+</head>
+<body>
+  <h1>Canvas textBaseline 排版效果对比</h1>
+
+  <div class="controls">
+    <div class="control-group">
+      <label for="baselineSelect">textBaseline:</label>
+      <select id="baselineSelect">
+        <option value="top" selected>top</option>
+        <option value="hanging">hanging</option>
+        <option value="middle">middle</option>
+        <option value="alphabetic">alphabetic</option>
+        <option value="ideographic">ideographic</option>
+        <option value="bottom">bottom</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label for="fontSizeRange">fontSize:</label>
+      <input type="range" id="fontSizeRange" min="16" max="72" value="36">
+      <span class="font-size-value" id="fontSizeValue">36</span>
+    </div>
+    <div class="control-group">
+      <label for="textInput">文本:</label>
+      <input type="text" id="textInput" value="中ahgf中文English混排Mix123">
+    </div>
+  </div>
+
+  <div class="canvas-wrapper">
+    <canvas id="demoCanvas"></canvas>
+    <div class="legend">
+      <div class="legend-item">
+        <div class="legend-color" style="background:rgba(239,68,68,0.25)"></div>
+        <span>当前 baseline 位置（红线）</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color" style="background:rgba(59,130,246,0.18)"></div>
+        <span>fontBoundingBox（蓝区域）</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color" style="background:rgba(245,158,11,0.22)"></div>
+        <span>actualBoundingBox（橙区域）</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color" style="background:rgba(16,185,129,0.12)"></div>
+        <span>Em Square（绿区域）</span>
+      </div>
+    </div>
+    <div class="info">
+      提示：fontBoundingBoxAscent / actualBoundingBoxAscent 的测量起点是当前的 textBaseline
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('demoCanvas');
+    const ctx = canvas.getContext('2d');
+    const baselineSelect = document.getElementById('baselineSelect');
+    const fontSizeRange = document.getElementById('fontSizeRange');
+    const fontSizeValue = document.getElementById('fontSizeValue');
+    const textInput = document.getElementById('textInput');
+
+    function resizeCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { width: rect.width, height: rect.height };
+    }
+
+    function draw() {
+      const { width, height } = resizeCanvas();
+      const text = textInput.value || ' ';
+      const baseline = baselineSelect.value;
+      const fontSize = parseInt(fontSizeRange.value, 10);
+
+      // 清空
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = '#fafafa';
+      ctx.fillRect(0, 0, width, height);
+
+      // 画一条淡淡的水平中线作为视觉参考
+      const centerY = height / 2;
+      ctx.strokeStyle = '#e5e7eb';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.moveTo(0, centerY);
+      ctx.lineTo(width, centerY);
+      ctx.stroke();
+
+      // 设置字体
+      ctx.font = `${fontSize}px Arial, "Microsoft YaHei", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = baseline;
+
+      // 先画文本（让它在最上层）
+      ctx.fillStyle = '#111827';
+      ctx.fillText(text, width / 2, centerY);
+
+      // 测量
+      const metrics = ctx.measureText(text);
+      const fba = metrics.fontBoundingBoxAscent || 0;
+      const fbd = metrics.fontBoundingBoxDescent || 0;
+      const aba = metrics.actualBoundingBoxAscent || 0;
+      const abd = metrics.actualBoundingBoxDescent || 0;
+
+      // 计算 Em Square 的上下边界（相对于当前 baseline）
+      let emTopOffset, emBottomOffset;
+      switch (baseline) {
+        case 'top':
+          emTopOffset = 0;
+          emBottomOffset = fontSize;
+          break;
+        case 'middle':
+          emTopOffset = -fontSize / 2;
+          emBottomOffset = fontSize / 2;
+          break;
+        case 'bottom':
+          emTopOffset = -fontSize;
+          emBottomOffset = 0;
+          break;
+        default:
+          // alphabetic / hanging / ideographic：用 fontBoundingBox 近似
+          emTopOffset = -fba;
+          emBottomOffset = fbd;
+          break;
+      }
+
+      // 画 Em Square（浅绿色背景）
+      ctx.fillStyle = 'rgba(16, 185, 129, 0.08)';
+      ctx.fillRect(0, centerY + emTopOffset, width, emBottomOffset - emTopOffset);
+      ctx.strokeStyle = 'rgba(16, 185, 129, 0.5)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(0, centerY + emTopOffset);
+      ctx.lineTo(width, centerY + emTopOffset);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, centerY + emBottomOffset);
+      ctx.lineTo(width, centerY + emBottomOffset);
+      ctx.stroke();
+
+      // 画 fontBoundingBox（浅蓝色背景 + 虚线）
+      ctx.fillStyle = 'rgba(59, 130, 246, 0.12)';
+      ctx.fillRect(0, centerY - fba, width, fba + fbd);
+      ctx.strokeStyle = 'rgba(59, 130, 246, 0.6)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([6, 3]);
+      ctx.beginPath();
+      ctx.moveTo(0, centerY - fba);
+      ctx.lineTo(width, centerY - fba);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, centerY + fbd);
+      ctx.lineTo(width, centerY + fbd);
+      ctx.stroke();
+
+      // 画 actualBoundingBox（浅橙色背景 + 虚线）
+      ctx.fillStyle = 'rgba(245, 158, 11, 0.15)';
+      ctx.fillRect(0, centerY - aba, width, aba + abd);
+      ctx.strokeStyle = 'rgba(245, 158, 11, 0.7)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(0, centerY - aba);
+      ctx.lineTo(width, centerY - aba);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, centerY + abd);
+      ctx.lineTo(width, centerY + abd);
+      ctx.stroke();
+
+      // 画当前 baseline（红色实线）
+      ctx.strokeStyle = 'rgba(239, 68, 68, 0.9)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.moveTo(0, centerY);
+      ctx.lineTo(width, centerY);
+      ctx.stroke();
+
+      // 标注文字
+      ctx.font = '12px Arial, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      const labelX = 12;
+
+      // baseline 标签
+      ctx.fillStyle = 'rgba(239, 68, 68, 0.9)';
+      ctx.fillText(`baseline: "${baseline}" (y = ${Math.round(centerY)})`, labelX, centerY + 6);
+
+      // Em Square 标签
+      ctx.fillStyle = 'rgba(16, 185, 129, 0.9)';
+      ctx.fillText(`Em Square top / bottom`, labelX, centerY + emTopOffset - 16);
+
+      // fontBoundingBox 标签
+      ctx.fillStyle = 'rgba(59, 130, 246, 0.9)';
+      ctx.fillText(`fontBBox: ascent=${fba.toFixed(1)} descent=${fbd.toFixed(1)}`, labelX, centerY - fba - 16);
+
+      // actualBoundingBox 标签
+      ctx.fillStyle = 'rgba(180, 83, 9, 0.9)';
+      ctx.fillText(`actualBBox: ascent=${aba.toFixed(1)} descent=${abd.toFixed(1)}`, labelX, centerY - aba - 30);
+
+      // 右侧文字宽度信息
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#6b7280';
+      ctx.fillText(`width: ${metrics.width.toFixed(1)}`, width - 12, 8);
+    }
+
+    // 事件监听
+    baselineSelect.addEventListener('change', draw);
+    fontSizeRange.addEventListener('input', (e) => {
+      fontSizeValue.textContent = e.target.value;
+      draw();
+    });
+    textInput.addEventListener('input', draw);
+    window.addEventListener('resize', draw);
+
+    // 初始绘制
+    draw();
+  </script>
+</body>
+</html>
