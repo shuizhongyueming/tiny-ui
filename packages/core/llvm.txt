@@ -303,6 +303,8 @@ class Text extends DisplayObject {
   lineHeight: number;           // 0 表示自动
   maxWidth: number;             // 0 表示无限制
   align: 'left' | 'center' | 'right';
+  borderColor: string | number;   // 文字描边颜色（默认 '#000000'）
+  borderWidth: number;            // 文字描边宽度 px（默认 0，即无描边）
   bbcodeEnabled: boolean;        // 是否启用 BBCode 解析
   canvasPadding: number;         // Canvas 内边距（默认 10）
   updateTexture(): void;        // 手动更新纹理
@@ -313,10 +315,19 @@ class Text extends DisplayObject {
 1. 修改任意样式属性后，下次渲染自动重绘纹理
 2. `maxWidth > 0` 时自动换行（按空格分词）
 3. 支持手动换行符 `\n`
+4. `borderWidth > 0` 时绘制文字描边（先描边后填充，画布自动预留空间防裁剪，plain/BBCode 一致）；
+   BBCode 路径下作为 Text 级默认描边应用于所有片段，独立于 `[lineThickness]`
+   （不影响下划线/删除线/空心描边粗细，宽度即 `borderWidth` px，无钳制）；
+   带显式 `[outline]` 标签的片段优先使用标签轮廓（颜色取标签值，宽度取 `[lineThickness]`）
 
 **常见坑**：
 - 每帧修改文本会导致频繁重绘纹理，影响性能
 - 颜色数字格式 `0xff0000` 会被转换为 `#ff0000`
+- BBCode 路径下纹理/节点尺寸会覆盖对齐容器与描边、偏移的实际占用：
+  `maxWidth` + `center`/`right` 对齐时 `text.width` 可能接近 `maxWidth`，
+  带 `offsetX`/描边时 `text.width` 也会相应变大（这是防止内容被裁剪的预留，并非异常）
+- 带 `[stroke]` 的片段按空心字渲染，不会叠加 `[outline]` 或 Text 级 border；
+  仅有 `[lineThickness]` 而没有 `[outline]` 时，也不会改变 Text 级 border 的宽度
 
 **最小 demo**：
 ```javascript

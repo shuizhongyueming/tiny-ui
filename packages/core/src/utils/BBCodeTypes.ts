@@ -18,6 +18,10 @@ export interface TextStyleState {
   outline?: string;
   outlineBack?: string;
   lineThickness: number;
+  // Text 级描边（来自 Text.borderColor/borderWidth，非标签），
+  // 独立于 lineThickness，避免影响下划线/删除线/空心描边的粗细
+  borderColor?: string;
+  borderWidth?: number;
 }
 
 export interface RenderUnit {
@@ -61,6 +65,8 @@ export function createDefaultStyle(
     outline: undefined,
     outlineBack: undefined,
     lineThickness: 0.05,
+    borderColor: undefined,
+    borderWidth: undefined,
   };
 }
 

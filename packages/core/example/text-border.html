@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Border Test - Tiny UI</title>
+    <style>
+    * {
+      padding: 0;
+      margin: 0;
+    }
+    html,body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+      background: #2d3748;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    </style>
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+    <script src="../dist/tiny-ui-core.js"></script>
+    <script>
+    const canvas = document.getElementById('game');
+    const tinyUI = new TinyUI(canvas);
+
+    // 辅助函数：强制更新纹理（否则 Text 在首次 render 时才入队 GL 上传，当帧会被跳过）
+    function forceUpdateTexture(text) {
+      text.updateTexture();
+      return text;
+    }
+
+    const title = tinyUI.createText('Text Border Test');
+    title.color = '#ffffff';
+    title.fontSize = 40;
+    title.anchorX = 0;
+    title.anchorY = 0;
+    title.x = 50;
+    title.y = 30;
+    forceUpdateTexture(title);
+    tinyUI.root.addChild(title);
+
+    // 测试 1: plain 文本描边（白字黑边）
+    const label1 = tinyUI.createText('Test 1: Plain border (borderWidth=4)');
+    label1.color = '#cbd5e0';
+    label1.fontSize = 18;
+    label1.anchorX = 0;
+    label1.anchorY = 0;
+    label1.x = 50;
+    label1.y = 120;
+    forceUpdateTexture(label1);
+    tinyUI.root.addChild(label1);
+
+    const text1 = tinyUI.createText('Hello Border 你好');
+    text1.color = '#ffffff';
+    text1.fontSize = 48;
+    text1.borderColor = '#000000';
+    text1.borderWidth = 4;
+    text1.anchorX = 0;
+    text1.anchorY = 0;
+    text1.x = 50;
+    text1.y = 150;
+    forceUpdateTexture(text1);
+    tinyUI.root.addChild(text1);
+
+    // 测试 2: 数字颜色格式 + 粗描边
+    const label2 = tinyUI.createText('Test 2: Number color 0xff0000 (borderWidth=8)');
+    label2.color = '#cbd5e0';
+    label2.fontSize = 18;
+    label2.anchorX = 0;
+    label2.anchorY = 0;
+    label2.x = 50;
+    label2.y = 240;
+    forceUpdateTexture(label2);
+    tinyUI.root.addChild(label2);
+
+    const text2 = tinyUI.createText('Thick Red');
+    text2.color = '#fbbf24';
+    text2.fontSize = 48;
+    text2.borderColor = 0xff0000;
+    text2.borderWidth = 8;
+    text2.anchorX = 0;
+    text2.anchorY = 0;
+    text2.x = 50;
+    text2.y = 270;
+    forceUpdateTexture(text2);
+    tinyUI.root.addChild(text2);
+
+    // 测试 3: 多行 + 居中对齐 + 描边
+    const label3 = tinyUI.createText('Test 3: Multi-line + align=center (borderWidth=3)');
+    label3.color = '#cbd5e0';
+    label3.fontSize = 18;
+    label3.anchorX = 0;
+    label3.anchorY = 0;
+    label3.x = 50;
+    label3.y = 370;
+    forceUpdateTexture(label3);
+    tinyUI.root.addChild(label3);
+
+    const text3 = tinyUI.createText('First line\nSecond longer line');
+    text3.color = '#60a5fa';
+    text3.fontSize = 32;
+    text3.borderColor = '#1e3a8a';
+    text3.borderWidth = 3;
+    text3.align = 'center';
+    text3.anchorX = 0;
+    text3.anchorY = 0;
+    text3.x = 50;
+    text3.y = 400;
+    forceUpdateTexture(text3);
+    tinyUI.root.addChild(text3);
+
+    // 测试 4: BBCode 路径的 Text 级 border
+    const label4 = tinyUI.createText('Test 4: BBCode + Text-level border (borderWidth=4)');
+    label4.color = '#cbd5e0';
+    label4.fontSize = 18;
+    label4.anchorX = 0;
+    label4.anchorY = 0;
+    label4.x = 50;
+    label4.y = 540;
+    forceUpdateTexture(label4);
+    tinyUI.root.addChild(label4);
+
+    const text4 = tinyUI.createText('[b]Bold[/b] and [color=#ec4899]pink[/color] with border');
+    text4.bbcodeEnabled = true;
+    text4.color = '#ffffff';
+    text4.fontSize = 36;
+    text4.borderColor = '#000000';
+    text4.borderWidth = 4;
+    text4.anchorX = 0;
+    text4.anchorY = 0;
+    text4.x = 50;
+    text4.y = 570;
+    forceUpdateTexture(text4);
+    tinyUI.root.addChild(text4);
+
+    // 测试 5: BBCode 显式 [outline] 标签优先于 Text 级 border
+    const label5 = tinyUI.createText('Test 5: BBCode [outline] tag takes precedence');
+    label5.color = '#cbd5e0';
+    label5.fontSize = 18;
+    label5.anchorX = 0;
+    label5.anchorY = 0;
+    label5.x = 50;
+    label5.y = 660;
+    forceUpdateTexture(label5);
+    tinyUI.root.addChild(label5);
+
+    const text5 = tinyUI.createText('default border, [outline=#10b981]green outline[/outline]');
+    text5.bbcodeEnabled = true;
+    text5.color = '#ffffff';
+    text5.fontSize = 36;
+    text5.borderColor = '#000000';
+    text5.borderWidth = 4;
+    text5.anchorX = 0;
+    text5.anchorY = 0;
+    text5.x = 50;
+    text5.y = 690;
+    forceUpdateTexture(text5);
+    tinyUI.root.addChild(text5);
+
+    tinyUI.render();
+    </script>
+  </body>
+</html>

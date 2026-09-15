@@ -25,6 +25,8 @@ export class Text extends DisplayObject {
   private _fontWeight: FontWeight = "normal";
   private _maxWidth: number = 0; // 0 表示无限制
   private _align: TextAlign = "left";
+  private _borderColor: string = "#000000";
+  private _borderWidth: number = 0; // 0 表示无描边
 
   texture: WebGLTexture | null = null;
   textureNeedsUpdate: boolean = true;
@@ -73,6 +75,14 @@ export class Text extends DisplayObject {
 
   get align(): TextAlign {
     return this._align;
+  }
+
+  get borderColor(): string {
+    return this._borderColor;
+  }
+
+  get borderWidth(): number {
+    return this._borderWidth;
   }
 
   get bbcodeEnabled(): boolean {
@@ -153,6 +163,23 @@ export class Text extends DisplayObject {
     }
   }
 
+  set borderColor(color: string | number) {
+    const formattedColor = this._formatColor(color);
+    if (this._borderColor !== formattedColor) {
+      this._borderColor = formattedColor;
+      this.textureNeedsUpdate = true;
+    }
+  }
+
+  set borderWidth(borderWidth: number) {
+    // NaN/Infinity 视为 0：NaN 会使画布尺寸失效，且 NaN !== NaN 导致每次赋值都标脏
+    const value = Number.isFinite(borderWidth) ? Math.max(0, borderWidth) : 0;
+    if (this._borderWidth !== value) {
+      this._borderWidth = value;
+      this.textureNeedsUpdate = true;
+    }
+  }
+
   set bbcodeEnabled(value: boolean) {
     if (this._bbcodeEnabled !== value) {
       this._bbcodeEnabled = value;
@@ -214,6 +241,9 @@ export class Text extends DisplayObject {
     }
 
     ctx.font = `${this._fontWeight} ${this._fontSize}px ${this._fontFamily}`;
+    // 测量前固定 baseline：绘制阶段会把 baseline 改成 "top" 并遗留在复用的
+    // canvas 上，node-canvas 下会影响下一轮 actualBoundingBox 度量
+    ctx.textBaseline = "alphabetic";
 
     const effectiveLineHeight = this.lineHeight;
     let textWidth: number;
@@ -340,8 +370,10 @@ export class Text extends DisplayObject {
     // 顶部 padding：保守策略，至少 8px + fontSize 的 30%
     // 配合 textBaseline = "top" 使用，fillText 的 y 即为文本顶部
     const topPadding = Math.max(8, Math.ceil(this._fontSize * 0.3));
-    const originalWidth = textWidth + 4;
-    const originalHeight = textHeight + 4 + topPadding;
+    // 描边以字形路径为中心向内外各扩一半，画布需额外预留 borderWidth
+    const halfBorder = this._borderWidth / 2;
+    const originalWidth = textWidth + 4 + this._borderWidth;
+    const originalHeight = textHeight + 4 + topPadding + this._borderWidth;
 
     this.textureWidth = nextPowerOfTwo(originalWidth);
     this.textureHeight = nextPowerOfTwo(originalHeight);
@@ -355,15 +387,25 @@ export class Text extends DisplayObject {
     ctx.fillStyle = this._color;
     ctx.textAlign = this._align;
 
-    let x = 2;
+    let x = 2 + halfBorder;
     if (this._align === "center") {
       x = originalWidth / 2;
     } else if (this._align === "right") {
-      x = originalWidth - 2;
+      x = originalWidth - 2 - halfBorder;
+    }
+
+    if (this._borderWidth > 0) {
+      ctx.lineWidth = this._borderWidth;
+      ctx.strokeStyle = this._borderColor;
+      // round 连接避免 miter 在字形尖角处炸刺
+      ctx.lineJoin = "round";
     }
 
     for (let i = 0; i < lines.length; i++) {
-      const y = topPadding + 2 + i * lineHeight;
+      const y = topPadding + 2 + halfBorder + i * lineHeight;
+      if (this._borderWidth > 0) {
+        ctx.strokeText(lines[i], x, y);
+      }
       ctx.fillText(lines[i], x, y);
     }
 
@@ -426,18 +468,35 @@ export class Text extends DisplayObject {
 
     const padding = this._canvasPadding;
 
-    // 计算因 offsetY / 描边导致的顶部/底部溢出，防止内容被裁剪
+    // 计算因 offset / 描边导致的溢出，防止内容被裁剪；
+    // 描边宽度按各图层的实际渲染条件取值（与 renderBBCodeLayers 一致）
     let topOverflow = 0;
     let bottomOverflow = 0;
+    let leftOverflow = 0;
+    let rightOverflow = 0;
     for (const line of lines) {
       for (const unit of line.units) {
-        const offsetY = unit.style.offsetY;
-        const hasStroke =
-          unit.style.stroke || unit.style.outline || unit.style.outlineBack;
-        const strokeWidth = hasStroke
-          ? unit.style.lineThickness * unit.style.fontSize
-          : 0;
+        const strokeWidths: number[] = [];
+        if (unit.style.visible) {
+          if (
+            unit.style.stroke ||
+            unit.style.outline ||
+            unit.style.outlineBack
+          ) {
+            strokeWidths.push(unit.style.lineThickness * unit.style.fontSize);
+          }
+          if (
+            unit.style.borderWidth &&
+            !unit.style.stroke &&
+            !unit.style.outline
+          ) {
+            strokeWidths.push(unit.style.borderWidth);
+          }
+        }
+        const strokeWidth =
+          strokeWidths.length > 0 ? Math.max(...strokeWidths) : 0;
 
+        const offsetY = unit.style.offsetY;
         const visualTop = unit.y + offsetY - strokeWidth / 2;
         if (visualTop < 0) {
           topOverflow = Math.max(topOverflow, -visualTop);
@@ -449,6 +508,21 @@ export class Text extends DisplayObject {
           bottomOverflow = Math.max(
             bottomOverflow,
             visualBottom - availableBottom,
+          );
+        }
+
+        const offsetX = unit.style.offsetX;
+        const visualLeft = unit.x + offsetX - strokeWidth / 2;
+        if (visualLeft < 0) {
+          leftOverflow = Math.max(leftOverflow, -visualLeft);
+        }
+
+        const visualRight = unit.x + unit.width + offsetX + strokeWidth / 2;
+        const availableRight = maxWidth + 2 + padding;
+        if (visualRight > availableRight) {
+          rightOverflow = Math.max(
+            rightOverflow,
+            visualRight - availableRight,
           );
         }
       }
@@ -474,7 +548,17 @@ export class Text extends DisplayObject {
       }
     }
 
-    const originalWidth = maxWidth + 4 + padding * 2;
+    // 整体右移，为左侧溢出留出空间
+    if (leftOverflow > 0) {
+      for (const line of lines) {
+        for (const unit of line.units) {
+          unit.x += leftOverflow;
+        }
+      }
+    }
+
+    const originalWidth =
+      maxWidth + 4 + padding * 2 + leftOverflow + rightOverflow;
     const originalHeight =
       totalHeight + 4 + padding * 2 + topOverflow + bottomOverflow;
 
@@ -527,6 +611,14 @@ export class Text extends DisplayObject {
         this._fontFamily,
         this._color,
       );
+
+      // Text 级 border 写入独立字段，与 lineThickness 解耦
+      // （避免影响下划线/删除线粗细）；显式 [outline] 标签的 unit
+      // 在渲染时优先使用标签轮廓（见 renderBBCodeLayers Layer 3）
+      if (this._borderWidth > 0) {
+        style.borderColor = this._borderColor;
+        style.borderWidth = this._borderWidth;
+      }
 
       // Apply tags
       for (const tag of segment.tags) {
@@ -795,10 +887,25 @@ export class Text extends DisplayObject {
     }
 
     // Layer 3: outline (on top)
+    // 显式 [outline] 标签优先（宽度取 lineThickness）；
+    // 否则应用 Text 级 border（独立 borderWidth，单位 px）
     for (const line of lines) {
       for (const unit of line.units) {
-        if (unit.style.outline && unit.style.visible && !unit.style.stroke) {
-          this.renderOutlinedText(ctx, unit, unit.style.outline);
+        if (!unit.style.visible || unit.style.stroke) continue;
+        if (unit.style.outline) {
+          this.renderOutlinedText(
+            ctx,
+            unit,
+            unit.style.outline,
+            unit.style.lineThickness * unit.style.fontSize,
+          );
+        } else if (unit.style.borderWidth && unit.style.borderColor) {
+          this.renderOutlinedText(
+            ctx,
+            unit,
+            unit.style.borderColor,
+            unit.style.borderWidth,
+          );
         }
       }
     }
@@ -831,6 +938,7 @@ export class Text extends DisplayObject {
     ctx.textBaseline = "alphabetic";
     ctx.lineWidth = unit.style.lineThickness * unit.style.fontSize;
     ctx.strokeStyle = unit.style.outlineBack;
+    ctx.lineJoin = "round";
     ctx.globalAlpha = unit.style.opacity / 100;
 
     const x = unit.x + unit.style.offsetX;
@@ -849,6 +957,7 @@ export class Text extends DisplayObject {
     ctx.textBaseline = "alphabetic";
     ctx.lineWidth = unit.style.lineThickness * unit.style.fontSize;
     ctx.strokeStyle = unit.style.color;
+    ctx.lineJoin = "round";
     ctx.globalAlpha = unit.style.opacity / 100;
 
     const x = unit.x + unit.style.offsetX;
@@ -863,11 +972,14 @@ export class Text extends DisplayObject {
     ctx: CanvasRenderingContext2D,
     unit: RenderUnit,
     outlineColor: string,
+    lineWidth: number,
   ): void {
     ctx.font = buildFontString(unit.style);
     ctx.textBaseline = "alphabetic";
-    ctx.lineWidth = unit.style.lineThickness * unit.style.fontSize;
+    ctx.lineWidth = lineWidth;
     ctx.strokeStyle = outlineColor;
+    // round 连接避免 miter 在字形尖角（W/A/M/V 等）处炸刺冲出画布
+    ctx.lineJoin = "round";
     ctx.globalAlpha = unit.style.opacity / 100;
 
     const x = unit.x + unit.style.offsetX;
