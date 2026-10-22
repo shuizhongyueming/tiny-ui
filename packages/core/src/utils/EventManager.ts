@@ -111,41 +111,59 @@ export class EventManager {
       // 这个会导致游戏无法响应点击事件
       // event.preventDefault();
 
-      // 转换事件坐标到canvas坐标系
-      const canvasRect = this.canvas.getBoundingClientRect();
-      let x: number, y: number;
-
-      if (event instanceof TouchEvent) {
-        const touch = event.touches[0] || event.changedTouches[0];
-        x = touch.clientX - canvasRect.left;
-        y = touch.clientY - canvasRect.top;
-      } else {
+      if (typeof TouchEvent !== "undefined" && !(event instanceof TouchEvent)) {
         return;
       }
 
+      const touchEvent = event as TouchEvent;
+
+      // 多指：每个发生变化的触点单独分发一次。
+      // changedTouches 为空时（部分宿主实现）回退到全量 touches。
+      // 这样「一指按住游戏 + 另一指点按钮」的两个触点都能命中各自的节点。
+      const changed = touchEvent.changedTouches;
+      const touchList: ArrayLike<Touch> =
+        changed && changed.length > 0 ? changed : touchEvent.touches;
+
+      if (!touchList || touchList.length === 0) {
+        return;
+      }
+
+      // 转换事件坐标到canvas坐标系
+      const canvasRect = this.canvas.getBoundingClientRect();
       // 缩放坐标以适应canvas的实际尺寸
       const scaleX = this.canvas.width / canvasRect.width;
       const scaleY = this.canvas.height / canvasRect.height;
-      x *= scaleX;
-      y *= scaleY;
 
-      // 创建自定义事件对象
-      const uiEvent = new UIEvent({
-        type: eventName,
-        x,
-        y,
-        originalEvent: event,
-        target: null,
-      });
+      const stoppedTypes: StopType[] = [];
 
-      // 将事件传递给UI树
-      this.dispatchEventToNode(this.app.root, uiEvent);
+      for (let i = 0; i < touchList.length; i++) {
+        const touch = touchList[i];
+
+        // 创建自定义事件对象
+        const uiEvent = new UIEvent({
+          type: eventName,
+          x: (touch.clientX - canvasRect.left) * scaleX,
+          y: (touch.clientY - canvasRect.top) * scaleY,
+          originalEvent: event,
+          target: null,
+          identifier: touch.identifier,
+        });
+
+        // 将事件传递给UI树
+        this.dispatchEventToNode(this.app.root, uiEvent);
+
+        // 汇总被拦截的类型，供 mouse 桥接使用
+        for (const stopType of uiEvent.getStopTypes()) {
+          if (stoppedTypes.indexOf(stopType) === -1) {
+            stoppedTypes.push(stopType);
+          }
+        }
+      }
 
       // 分发完成后，如果被拦截，记录该事件
-      const stopTypes = uiEvent.getStopTypes();
-      if (stopTypes.length > 0) {
+      if (stoppedTypes.length > 0) {
         this.touchEventRecords.set(eventName, {
-          stopTypes,
+          stopTypes: stoppedTypes,
           time: Date.now(),
         });
       }

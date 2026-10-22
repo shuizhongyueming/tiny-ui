@@ -9,6 +9,11 @@ interface UIEventInit {
   x: number;
   y: number;
   target: null | DisplayObject;
+  /**
+   * 触点标识。多指场景下由 EventManager 逐个触点传入；
+   * 不传时回退到原生 TouchEvent 的 changedTouches[0]。
+   */
+  identifier?: number;
 }
 
 let customIdentifier = 0;
@@ -26,14 +31,26 @@ export class UIEvent {
   private _handled: boolean;
   private _identifier: number;
 
-  constructor({ type, originalEvent, x, y, target }: UIEventInit) {
+  constructor({
+    type,
+    originalEvent,
+    x,
+    y,
+    target,
+    identifier,
+  }: UIEventInit) {
     this.type = type;
     this.originalEvent = originalEvent;
     this.x = x;
     this.y = y;
     this.target = target;
 
-    if (this.originalEvent instanceof TouchEvent) {
+    if (typeof identifier === "number") {
+      this._identifier = identifier;
+    } else if (
+      typeof TouchEvent !== "undefined" &&
+      this.originalEvent instanceof TouchEvent
+    ) {
       this._identifier = this.originalEvent.changedTouches[0].identifier;
     } else {
       this._identifier = getCustomIdentifier();
