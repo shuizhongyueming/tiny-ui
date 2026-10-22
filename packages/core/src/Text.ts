@@ -16,6 +16,30 @@ import {
 type FontWeight = "normal" | "bold";
 type TextAlign = "left" | "center" | "right";
 
+/**
+ * 规范化 font-family 字符串。
+ *
+ * 多词字体名在 CSS 里必须带引号，否则 `ctx.font = "bold 32px Fredoka One"`
+ * 是非法值，canvas 会静默回退到默认字体——界面不报错、字体却变了。
+ * 这里把单个多词 family 自动加引号，单字 family 和 CSS 通用关键字保持原样。
+ */
+export function normalizeFontFamily(family: string): string {
+  if (!family) return family;
+
+  return family
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0)
+    .map((part) => {
+      // 已带引号：不动
+      if (/^["']/.test(part)) return part;
+      // 单字（Arial、system-ui）或含通配后缀的写法：不动
+      if (/^[A-Za-z_-]+$/.test(part)) return part;
+      return `"${part}"`;
+    })
+    .join(", ");
+}
+
 export class Text extends DisplayObject {
   private _text: string = "";
   private _color: string = "#000000";
@@ -122,8 +146,9 @@ export class Text extends DisplayObject {
   }
 
   set fontFamily(fontFamily: string) {
-    if (this._fontFamily !== fontFamily) {
-      this._fontFamily = fontFamily;
+    const normalized = normalizeFontFamily(fontFamily);
+    if (this._fontFamily !== normalized) {
+      this._fontFamily = normalized;
       this.textureNeedsUpdate = true;
     }
   }

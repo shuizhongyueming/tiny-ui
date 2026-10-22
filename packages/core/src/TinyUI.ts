@@ -87,6 +87,12 @@ void main() {
 interface TinyUIOption {
   handleTouchEventListening?: TouchEventListeningHandler;
   glState?: GLState;
+  /**
+   * 是否由 TinyUI 按 `clientWidth * devicePixelRatio` 改写 canvas 尺寸。
+   * 默认 true（独立使用时的行为）。与引擎共用 canvas 时必须传 false：
+   * 引擎自己管理 pixelRatio（如自适应质量），TinyUI 再改一次会让两者分辨率脱节。
+   */
+  manageCanvasSize?: boolean;
 }
 
 class TinyUI {
@@ -158,6 +164,17 @@ class TinyUI {
       glContextArrtibutes,
     ) as WebGLRenderingContext;
 
+    // 与引擎共存时，context 可能已经由引擎按另一个版本创建过。
+    // 同一个 canvas 再次申请另一版本会得到 null，这里自动换一个版本重试，
+    // 避免调用方必须自己判断当前 canvas 已经绑定了哪个版本的 context。
+    if (!this.gl) {
+      const fallbackContextId = contextId === "webgl2" ? "webgl" : "webgl2";
+      this.gl = canvas.getContext(
+        fallbackContextId,
+        glContextArrtibutes,
+      ) as unknown as WebGLRenderingContext;
+    }
+
     if (!this.gl) {
       throw new Error("WebGL not supported");
     }
@@ -195,10 +212,12 @@ class TinyUI {
     // 这不是无意义节点，不要轻易删除；如果要调整，必须先在真机回归。
     this._installTextRenderWarmup();
 
-    const displayWidth = this.canvas.clientWidth * window.devicePixelRatio;
-    const displayHeight = this.canvas.clientHeight * window.devicePixelRatio;
-    this.canvas.width = displayWidth;
-    this.canvas.height = displayHeight;
+    if (option.manageCanvasSize !== false) {
+      const displayWidth = this.canvas.clientWidth * window.devicePixelRatio;
+      const displayHeight = this.canvas.clientHeight * window.devicePixelRatio;
+      this.canvas.width = displayWidth;
+      this.canvas.height = displayHeight;
+    }
 
     // 设置视口尺寸
     this.updateViewport();
