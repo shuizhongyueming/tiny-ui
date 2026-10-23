@@ -3,10 +3,12 @@ export interface CreateGraphicsOptions {
   /** 节点名，出现在诊断消息里。 */
   name?: string;
   /**
-   * 本地坐标原点落在节点上的位置。
+   * 本地坐标原点落在节点上的位置。对应 `pivotX / pivotY`（不是 `anchor`）。
    *
-   * - `"center"`（默认）：`anchor = 0.5`，`x/y` 指节点中心
-   * - `"topLeft"`：`anchor = 0`，`drawRect(0, 0, w, h)` 从该点铺开
+   * - `"center"`（默认）：`pivot = 0.5`，`x/y` 指节点中心
+   * - `"topLeft"`：`pivot = 0`，`drawRect(0, 0, w, h)` 从该点铺开
+   *
+   * 两种情况都不改动 `anchor`，旋转缩放中心始终是盒中心。
    */
   origin?: "center" | "topLeft";
 }

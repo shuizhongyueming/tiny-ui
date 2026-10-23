@@ -82,15 +82,16 @@ export function Scroll({
 
   // 遮罩层（拦截事件，定义可视区域）
   const maskLayer = ShapeRect(app, { width, height }, "#ffffff");
-  maskLayer.anchorX = 0;
-  maskLayer.anchorY = 0;
+  /* 遮罩与内容都从容器左上角起算 —— 定位意图，用 pivot。 */
+  maskLayer.pivotX = 0;
+  maskLayer.pivotY = 0;
   maskLayer.alpha = 0;
   container.addChild(maskLayer);
 
   // 内容容器
   const content = app.createContainer("Scroll/Content");
-  content.anchorX = 0;
-  content.anchorY = 0;
+  content.pivotX = 0;
+  content.pivotY = 0;
   container.addChild(content);
 
   // 设置裁剪区域在 container 上，使内容只在可视区域内显示

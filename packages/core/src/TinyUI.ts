@@ -236,8 +236,9 @@ class TinyUI {
 
     // 创建根容器
     this.root = new Container(this, "RootContainer");
-    this.root.anchorX = 0;
-    this.root.anchorY = 0;
+    /* 根容器铺满画布、从左上角起算 —— 这是定位意图，用 pivot。 */
+    this.root.pivotX = 0;
+    this.root.pivotY = 0;
     // 某些宿主环境（已在 Honor + Laya 共存链路中验证）首个真实 Text
     // 会出现异常缩放/渲染不稳定。这里提前插入一个屏幕外 Text，
     // 让文本纹理上传和首个 Text draw 的冷启动成本先被消费掉。
@@ -1060,8 +1061,10 @@ class TinyUI {
     const options = normalizeGraphicsOptions(nameOrOptions);
     const graphics = new Graphics(this, options.name);
     if (options.topLeft) {
-      graphics.anchorX = 0;
-      graphics.anchorY = 0;
+      /* 设 pivot 而不是 anchor：pivot 管「x/y 指向哪个点」，anchor 管旋转中心。
+         这里只需要前者 —— 让绘制命令从左上角铺开，同时旋转仍绕盒中心。 */
+      graphics.pivotX = 0;
+      graphics.pivotY = 0;
     }
     return graphics;
   }

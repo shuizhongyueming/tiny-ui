@@ -23,8 +23,9 @@ const mockApp = {} as TinyUI;
 function node(w: number, h: number): DisplayObject {
   const n = new DisplayObject(mockApp);
   n.setSize(w, h);
-  n.anchorX = 0;
-  n.anchorY = 0;
+  /* 布局摆的是「左上角」，所以配 pivot（不是 anchor —— anchor 只管旋转中心）。 */
+  n.pivotX = 0;
+  n.pivotY = 0;
   return n;
 }
 
@@ -182,18 +183,18 @@ describe("layoutRow", () => {
     expect(row.width).toBe(0);
   });
 
-  it("从右往左排列时仍然正确（anchorX=1）", () => {
+  it("从右往左排列时仍然正确（pivotX=1）", () => {
     const row = new Container(mockApp);
     const a = node(10, 10);
     const b = node(10, 10);
-    // anchorX=1 的节点要让左缘落在游标处，x 需要加回整个宽度
-    a.anchorX = 1;
-    b.anchorX = 1;
+    // pivotX=1 的节点要让左缘落在游标处，x 需要加回整个宽度
+    a.pivotX = 1;
+    b.pivotX = 1;
     [a, b].forEach((n) => row.addChild(n));
 
     layoutRow(row, [a, b], { gap: 5 });
 
-    // 左上角 = x - anchorX*width
+    // 左上角 = x - pivotX*width
     expect(a.x - a.width).toBe(0);
     expect(b.x - b.width).toBe(15);
   });
@@ -253,8 +254,8 @@ describe("layoutColumn", () => {
     const col = new Container(mockApp);
     const ink = new InkNode(mockApp);
     ink.setSize(10, 100);
-    ink.anchorX = 0;
-    ink.anchorY = 0;
+    ink.pivotX = 0;
+    ink.pivotY = 0;
     const plain = node(10, 20);
     col.addChild(ink);
     col.addChild(plain);

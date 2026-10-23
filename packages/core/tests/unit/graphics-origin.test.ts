@@ -39,22 +39,20 @@ describe("normalizeGraphicsOptions", () => {
   });
 });
 
-describe("Graphics 默认 anchor 保持 0.5", () => {
-  it("构造后 anchor 是 0.5 —— 本里程碑刻意不改默认值", () => {
+describe("默认 pivot / anchor 都是 0.5", () => {
+  it("构造后 pivot 与 anchor 都是 0.5 —— 拆分不改变默认行为", () => {
     const g = new Graphics(mockApp);
+    expect([g.pivotX, g.pivotY]).toEqual([0.5, 0.5]);
     expect([g.anchorX, g.anchorY]).toEqual([0.5, 0.5]);
   });
 
-  it("origin=topLeft 等价于手动把 anchor 设为 0", () => {
-    const withOption = new Graphics(mockApp);
-    // createGraphics 内部就是这两行，等价性在这里锁定
-    withOption.anchorX = 0;
-    withOption.anchorY = 0;
+  it("origin=topLeft 只改 pivot，不动 anchor", () => {
+    const g = new Graphics(mockApp);
+    // createGraphics 内部就是这两行
+    g.pivotX = 0;
+    g.pivotY = 0;
 
-    const manual = new Graphics(mockApp);
-    manual.anchorX = 0;
-    manual.anchorY = 0;
-
-    expect([withOption.anchorX, withOption.anchorY]).toEqual([manual.anchorX, manual.anchorY]);
+    expect([g.pivotX, g.pivotY]).toEqual([0, 0]);
+    expect([g.anchorX, g.anchorY]).toEqual([0.5, 0.5]); // 旋转中心仍在盒中心
   });
 });

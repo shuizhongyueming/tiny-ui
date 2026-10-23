@@ -98,8 +98,10 @@ describe("Container", () => {
     child._setHeight(50);
     child.x = 50;
     child.y = 50;
-    child.anchorX = 0; // 设置 anchor 为 0，使左上角与位置对齐
-    child.anchorY = 0;
+    /* 让左上角与位置对齐 —— 这是「定位」语义，用 pivot 而不是 anchor。
+       （拆分前两者是同一个字段，这套测试也一直把 anchor 当 pivot 用。） */
+    child.pivotX = 0;
+    child.pivotY = 0;
 
     parent.addChild(child);
 

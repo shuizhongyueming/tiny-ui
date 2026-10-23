@@ -70,7 +70,8 @@ export interface RowLayoutResult {
 /**
  * 把一组节点水平排成一行，写入 `container` 的 width / height。
  *
- * 子节点的 `x` / `y` 会被覆盖；`anchorX` / `anchorY` 不影响排列（排列在
+ * 子节点的 `x` / `y` 会被覆盖；**排列用的是 `pivotX` / `pivotY`** —— 它决定 `x`/`y`
+ *  指向节点上的哪个点，布局要摆的是「左上角」，所以按 pivot 补偿（排列在容器本地坐标里进行
  * 子节点的本地坐标系里做，再换算成左上角），所以调用方可以自由设锚点。
  *
  * @param container 承载这些子节点的容器（必须已经 addChild 过它们）
@@ -120,28 +121,28 @@ export function layoutRow(
     const it = items[i];
     const w = it.width;
     /* x 是锚点位置：要让节点**左缘**落在 cursor，
-       需要 x = cursor + anchorX * 显示宽度 */
-    it.x = cursor + it.anchorX * w;
+       需要 x = cursor + pivotX * 显示宽度（pivot = x/y 指向节点上哪个点） */
+    it.x = cursor + it.pivotX * w;
 
     /* ---- 3. 交叉轴 ---- */
     const h = it.height;
     switch (align) {
       case "start":
-        /* 顶边对齐：y = anchorY * h */
-        it.y = it.anchorY * h;
+        /* 顶边对齐：y = pivotY * h */
+        it.y = it.pivotY * h;
         break;
       case "end":
-        it.y = rowHeight - h + it.anchorY * h;
+        it.y = rowHeight - h + it.pivotY * h;
         break;
       case "baseline": {
         /* 让节点的基线落在 maxBaseline 这条线上 */
         const b = it.baselineOffset;
-        it.y = maxBaseline - b + it.anchorY * h;
+        it.y = maxBaseline - b + it.pivotY * h;
         break;
       }
       case "center":
       default:
-        it.y = (rowHeight - h) / 2 + it.anchorY * h;
+        it.y = (rowHeight - h) / 2 + it.pivotY * h;
         break;
     }
 
@@ -196,20 +197,20 @@ export function layoutColumn(
     const it = items[i];
     const inkTop = useInk ? it.visualTop : 0;
     const inkH = useInk ? it.visualHeight : it.height;
-    it.y = cursor - inkTop + it.anchorY * it.height;
+    it.y = cursor - inkTop + it.pivotY * it.height;
 
     const w = it.width;
     switch (align) {
       case "center":
-        it.x = (maxWidth - w) / 2 + it.anchorX * w;
+        it.x = (maxWidth - w) / 2 + it.pivotX * w;
         break;
       case "end":
-        it.x = maxWidth - w + it.anchorX * w;
+        it.x = maxWidth - w + it.pivotX * w;
         break;
       case "start":
       case "baseline":
       default:
-        it.x = it.anchorX * w;
+        it.x = it.pivotX * w;
         break;
     }
 

@@ -9,6 +9,10 @@ interface MockDisplayObject {
   height: number;
   scaleX: number;
   scaleY: number;
+  /** 决定 x/y 指向节点上的哪个点 —— adjustTo 用它反算左上角。 */
+  pivotX: number;
+  pivotY: number;
+  /** 旋转缩放中心，adjustTo 不关心。 */
   anchorX: number;
   anchorY: number;
 }
@@ -21,6 +25,8 @@ function createMockDisplayObject(overrides: Partial<MockDisplayObject> = {}): Mo
     height: 100,
     scaleX: 1,
     scaleY: 1,
+    pivotX: 0.5,
+    pivotY: 0.5,
     anchorX: 0.5,
     anchorY: 0.5,
     ...overrides,
@@ -181,39 +187,39 @@ describe("adjustTo", () => {
   });
 
   describe("different anchor points", () => {
-    it("should handle target with anchorX=0, anchorY=0", () => {
+    it("should handle target with pivotX=0, pivotY=0", () => {
       const checker = createMockDisplayObject({ x: 200, y: 200, width: 200, height: 200 });
       const target = createMockDisplayObject({
         x: 0,
         y: 0,
         width: 50,
         height: 50,
-        anchorX: 0,
-        anchorY: 0,
+        pivotX: 0,
+        pivotY: 0,
       });
 
       adjustTo(checker as any, false)(target as any, { h: "left", v: "top" });
 
-      // anchorX=0 表示 target 的左上角在 x 位置
+      // pivotX=0 表示 target 的左上角在 x 位置
       // 左对齐时 target 左上角应该在 checker 左边界 100
       expect(target.x).toBe(100);
       expect(target.y).toBe(100);
     });
 
-    it("should handle target with anchorX=1, anchorY=1", () => {
+    it("should handle target with pivotX=1, pivotY=1", () => {
       const checker = createMockDisplayObject({ x: 200, y: 200, width: 200, height: 200 });
       const target = createMockDisplayObject({
         x: 0,
         y: 0,
         width: 50,
         height: 50,
-        anchorX: 1,
-        anchorY: 1,
+        pivotX: 1,
+        pivotY: 1,
       });
 
       adjustTo(checker as any, false)(target as any, { h: "right", v: "bottom" });
 
-      // anchorX=1 表示 target 的右下角在 x 位置
+      // pivotX=1 表示 target 的右下角在 x 位置
       // 右对齐时 target 右下角应该在 checker 右边界 300
       expect(target.x).toBe(300);
       expect(target.y).toBe(300);

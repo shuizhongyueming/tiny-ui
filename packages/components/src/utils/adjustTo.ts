@@ -38,10 +38,12 @@ export const adjustTo: IAdjustTo =
 
     // 因为checker和target的hotspot可能不一致
     // 如果 checker和target是包含关系，那么不需要考虑 checker的坐标
-    const cX = willContain ? 0 : checker.x - checkWidth * checker.anchorX;
-    const cY = willContain ? 0 : checker.y - checkHeight * checker.anchorY;
-    const tX = target.x - targetWidth * target.anchorX;
-    const tY = target.y - targetHeight * target.anchorY;
+    /* 反算「节点盒左上角」用的是 pivot —— 它才决定 x/y 指向节点上哪个点。
+       anchor 只管旋转缩放中心，与这里的对齐计算无关。 */
+    const cX = willContain ? 0 : checker.x - checkWidth * checker.pivotX;
+    const cY = willContain ? 0 : checker.y - checkHeight * checker.pivotY;
+    const tX = target.x - targetWidth * target.pivotX;
+    const tY = target.y - targetHeight * target.pivotY;
     let moveX = 0;
     let moveY = 0;
 

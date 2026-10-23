@@ -23,8 +23,43 @@ export class DisplayObject extends Emitter {
   visible: boolean = true;
   scaleX: number = 1;
   scaleY: number = 1;
+  /**
+   * 旋转与缩放的中心。以节点盒为参考，0.5 = 盒中心。
+   *
+   * 只影响矩阵里的 rotate / scale 部分，不影响 `x / y` 指向哪里。
+   */
   anchorX: number = 0.5;
   anchorY: number = 0.5;
+
+  private _pivotX: number | undefined = undefined;
+  private _pivotY: number | undefined = undefined;
+
+  /**
+   * `x / y` 指向节点上的哪个点。0 = 左上角，0.5 = 中心，1 = 右下角。
+   *
+   * 与 `anchor` 分开：`pivot` 只管**定位**（矩阵平移 + 流式布局的左上角补偿），
+   * `anchor` 只管**旋转缩放中心**。详见 docs/coordinate-contract.md。
+   *
+   * **未显式设置时跟随 `anchor`。** 这不是偷懒，是为了兼容：
+   * 拆分之前只有一个 `anchor`，历史代码用 `anchorX = 0` 表达「x/y 指左上角」。
+   * 如果 pivot 固定默认 0.5，那些代码会集体错位。跟随之后，
+   * 旧代码行为一个像素都不变，新代码设 `pivotX` 就能独立控制定位。
+   */
+  get pivotX(): number {
+    return this._pivotX ?? this.anchorX;
+  }
+
+  set pivotX(value: number) {
+    this._pivotX = value;
+  }
+
+  get pivotY(): number {
+    return this._pivotY ?? this.anchorY;
+  }
+
+  set pivotY(value: number) {
+    this._pivotY = value;
+  }
   alpha: number = 1;
   name: string = "";
   rotation: number = 0; // 角度 (0-360)
@@ -218,12 +253,15 @@ export class DisplayObject extends Emitter {
   getLocalTransformMatrix(): Matrix {
     const matrix = new Matrix();
 
-    // 计算基于锚点的变换
+    /* 定位用 pivot：x / y 指向节点上的哪个点。 */
+    const pivotOffsetX = this.width * this.pivotX;
+    const pivotOffsetY = this.height * this.pivotY;
+
+    /* 旋转缩放用 anchor：围绕节点盒上的哪个点转。 */
     const anchorOffsetX = this.width * this.anchorX;
     const anchorOffsetY = this.height * this.anchorY;
 
-    // 移动到位置（考虑锚点偏移）
-    matrix.translate(this.x - anchorOffsetX, this.y - anchorOffsetY);
+    matrix.translate(this.x - pivotOffsetX, this.y - pivotOffsetY);
 
     // 如果有旋转或缩放，需要围绕锚点进行
     if (this.rotation !== 0 || this.scaleX !== 1 || this.scaleY !== 1) {
