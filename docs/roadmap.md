@@ -15,7 +15,7 @@
 | **A** | 开发诊断骨架 | P1 | 无 | #3 第一批 — ✅ `87c9555` |
 | **B** | Graphics 边界正确性 | P1 | 无（可与 A 并行） | #2 — ✅ `6cc3ba3` |
 | **C** | 尺寸冲突诊断 | P1 | **B4 的决策** + A + B | #3 第二批 — ✅ `54703ed` |
-| **D** | 坐标契约 | P2 | B + C | #1 — 选项 A ✅ `0be3d9d`；选项 B 未做 |
+| **D** | 坐标契约 | P2 | B + C | #1 — 选项 A ✅ `0be3d9d`；选项 B ✅ `a0f42b0` |
 
 A 和 B 可并行。**C 的内容取决于 B4 选哪个方案**（见 B4）—— 必须先定 B4，
 否则 C 可能诊断一个已经不存在的现象。
@@ -255,7 +255,27 @@ core 的 15 个视觉基线**全过**，但那只覆盖 `example/`，**不覆盖
 `example/layout.html` 的两处 `anchorTopLeft(tiny.createGraphics())` 已改用新入口，
 布局视觉基线 9 个一个像素没变。
 
-#### 剩下的选项 B
+#### 选项 B 也已完成（`a0f42b0`）
+
+契约见 `docs/coordinate-contract.md`。核心决定：
+
+- 新增 `pivotX/pivotY` 只管定位（矩阵平移 + layout 补偿），`anchorX/anchorY` 只管旋转缩放中心
+- **`pivot` 未显式设置时跟随 `anchor`** —— 这让拆分零破坏，旧代码一像素不变
+- `layout.ts` 的 9 处 `it.anchorX/Y` 全部改为 `it.pivotX/Y`
+- `components/adjustTo` 反算左上角改用 pivot
+
+试过两个更激进的做法，都被视觉测试拦下：pivot 固定默认 0.5（组件 4~5 个失败）、
+批量把 `anchorX=0` 改名（带 rotation 的节点旋转中心会变）。
+
+遗留：`example/*.html` 仍用 `anchorX=0` 表达定位，行为正确但语义不精准，
+迁移需逐个确认，已记在契约文档里。
+
+原计划的 `alignment` 没有引入 —— 一个 `pivot` 已经能表达「x/y 指哪个点」，
+再加一个字段没有对应需求。
+
+---
+
+以下是拆分前的设计备忘，保留备查：
 
 动手前先写清 `pivot` 与 `alignment` 的定义：
 
