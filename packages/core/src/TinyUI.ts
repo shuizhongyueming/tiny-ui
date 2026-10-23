@@ -4,6 +4,7 @@ import { Container } from "./Container";
 import { DisplayObject } from "./DisplayObject";
 import { Graphics } from "./Graphics";
 import { isDiagnosticsEnabled, setDiagnosticsEnabled } from "./utils/diagnostics";
+import { type CreateGraphicsOptions, normalizeGraphicsOptions } from "./utils/graphicsOptions";
 import { type Size, type Color, type EventName } from "./type";
 import { EventManager, TouchEventListeningHandler } from "./utils/EventManager";
 import { Matrix } from "./utils/Matrix";
@@ -96,6 +97,8 @@ interface TinyUIOption {
    */
   manageCanvasSize?: boolean;
 }
+
+
 
 class TinyUI {
   static GLState = GLState;
@@ -1044,8 +1047,22 @@ class TinyUI {
     const container = new Container(this, name);
     return container;
   }
-  createGraphics(name?: string): Graphics {
-    const graphics = new Graphics(this, name);
+  /**
+   * 创建 Graphics。
+   *
+   * `origin` 决定本地坐标 `(0, 0)` 落在节点的哪个位置 —— 也就是 `anchor` 的取值。
+   *
+   * - `"center"`（默认）：`anchor = 0.5`，`x/y` 指节点中心。适合「放在正中」这类定位。
+   * - `"topLeft"`：`anchor = 0`，`x/y` 指左上角，`drawRect(0, 0, w, h)` 就是从该点铺开。
+   *   全屏遮罩、面板背景、按钮底色这类「从原点铺开」的图形用它，不需要再手写两行 anchor 补偿。
+   */
+  createGraphics(nameOrOptions?: string | CreateGraphicsOptions): Graphics {
+    const options = normalizeGraphicsOptions(nameOrOptions);
+    const graphics = new Graphics(this, options.name);
+    if (options.topLeft) {
+      graphics.anchorX = 0;
+      graphics.anchorY = 0;
+    }
     return graphics;
   }
 

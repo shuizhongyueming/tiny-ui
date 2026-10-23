@@ -63,7 +63,7 @@
   }
 
   function block(w, h, color) {
-    const g = anchorTopLeft(tiny.createGraphics());
+    const g = tiny.createGraphics({ origin: "topLeft" });
     g.drawRect(0, 0, w, h, color);
     g.setSize(w, h);
     return g;
@@ -227,7 +227,7 @@
      同一个 Graphics 上多次 drawRect 会做 union 扩尺寸，再叠加 setSize
      容易让顶点范围和布局尺寸不一致（实测画出一个横跨多个场景的巨框）。 */
   function borderLine(x, y, w, h) {
-    const g = anchorTopLeft(tiny.createGraphics());
+    const g = tiny.createGraphics({ origin: "topLeft" });
     g.drawRect(0, 0, w, h, COL.border);
     g.setSize(w, h);
     g.x = x;

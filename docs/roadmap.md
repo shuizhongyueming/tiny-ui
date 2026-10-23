@@ -243,9 +243,21 @@ app.createGraphics({ origin: 'topLeft' })   // 内部 anchorX = anchorY = 0
 - **必须同步** `getBounds` / `hitTest` / 裁剪 / 旋转缩放中心
 - 风险高，验收面大
 
-#### 建议：本轮只做 A
+#### 本轮已做：选项 A（`36d9a4e`）
 
-B 单独做里程碑，动手前先写清 `pivot` 与 `alignment` 的定义：
+**先试过更激进的路线，被视觉测试拦下**：把 Graphics 默认 anchor 直接改成 0。
+core 的 15 个视觉基线**全过**，但那只覆盖 `example/`，**不覆盖 components**。
+跑 components 的视觉测试才发现 4～5 个整页截图失败，根因是
+`example/adjustTo.html` 里 `checker1.x = tinyStage / 2` 这类**直接定位**依赖中心锚点。
+隔离验证（只回退 anchor、保留 union 修复 → 组件视觉全过）确认是 anchor 导致的。
+
+所以默认值保持 0.5，改为提供 `createGraphics({ origin: "topLeft" })`。
+`example/layout.html` 的两处 `anchorTopLeft(tiny.createGraphics())` 已改用新入口，
+布局视觉基线 9 个一个像素没变。
+
+#### 剩下的选项 B
+
+动手前先写清 `pivot` 与 `alignment` 的定义：
 
 - 单位与参考盒
 - 变换顺序（translate → pivot → rotate/scale → alignment？）
