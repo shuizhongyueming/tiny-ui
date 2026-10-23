@@ -31,9 +31,9 @@ function createMockTinyUI(): TinyUI {
       addChild: vi.fn(),
       removeChild: vi.fn(),
       destroy: vi.fn(),
-      setSize: vi.fn(function(this: any, size: { width: number; height: number }) {
-        this.width = size.width;
-        this.height = size.height;
+      setSize: vi.fn(function(this: any, width: number, height?: number) {
+        this.width = width;
+        this.height = height === undefined ? width : height;
       }),
       scaleTo: vi.fn(function(this: any, scale: number) {
         this.scaleX = scale;
@@ -141,7 +141,7 @@ describe("TextBtn", () => {
       });
 
       const container = (mockApp.createContainer as any).mock.results[0].value;
-      expect(container.setSize).toHaveBeenCalledWith({ width: 200, height: 60 });
+      expect(container.setSize).toHaveBeenCalledWith(200, 60);
     });
 
     it("should create button with default size when not specified", () => {
@@ -151,7 +151,7 @@ describe("TextBtn", () => {
       });
 
       const container = (mockApp.createContainer as any).mock.results[0].value;
-      expect(container.setSize).toHaveBeenCalledWith({ width: 180, height: 68 });
+      expect(container.setSize).toHaveBeenCalledWith(180, 68);
     });
   });
 
@@ -253,7 +253,7 @@ describe("TextBtn", () => {
       // In responsive mode, width = charWidth * (charNum + 1)
       // charWidth = 80 / 4 = 20, width = 20 * 5 = 100
       const container = (mockApp.createContainer as any).mock.results[0].value;
-      expect(container.setSize).toHaveBeenCalledWith({ width: 100, height: 45 });
+      expect(container.setSize).toHaveBeenCalledWith(100, 45);
     });
   });
 
