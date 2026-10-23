@@ -160,6 +160,42 @@ export class Graphics extends DisplayObject {
     }
 
     this.syncSizeFromContent();
+    this.diagnoseOverflow();
+  }
+
+  /**
+   * `explicit` 模式下内容超出布局盒时提示。
+   *
+   * `auto` 模式下不会触发 —— 尺寸本来就是内容尺寸。
+   *
+   * 这条诊断的价值：内容溢出**不会报错**，也不会改变任何数值。它只表现为
+   * 「有的图形画到了容器外面」，或者在 `Scroll` 里表现为内容被裁掉一截。
+   * 排查时看到的是「尺寸明明是 100×100」，却查不出为什么画出去 200px。
+   */
+  private diagnoseOverflow(): void {
+    if (this._sizeMode !== "explicit" || !this.hasContent) return;
+
+    const overflowLeft = this.contentMinX < 0;
+    const overflowTop = this.contentMinY < 0;
+    const overflowRight = this.contentMaxX > this.width;
+    const overflowBottom = this.contentMaxY > this.height;
+    if (!overflowLeft && !overflowTop && !overflowRight && !overflowBottom) return;
+
+    const box = `${this.width}×${this.height}`;
+    const content = `[${this.contentMinX},${this.contentMinY} → ${this.contentMaxX},${this.contentMaxY}]`;
+    const sides: string[] = [];
+    if (overflowLeft) sides.push("左");
+    if (overflowTop) sides.push("上");
+    if (overflowRight) sides.push("右");
+    if (overflowBottom) sides.push("下");
+
+    warnOnce(
+      this,
+      "W_CONTENT_OVERFLOW",
+      "contentBounds",
+      `显式尺寸 ${box} 装不下绘制内容 ${content}（超出${sides.join("、")}）`,
+      "确认 setSize 是否算小了；若尺寸本就该由内容决定，改用 autoSize()",
+    );
   }
 
   /**

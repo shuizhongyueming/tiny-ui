@@ -27,7 +27,9 @@ export type DiagnosticCode =
   /** `Text.setSize` 是 no-op，调用不会生效。 */
   | "W_TEXT_SET_SIZE"
   /** 视口尺寸为 0 时仍在绘制内容，结果什么都画不出来。 */
-  | "W_ZERO_VIEWPORT";
+  | "W_ZERO_VIEWPORT"
+  /** 显式尺寸模式下，绘制内容超出了布局盒。 */
+  | "W_CONTENT_OVERFLOW";
 
 let override: boolean | undefined;
 
