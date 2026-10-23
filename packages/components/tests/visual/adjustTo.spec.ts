@@ -1,8 +1,8 @@
 import { test, expect } from "@playwright/test";
+import { openExample, waitForStableCanvas, tapTestButton as triggerButtonClick } from "./stable";
 
 test("adjustTo example screenshot", async ({ page }) => {
-  await page.goto("/components/example/adjustTo.html");
-  await page.waitForTimeout(1000);
+  await openExample(page, "adjustTo");
   const canvas = page.locator("canvas");
   await expect(canvas).toHaveScreenshot("adjustTo.png");
 });
