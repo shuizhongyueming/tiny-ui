@@ -40,6 +40,46 @@ export function normalizeFontFamily(family: string): string {
     .join(", ");
 }
 
+/**
+ * 组装 `ctx.font` 字符串并赋值。
+ *
+ * 顺序必须严格按 CSS font 简写：`font-style font-variant font-weight font-size/line-height font-family`。
+ * 字体名必须已经过 `normalizeFontFamily`，否则多词名字会让整串非法、canvas 静默回退默认字体。
+ */
+export function applyFont(
+  ctx: CanvasRenderingContext2D,
+  weight: string,
+  style: string,
+  size: number,
+  family: string,
+): void {
+  ctx.font = `${style} ${weight} ${size}px ${family}`;
+}
+
+/**
+ * 应用字间距。
+ *
+ * `ctx.letterSpacing` 是 Chrome 99+ 的 canvas 2d 能力，赋值后 `measureText` 也会算入，
+ * 所以纹理宽度自动正确。旧 WebView 不支持时它是 undefined，直接跳过即可——
+ * 文字仍可读，只是宽度略窄，不能因此报错。
+ */
+export function applyLetterSpacing(
+  ctx: CanvasRenderingContext2D,
+  spacing: number,
+): void {
+  if (!spacing) {
+    /* 必须显式归零：canvas 2d context 在 Text 组件里是复用的，
+       上一轮拉开的字距会遗留到下一轮不想要字距的文字上。 */
+    if ("letterSpacing" in ctx) {
+      (ctx as unknown as { letterSpacing: string }).letterSpacing = "0px";
+    }
+    return;
+  }
+  if ("letterSpacing" in ctx) {
+    (ctx as unknown as { letterSpacing: string }).letterSpacing = `${spacing}px`;
+  }
+}
+
 export class Text extends DisplayObject {
   private _text: string = "";
   private _color: string = "#000000";
@@ -47,6 +87,10 @@ export class Text extends DisplayObject {
   private _fontSize: number = 16;
   private _lineHeight: number = 0; // 0 表示自动计算
   private _fontWeight: FontWeight = "normal";
+  /** 斜体。DOM 侧对应 font-style:italic —— 游戏 HUD 的状态标签全部使用斜体。 */
+  private _fontStyle: "normal" | "italic" = "normal";
+  /** 字间距（像素，= fontSize 的单位）。0 表示不设。对应 DOM 的 letter-spacing。 */
+  private _letterSpacing: number = 0;
   private _maxWidth: number = 0; // 0 表示无限制
   private _align: TextAlign = "left";
   private _borderColor: string = "#000000";
@@ -58,6 +102,14 @@ export class Text extends DisplayObject {
   private textureUpdateGen: number = 0;
   private textureWidth: number = 0;
   private textureHeight: number = 0;
+  /** 文字 ink 顶部在节点盒内相对顶边的偏移（= topPadding + 2 + halfBorder）。 */
+  private _visualTop: number = 0;
+  /** 文字 ink 的高度（不含 topPadding 与描边留白）。 */
+  private _visualHeight: number = 0;
+  /** 字体 ascent（基线到字形顶）。用于多字号混排时的基线对齐。 */
+  private _ascent: number = 0;
+  /** 字体 descent（基线到字形底）。 */
+  private _descent: number = 0;
   private previousText: string = "";
   private canvas: HTMLCanvasElement | null = null;
   private _bbcodeEnabled: boolean = false;
@@ -91,6 +143,54 @@ export class Text extends DisplayObject {
 
   get fontWeight(): FontWeight {
     return this._fontWeight;
+  }
+
+  get fontStyle(): "normal" | "italic" {
+    return this._fontStyle;
+  }
+
+  get letterSpacing(): number {
+    return this._letterSpacing;
+  }
+
+  /**
+   * 文字 ink 相对节点盒顶边的偏移。
+   *
+   * 节点盒高 = `textHeight + 4 + topPadding + borderWidth`，其中 **topPadding 只在顶部**，
+   * 底部只有 2px 留白。所以文字在盒内不是垂直居中的，`anchorY=0.5` 的中心比文字视觉中心
+   * 偏上 `topPadding/2`。做多行堆叠布局时必须用 visualTop / visualHeight 而不是 height，
+   * 否则每叠一行就往下漂 topPadding。
+   */
+  get visualTop(): number {
+    return this._visualTop;
+  }
+
+  /** 文字 ink 的高度。 */
+  get visualHeight(): number {
+    return this._visualHeight;
+  }
+
+
+  /**
+   * 基线相对节点盒顶边的偏移。
+   *
+   * 多字号混排（如车侧标签的 13px 名称 + 16px 数值）必须按基线对齐才与原版一致 ——
+   * CSS 里 inline 元素共享基线。按中心对齐会让大字上下各溢出一截；
+   * 按 `visualBottom`（行盒底）对齐则会因为行高 ≠ 字形高而差 3~5px。
+   */
+  /**
+   * Text 的尺寸由文本内容 + 字号决定，**外部不应设置**。
+   *
+   * 纹理是 2 的幂 padding，渲染时的 UV 是 `width / textureWidth`；
+   * 强行改 width 会裁掉文字。要缩放文字请改 `fontSize`，要缩放整体请用 scale
+   * 或把 Text 放进一个用 `setSize` 控制尺寸的容器。
+   */
+  setSize(_width: number, _height?: number): void {
+    // 静默忽略：抛错会打断业务里"统一遍历 setSize"的代码
+  }
+
+  protected defaultBaselineOffset(): number {
+    return this._visualTop + this._ascent;
   }
 
   get maxWidth(): number {
@@ -170,6 +270,27 @@ export class Text extends DisplayObject {
   set fontWeight(fontWeight: FontWeight) {
     if (this._fontWeight !== fontWeight) {
       this._fontWeight = fontWeight;
+      this.textureNeedsUpdate = true;
+    }
+  }
+
+  set fontStyle(fontStyle: "normal" | "italic") {
+    if (this._fontStyle !== fontStyle) {
+      this._fontStyle = fontStyle;
+      this.textureNeedsUpdate = true;
+    }
+  }
+
+  /**
+   * 字间距。正数拉开、负数收紧，单位与 fontSize 相同（像素）。
+   *
+   * 使用 canvas 2d 的 `ctx.letterSpacing`（Chrome 99+）。浏览器不支持时静默忽略——
+   * 文字仍可读，只是宽度略窄。`measureText` 会自动把字距算进去，所以纹理宽度是准的。
+   */
+  set letterSpacing(letterSpacing: number) {
+    const v = Number.isFinite(letterSpacing) ? letterSpacing : 0;
+    if (this._letterSpacing !== v) {
+      this._letterSpacing = v;
       this.textureNeedsUpdate = true;
     }
   }
@@ -265,7 +386,8 @@ export class Text extends DisplayObject {
       return;
     }
 
-    ctx.font = `${this._fontWeight} ${this._fontSize}px ${this._fontFamily}`;
+    applyFont(ctx, this._fontWeight, this._fontStyle, this._fontSize, this._fontFamily);
+    applyLetterSpacing(ctx, this._letterSpacing);
     // 测量前固定 baseline：绘制阶段会把 baseline 改成 "top" 并遗留在复用的
     // canvas 上，node-canvas 下会影响下一轮 actualBoundingBox 度量
     ctx.textBaseline = "alphabetic";
@@ -407,7 +529,8 @@ export class Text extends DisplayObject {
     canvas.height = this.textureHeight;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.font = `${this._fontWeight} ${this._fontSize}px ${this._fontFamily}`;
+    applyFont(ctx, this._fontWeight, this._fontStyle, this._fontSize, this._fontFamily);
+    applyLetterSpacing(ctx, this._letterSpacing);
     ctx.textBaseline = "top";
     ctx.fillStyle = this._color;
     ctx.textAlign = this._align;
@@ -436,6 +559,10 @@ export class Text extends DisplayObject {
 
     this.setWidth(originalWidth);
     this.setHeight(originalHeight);
+    this._visualTop = topPadding + 2 + halfBorder;
+    this._visualHeight = textHeight;
+    this._ascent = fontAscent;
+    this._descent = fontDescent;
 
     const gen = ++this.textureUpdateGen;
     const previousTexture = this.texture;
@@ -600,6 +727,10 @@ export class Text extends DisplayObject {
 
     this.setWidth(originalWidth);
     this.setHeight(originalHeight);
+    this._visualTop = padding + topOverflow;
+    this._visualHeight = totalHeight;
+    this._ascent = maxFontSize * 0.8;
+    this._descent = maxFontSize * 0.2;
 
     const gen = ++this.textureUpdateGen;
     const previousTexture = this.texture;

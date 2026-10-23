@@ -47,6 +47,51 @@ export class DisplayObject extends Emitter {
     return this._height;
   }
 
+  /**
+   * 显式指定的基线偏移（相对节点盒顶边）。为 null 时用类型默认值。
+   *
+   * 容器（Container）自身没有文字，默认以**底边**当基线；但当它扮演一个
+   * "文字组合控件"（如 图标+数值）时，应该把自己内部文字的基线报上去，
+   * 否则外层再按 baseline 排版就会对不齐。
+   * 对应 CSS 里 `display:inline-block` 的子元素参与父级基线对齐的行为。
+   */
+  baselineOverride: number | null = null;
+
+  /**
+   * 基线相对节点盒顶边的偏移，供排版的 baseline 对齐使用。
+   *
+   * 优先级：`baselineOverride` > 类型默认值。
+   * 默认是 `height`（= 按底边当基线），对图形类节点是合理近似；`Text` 覆盖为真实字体基线。
+   */
+  get baselineOffset(): number {
+    return this.baselineOverride !== null
+      ? this.baselineOverride
+      : this.defaultBaselineOffset();
+  }
+
+  /** 类型默认的基线偏移，`Text` 会覆盖。 */
+  protected defaultBaselineOffset(): number {
+    return this._height;
+  }
+
+  /**
+   * 视觉内容相对盒顶边的上边距。默认 0（图形类节点铺满盒）。
+   * `Text` 覆盖为 `topPadding + 描边留白` —— 文字 ink 在盒内是偏下的。
+   */
+  get visualTop(): number {
+    return 0;
+  }
+
+  /** 视觉内容的高度。默认等于盒高；`Text` 覆盖为行盒高的实际值。 */
+  get visualHeight(): number {
+    return this._height;
+  }
+
+  /** 视觉内容的底边（相对盒顶边）。 */
+  get visualBottom(): number {
+    return this.visualTop + this.visualHeight;
+  }
+
   protected setWidth(value: number): void {
     const oldValue = this._width;
     this._width = value;
@@ -56,6 +101,25 @@ export class DisplayObject extends Emitter {
   }
   _setWidth(value: number): void {
     this.setWidth(value);
+  }
+
+  /**
+   * 设置**布局尺寸**（相对 `scaleX/scaleY` 独立）。
+   *
+   * 布局尺寸与视觉变换是两件事，和 CSS 一致：
+   * - `width/height` 参与流式布局（`layoutRow` 用它算位置和间距）；
+   * - `scaleX/scaleY` 只影响渲染，**不改变布局**（对应 CSS 的 `transform: scale()`）。
+   *
+   * 所以「把一个 256px 的图标显示成 20px」应该用 `setSize(20, 20)`，
+   * 而不是 `scaleTo(20/256)` —— 后者会让布局按 256px 占位，
+   * 且任何用 scale 做的动画都会连带改变布局。
+   *
+   * @param width 布局宽
+   * @param height 布局高；省略时取 width（正方形）
+   */
+  setSize(width: number, height?: number): void {
+    this._setWidth(width);
+    this._setHeight(height === undefined ? width : height);
   }
 
   protected setHeight(value: number): void {
@@ -69,6 +133,16 @@ export class DisplayObject extends Emitter {
     this.setHeight(value);
   }
 
+  /**
+   * 把节点缩放到指定的**视觉尺寸**（只改 scale，不改 width/height）。
+   *
+   * ⚠️ 这是视觉缩放，**不参与布局**：`scaleToFit(20)` 之后视觉宽度是 20，
+   * 但它在 `layoutRow` 里仍然按原始的 `width` 占位，会留出一个大空位。
+   *
+   * 两个入口各有用途，别混用：
+   * - 想要"这个控件在排版里占 20px" → `setSize(20, 20)`
+   * - 想要"把背景图铺满容器"（视觉对齐，配合 `adjustTo`）→ `scaleToFit(w, h)`
+   */
   scaleToFit(width: number, height?: number): void {
     this.scaleX = width / this.width;
     if (!height) {
@@ -78,10 +152,17 @@ export class DisplayObject extends Emitter {
     }
   }
 
+  /** `scaleToFit` 的 Size 版本。同样只改视觉，不参与布局。 */
   scaleToFitSize(size: Size): void {
     this.scaleToFit(size.width, size.height);
   }
 
+  /**
+   * 按倍数做**视觉缩放**（只改 scaleX/scaleY）。
+   *
+   * ⚠️ 不参与布局。设置控件尺寸请用 `setSize()`。
+   * 动画用这个是安全的 —— scale 不影响 `layoutRow` / `layoutColumn` 的排版结果。
+   */
   scaleTo(scale: number): void {
     this.scaleX = this.scaleY = scale;
   }

@@ -9,6 +9,7 @@ import { Matrix } from "./utils/Matrix";
 import { ShaderManager } from "./utils/ShaderManager";
 import { TextureManager } from "./utils/TextureManager";
 import { GLState } from "./utils/GLState";
+import { layoutRow, layoutColumn } from "./utils/layout";
 
 type AttribSnapshot = {
   index: number;
@@ -97,6 +98,19 @@ interface TinyUIOption {
 
 class TinyUI {
   static GLState = GLState;
+  /** 水平流式排版（见 utils/layout.ts）。静态形式方便在只有节点的场景里直接调用。 */
+  static layoutRow = layoutRow;
+  /** 垂直流式排版。 */
+  static layoutColumn = layoutColumn;
+
+  /** 实例形式：`app.layoutRow(container, [a, b], { gap: 8, align: "baseline" })`。 */
+  layoutRow(container: DisplayObject, children: DisplayObject[], options?: Parameters<typeof layoutRow>[2]) {
+    return layoutRow(container, children, options);
+  }
+
+  layoutColumn(container: DisplayObject, children: DisplayObject[], options?: Parameters<typeof layoutColumn>[2]) {
+    return layoutColumn(container, children, options);
+  }
   canvas: HTMLCanvasElement;
   gl: WebGLRenderingContext;
   contextOptions: WebGLContextAttributes;

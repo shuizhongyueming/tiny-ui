@@ -25,10 +25,8 @@ export class Container extends DisplayObject {
   set height(value: number) {
     this.setHeight(value);
   }
-  setSize(size: Size) {
-    this.setWidth(size.width);
-    this.setHeight(size.height);
-  }
+  /* setSize 继承自 DisplayObject（签名 setSize(width, height?)）。
+     历史上这里是 setSize(size: Size)，统一成数字参数以免两套 API 并存。 */
 
   constructor(app: TinyUI, name: string = "Container") {
     super(app, name);
