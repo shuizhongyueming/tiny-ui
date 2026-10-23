@@ -3,6 +3,7 @@ import type TinyUI from "./TinyUI";
 import { type Matrix } from "./utils/Matrix";
 import { nextPowerOfTwo } from "./utils/Power2";
 import { BBCodeParser } from "./utils/BBCodeParser";
+import { warnOnce } from "./utils/diagnostics";
 import type { ParsedSegment } from "./utils/BBCodeParser";
 import {
   type TextStyleState,
@@ -253,7 +254,14 @@ export class Text extends DisplayObject {
    * 或把 Text 放进一个用 `setSize` 控制尺寸的容器。
    */
   setSize(_width: number, _height?: number): void {
-    // 静默忽略：抛错会打断业务里"统一遍历 setSize"的代码
+    // 抛错会打断业务里「统一遍历 setSize」的代码，所以只提示不抛。
+    warnOnce(
+      this,
+      "W_TEXT_SET_SIZE",
+      "setSize",
+      `尺寸由文本内容与字号决定，传入的 ${_width}×${_height ?? "?"} 已被忽略`,
+      "要改字号用 fontSize，要缩放整体用 scale，要控制占位请把 Text 放进容器再 setSize 容器",
+    );
   }
 
   protected defaultBaselineOffset(): number {

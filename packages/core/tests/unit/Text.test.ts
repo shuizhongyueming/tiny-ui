@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { Text } from '../../src/Text';
 import { BBCodeParser } from '../../src/utils/BBCodeParser';
 import type TinyUI from '../../src/TinyUI';
@@ -369,7 +369,10 @@ describe('Text 字体属性与视觉度量', () => {
   it('setSize 是 no-op：Text 尺寸由内容与字号决定', () => {
     const t = makeText('AB', 32);
     const before = { w: t.width, h: t.height };
+    // 这里会触发 W_TEXT_SET_SIZE 诊断，本用例只关心尺寸不变，静默掉
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     t.setSize(10, 10);
+    warn.mockRestore();
     expect(t.width).toBe(before.w);
     expect(t.height).toBe(before.h);
   });

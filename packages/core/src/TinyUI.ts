@@ -3,6 +3,7 @@ import { Text } from "./Text";
 import { Container } from "./Container";
 import { DisplayObject } from "./DisplayObject";
 import { Graphics } from "./Graphics";
+import { isDiagnosticsEnabled, setDiagnosticsEnabled } from "./utils/diagnostics";
 import { type Size, type Color, type EventName } from "./type";
 import { EventManager, TouchEventListeningHandler } from "./utils/EventManager";
 import { Matrix } from "./utils/Matrix";
@@ -102,6 +103,20 @@ class TinyUI {
   static layoutRow = layoutRow;
   /** 垂直流式排版。 */
   static layoutColumn = layoutColumn;
+
+  /**
+   * 开发诊断开关。
+   *
+   * 只控制「说不说」，不影响校验与拒绝 —— 非法几何参数在任何构建下都会被丢弃。
+   * 默认：`NODE_ENV === "production"` 时关闭。生产构建可显式 `TinyUI.debug = false`。
+   */
+  static set debug(enabled: boolean | undefined) {
+    setDiagnosticsEnabled(enabled);
+  }
+
+  static get debug(): boolean {
+    return isDiagnosticsEnabled();
+  }
 
   /** 实例形式：`app.layoutRow(container, [a, b], { gap: 8, align: "baseline" })`。 */
   layoutRow(container: DisplayObject, children: DisplayObject[], options?: Parameters<typeof layoutRow>[2]) {

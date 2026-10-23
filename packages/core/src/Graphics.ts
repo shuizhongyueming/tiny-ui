@@ -1,6 +1,10 @@
 import { DisplayObject } from "./DisplayObject";
 import type TinyUI from "./TinyUI";
 import { type Matrix } from "./utils/Matrix";
+import { describeValue, resetDiagnostic, warnOnce } from "./utils/diagnostics";
+
+/** 这些字段为负会产生反向几何，属于「可疑但保留」而不是「非法」。 */
+const EXTENT_FIELDS = new Set(["width", "height", "radius", "radius.tl", "radius.tr", "radius.br", "radius.bl"]);
 
 // 基础图形命令接口
 interface GraphicsCommandBase {
@@ -46,6 +50,9 @@ export type GraphicsCommand =
 export class Graphics extends DisplayObject {
   commands: GraphicsCommand[] = [];
 
+  /** 上一帧视口是否为零尺寸，用来让零视口诊断按「状态周期」去重。 */
+  private viewportWasZero = false;
+
   constructor(app: TinyUI, name: string = "Graphics") {
     super(app, name);
   }
@@ -55,12 +62,83 @@ export class Graphics extends DisplayObject {
     return this;
   }
 
+  /**
+   * 校验几何参数，返回「这条命令能不能要」。
+   *
+   * **校验永远执行，诊断只在装置开启时说出来。** 不要把它包进
+   * `if (isDiagnosticsEnabled())` —— 那样生产构建仍会让 `NaN` 进入边界。
+   */
+  private validateGeometry(
+    api: string,
+    fields: ReadonlyArray<readonly [string, unknown]>,
+  ): boolean {
+    let ok = true;
+    for (const [key, value] of fields) {
+      if (typeof value !== "number" || !Number.isFinite(value)) {
+        warnOnce(
+          this,
+          "E_GEOM_NONFINITE",
+          api,
+          `${key} 不是有限数值（收到 ${describeValue(value)}）`,
+          "这条命令已丢弃；NaN 通常来自尚未完成的布局计算或未初始化的容器尺寸",
+        );
+        ok = false;
+        continue;
+      }
+      if (value < 0 && EXTENT_FIELDS.has(key)) {
+        warnOnce(
+          this,
+          "W_GEOM_NEGATIVE",
+          api,
+          `${key} 为负数（${value}）`,
+          "负尺寸会生成反向几何、边界出现负宽高；确认是否把坐标差算反了",
+        );
+      }
+    }
+    return ok;
+  }
+
+  /**
+   * 视口为零时画什么都不会出现，但也**不会报错**。
+   *
+   * 按状态周期去重：进入零尺寸提示一次，恢复到有效尺寸后清标记，再次归零允许重新提示。
+   */
+  private checkViewportForDraw(): void {
+    const width = this.app.stageWidth;
+    const height = this.app.stageHeight;
+    if (width > 0 && height > 0) {
+      if (this.viewportWasZero) {
+        this.viewportWasZero = false;
+        resetDiagnostic(this, "W_ZERO_VIEWPORT");
+      }
+      return;
+    }
+    this.viewportWasZero = true;
+    warnOnce(
+      this,
+      "W_ZERO_VIEWPORT",
+      "render",
+      `视口为 ${width}×${height} 时仍在绘制 ${this.commands.length} 条命令`,
+      "等 canvas 尺寸就绪后再绘制；零视口常见于首次 layout 早于 canvas 挂载",
+    );
+  }
+
   drawCircle(
     x: number,
     y: number,
     radius: number,
     fillColor: string | number,
   ): Graphics {
+    if (
+      !this.validateGeometry("drawCircle", [
+        ["x", x],
+        ["y", y],
+        ["radius", radius],
+      ])
+    ) {
+      return this;
+    }
+
     // 相对坐标 - x和y是相对于当前图形的锚点
     this.commands.push({
       type: "circle",
@@ -102,6 +180,17 @@ export class Graphics extends DisplayObject {
     height: number,
     fillColor: string | number,
   ): Graphics {
+    if (
+      !this.validateGeometry("drawRect", [
+        ["x", x],
+        ["y", y],
+        ["width", width],
+        ["height", height],
+      ])
+    ) {
+      return this;
+    }
+
     // 相对坐标 - x和y是相对于当前图形的锚点
     this.commands.push({
       type: "rect",
@@ -145,6 +234,31 @@ export class Graphics extends DisplayObject {
     radius: number | { tl: number; tr: number; br: number; bl: number },
     fillColor: string | number,
   ): Graphics {
+    const fields: Array<readonly [string, unknown]> = [
+      ["x", x],
+      ["y", y],
+      ["width", width],
+      ["height", height],
+    ];
+    if (typeof radius === "number") {
+      fields.push(["radius", radius]);
+    } else if (radius !== null && typeof radius === "object") {
+      // 逐字段校验，缺字段会以 undefined 被拦下
+      for (const corner of ["tl", "tr", "br", "bl"] as const) {
+        fields.push([`radius.${corner}`, (radius as Record<string, unknown>)[corner]]);
+      }
+    } else {
+      warnOnce(
+        this,
+        "E_GEOM_NONFINITE",
+        "drawRoundedRect",
+        `radius 既不是数字也不是 {tl,tr,br,bl}（收到 ${describeValue(radius)}）`,
+        "四角同值传数字，否则传 {tl,tr,br,bl} 对象",
+      );
+      return this;
+    }
+    if (!this.validateGeometry("drawRoundedRect", fields)) return this;
+
     // 标准化 radius
     const r =
       typeof radius === "number"
@@ -200,6 +314,8 @@ export class Graphics extends DisplayObject {
 
   render(_matrix: Matrix): void {
     if (this.commands.length === 0) return;
+
+    this.checkViewportForDraw();
 
     const gl = this.app.gl;
 

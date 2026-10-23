@@ -17,6 +17,10 @@ const buildOptions = {
   },
   treeShaking: true,
   target: 'es2018',
+  // 让 isProductionBuild() 变成常量，进而让诊断代码被 tree-shaking 消除
+  define: {
+    'process.env.NODE_ENV': JSON.stringify(isProduction ? 'production' : 'development'),
+  },
 };
 
 if (isWatch) {
