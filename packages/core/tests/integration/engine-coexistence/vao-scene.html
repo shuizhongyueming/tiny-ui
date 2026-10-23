@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>VAO State Pollution Test</title>
+  <script src="/dist/tiny-ui-core.js"></script>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+<canvas id="game" width="800" height="600"></canvas>
+<script>
+/**
+ * 用裸 WebGL2 精确复刻 three.js 的 VAO 使用方式，验证 TinyUI 不会污染引擎的顶点状态。
+ *
+ * 为什么不用 Pixi：Pixi 8 每次 draw 前都会重新 bindVertexArray，所以即使 TinyUI
+ * 污染了 VAO，下一次 draw 也会被 Pixi 自己修好 —— 复现不出问题。
+ *
+ * three.js 的 WebGLBindingStates 不一样：它按 geometry+program 缓存 VAO，
+ * bind 之后**不在 draw 后解绑**，并假设 attrib 状态一直有效。于是 TinyUI 若在
+ * 自己的 _setBufferData 里不解绑 VAO，enableVertexAttribArray / vertexAttribPointer
+ * 就会写进 three 的 VAO，导致 three 下一次 draw 报
+ *   GL_INVALID_OPERATION: glDrawElements: Vertex buffer is not big enough
+ * （本项目实测 296 次/局，并伴随卡顿）。
+ */
+(async () => {
+  try {
+    const canvas = document.getElementById('game');
+
+    // ---- 1. 引擎部分：裸 WebGL2，按 three 的方式用 VAO -------------------
+    const gl = canvas.getContext('webgl2', { antialias: true, alpha: true });
+    if (!gl) throw new Error('webgl2 not available');
+
+    const vsSource = `#version 300 es
+      in vec2 position;
+      void main() {
+        gl_Position = vec4(position, 0.0, 1.0);
+      }`;
+    const fsSource = `#version 300 es
+      precision mediump float;
+      out vec4 fragColor;
+      void main() {
+        fragColor = vec4(1.0, 0.35, 0.1, 1.0);
+      }`;
+
+    const compile = (type, src) => {
+      const s = gl.createShader(type);
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+        throw new Error('shader: ' + gl.getShaderInfoLog(s));
+      }
+      return s;
+    };
+
+    const program = gl.createProgram();
+    gl.attachShader(program, compile(gl.VERTEX_SHADER, vsSource));
+    gl.attachShader(program, compile(gl.FRAGMENT_SHADER, fsSource));
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      throw new Error('link: ' + gl.getProgramInfoLog(program));
+    }
+    const positionLocation = gl.getAttribLocation(program, 'position');
+
+    /* 🚨 顶点/index 数量必须**显著大于 TinyUI 自己的 index buffer**。
+       GL 报的是 `glDrawElements: Vertex buffer is not big enough` —— 它的校验是
+       「index 是否超出**当前绑定的 ELEMENT_ARRAY_BUFFER** 范围」。
+       如果引擎只有 6 个 index，而 TinyUI 的 index buffer 也有几十个，
+       即使 element buffer 被 TinyUI 换掉了也不会越界，错误就复现不出来
+       （最初只画 2 个三角形时确实抓不到，实测 0 错误、截图零差异）。
+       这里画一个 GRID×GRID 的三角网格，index 数量远超 TinyUI 的。 */
+    const GRID = 32;
+    const vertsPerRow = GRID + 1;
+    const positionsArr = [];
+    for (let y = 0; y <= GRID; y++) {
+      for (let x = 0; x <= GRID; x++) {
+        // 铺满左上 3/4 屏，留出空间给 TinyUI 的文字
+        positionsArr.push(
+          -1 + (x / GRID) * 1.6,
+          1 - (y / GRID) * 1.6,
+        );
+      }
+    }
+    const positions = new Float32Array(positionsArr);
+
+    const indicesArr = [];
+    for (let y = 0; y < GRID; y++) {
+      for (let x = 0; x < GRID; x++) {
+        const a = y * vertsPerRow + x;
+        const b = a + 1;
+        const c = a + vertsPerRow;
+        const d = c + 1;
+        indicesArr.push(a, b, c, b, d, c);
+      }
+    }
+    const indices = new Uint16Array(indicesArr);
+
+    const indexCount = indices.length;
+
+    const positionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+
+    const indexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+
+    // 像 three 那样建一个 VAO，把 attrib 状态装进去
+    const vao = gl.createVertexArray();
+    gl.bindVertexArray(vao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.enableVertexAttribArray(positionLocation);
+    gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+    gl.bindVertexArray(null);
+
+    function engineDraw() {
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.clearColor(0.06, 0.06, 0.1, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+
+      gl.useProgram(program);
+      // 🚨 关键：绑上 VAO 之后**不解绑**，和 three 的行为一致。
+      // three 的 WebGLBindingStates.setup() 结尾就是这个状态。
+      gl.bindVertexArray(vao);
+      gl.drawElements(gl.TRIANGLES, indexCount, gl.UNSIGNED_SHORT, 0);
+    }
+
+    // ---- 2. TinyUI 接管同一个 context -----------------------------------
+    const glState = new TinyUI.GLState(gl);
+    glState.ensureSyncedFromGL();
+
+    const tinyUI = new TinyUI(canvas, {}, 'webgl2', { glState });
+
+    const title = tinyUI.createText('TinyUI over engine');
+    title.x = 220;
+    title.y = 420;
+    title.color = '#00FF88';
+    title.fontSize = 28;
+    tinyUI.root.addChild(title);
+
+    const box = tinyUI.createGraphics();
+    box.drawRect(0, 0, 160, 60, '#FFD400');
+    box.x = 220;
+    box.y = 470;
+    tinyUI.root.addChild(box);
+
+    // ---- 3. 交替绘制 -----------------------------------------------------
+    let frameCount = 0;
+    function tick() {
+      engineDraw();      // 引擎先画（结束时绑着 vao 不解绑）
+      tinyUI.patchRender(); // TinyUI 后画
+      frameCount++;
+      requestAnimationFrame(tick);
+    }
+    tick();
+
+    /**
+     * 采集「引擎视角」的完整 GL 状态。
+     *
+     * 这是本测试的核心：不去等副作用（GL 错误），而是直接断言
+     * **TinyUI 画完后，引擎关心的状态一个都没变**。
+     *
+     * 为什么要含 element buffer：ELEMENT_ARRAY_BUFFER 的绑定是 VAO 状态的一部分。
+     * TinyUI 的 _setBufferData 会 bindBuffer(ELEMENT_ARRAY_BUFFER, 自己的 indexBuffer)，
+     * 若落到引擎的 VAO 上，引擎下次 drawElements 就会按自己的 index 数量去读
+     * TinyUI 的小 buffer —— 这就是 `Vertex buffer is not big enough` 的来历。
+     *
+     * 为什么要含 attrib 详情：VAO 只记录「哪个 buffer + 什么布局」，被污染后
+     * 绑定关系还在，但指针指向了别人的 buffer，光看绑定对象看不出来。
+     */
+    function captureState() {
+      const attribs = [];
+      const maxAttribs = gl.getParameter(gl.MAX_VERTEX_ATTRIBS) || 16;
+      for (let i = 0; i < Math.min(maxAttribs, 8); i++) {
+        const enabled = gl.getVertexAttrib(i, gl.VERTEX_ATTRIB_ARRAY_ENABLED);
+        if (!enabled) {
+          attribs.push({ i, enabled: false });
+          continue;
+        }
+        const buf = gl.getVertexAttrib(i, gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING);
+        attribs.push({
+          i,
+          enabled: true,
+          // 用对象身份标记，打印出来是 [object WebGLBuffer]，只做相等比较即可
+          buffer: buf,
+          size: gl.getVertexAttrib(i, gl.VERTEX_ATTRIB_ARRAY_SIZE),
+          type: gl.getVertexAttrib(i, gl.VERTEX_ATTRIB_ARRAY_TYPE),
+          normalized: gl.getVertexAttrib(i, gl.VERTEX_ATTRIB_ARRAY_NORMALIZED),
+          stride: gl.getVertexAttrib(i, gl.VERTEX_ATTRIB_ARRAY_STRIDE),
+          offset: gl.getVertexAttribOffset(i, gl.VERTEX_ATTRIB_ARRAY_POINTER),
+        });
+      }
+
+      return {
+        vao: gl.getParameter(gl.VERTEX_ARRAY_BINDING),
+        elementArrayBuffer: gl.getParameter(gl.ELEMENT_ARRAY_BUFFER_BINDING),
+        arrayBuffer: gl.getParameter(gl.ARRAY_BUFFER_BINDING),
+        program: gl.getParameter(gl.CURRENT_PROGRAM),
+        attribs,
+        // 这些是全局状态（不属于 VAO），TinyUI 也必须还回来
+        blend: gl.getParameter(gl.BLEND),
+        depthTest: gl.getParameter(gl.DEPTH_TEST),
+        cullFace: gl.getParameter(gl.CULL_FACE),
+        scissorTest: gl.getParameter(gl.SCISSOR_TEST),
+        activeTexture: gl.getParameter(gl.ACTIVE_TEXTURE),
+      };
+    }
+
+    window.testScenario = {
+      gl,
+      tinyUI,
+      vao,
+      positionBuffer,
+      indexBuffer,
+      captureState,
+      /** 只跑引擎那一半，不动 TinyUI —— 用作对照 */
+      drawEngineOnly: engineDraw,
+      getFrameCount: () => frameCount,
+      /** 供测试单独触发一次「引擎 → TinyUI」交接，不依赖 rAF */
+      step() {
+        engineDraw();
+        tinyUI.patchRender();
+        frameCount++;
+      },
+    };
+
+    console.log('VAO coexistence scenario ready');
+  } catch (error) {
+    console.error('Initialization error:', error);
+    window.testScenario = null;
+  }
+})();
+</script>
+</body>
+</html>
