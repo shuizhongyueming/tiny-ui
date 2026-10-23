@@ -145,11 +145,15 @@ export function layoutRow(
         break;
     }
 
-    const step = gaps ? gaps[i] ?? gap : gap;
-    cursor += w + step;
+    /* 最后一项后面不再加间距，否则宽度会多算一个 step */
+    if (i < items.length - 1) {
+      cursor += w + (gaps ? gaps[i] ?? gap : gap);
+    } else {
+      cursor += w;
+    }
   }
 
-  const width = cursor - (gaps ? gaps[items.length - 2] ?? gap : gap);
+  const width = cursor;
   container._setWidth(width);
   container._setHeight(rowHeight);
   return { width, height: rowHeight };
@@ -209,12 +213,14 @@ export function layoutColumn(
         break;
     }
 
-    const step = gaps ? gaps[i] ?? gap : gap;
-    cursor += inkH + step;
+    if (i < items.length - 1) {
+      cursor += inkH + (gaps ? gaps[i] ?? gap : gap);
+    } else {
+      cursor += inkH;
+    }
   }
 
-  const lastStep = gaps ? gaps[items.length - 2] ?? gap : gap;
-  const height = cursor - lastStep;
+  const height = cursor;
   container._setWidth(maxWidth);
   container._setHeight(height);
   return { width: maxWidth, height };
