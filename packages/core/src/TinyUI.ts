@@ -739,6 +739,21 @@ class TinyUI {
   ) {
     const gl = this.gl;
 
+    /* 🚨 必须先解绑 VAO。
+       与引擎（three / Babylon）共用 context 时，引擎通常绑着自己的 VAO，且其顶点
+       属性指针指向引擎自己的 buffer。若不解绑：
+         - enableVertexAttribArray / vertexAttribPointer 会写进引擎的 VAO
+         - drawElements 会按引擎 VAO 里的指针去读 TinyUI 的 element buffer
+       表现为 `GL_INVALID_OPERATION: glDrawElements: Vertex buffer is not big enough`
+       （实测 296 次/局，并伴随卡顿）。
+       解绑后 attrib 状态落在默认 VAO 上，TinyUI 的 buffer 与指针自成一体。 */
+    if (typeof (gl as any).bindVertexArray === "function") {
+      (gl as any).bindVertexArray(null);
+    } else {
+      const vaoExt = gl.getExtension("OES_vertex_array_object");
+      if (vaoExt) vaoExt.bindVertexArrayOES(null);
+    }
+
     // 位置缓冲区
     gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
