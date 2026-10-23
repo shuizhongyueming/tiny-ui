@@ -59,7 +59,7 @@ export function TextBtn({
     height = btnText.height * 1.5;
   }
 
-  btnContainer.setSize({ width: width!, height: height! });
+  btnContainer.setSize(width!, height!);
 
   const adjustToBtn = adjustTo(btnContainer, true);
   let currentRadius = radius;

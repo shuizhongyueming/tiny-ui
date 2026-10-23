@@ -67,7 +67,7 @@ export function Confirm({
 
   container.width = stageSize.width;
   container.height = stageSize.height;
-  bg.scaleToFit(stageSize.width, stageSize.height);
+  bg.setSize(stageSize.width, stageSize.height); /* 铺满 = 排版意图 */
   bg.alpha = bgAlpha;
   blockInputEvents(bg);
   container.addChild(bg);
@@ -81,13 +81,15 @@ export function Confirm({
 
   const adjustToContent = adjustTo(contentContainer, true);
   const contentBg = app.createBitmapFromImage(imgs.contentBg);
-  contentBg.scaleToFit(contentSize.width, contentSize.height);
+  contentBg.setSize(contentSize.width, contentSize.height);
   adjustToContent(contentBg, { v: 'center', h: 'center' });
   contentContainer.addChild(contentBg);
 
   const confirmTitle = app.createBitmapFromImage(imgs.title);
   confirmTitle.anchorX = confirmTitle.anchorY = 0.5;
-  confirmTitle.scaleX = confirmTitle.scaleY = titleScale;
+  /* 用 setSize 而不是 scaleX：下面的 adjustTo 用 `confirmTitle.height * -0.5` 做偏移，
+     那个 height 不含 scale —— 用 scale 缩放会让顶部对齐偏一倍。 */
+  confirmTitle.setSize(confirmTitle.width * titleScale, confirmTitle.height * titleScale);
   adjustToContent(confirmTitle, { v: 'top', h: 'center' }, { y: confirmTitle.height * -0.5 });
   contentContainer.addChild(confirmTitle);
 
@@ -101,17 +103,17 @@ export function Confirm({
 
 
   const btnNext = app.createBitmapFromImage(imgs.btnNext);
-  btnNext.scaleX = btnNext.scaleY = btnScale;
+  btnNext.setSize(btnNext.width * btnScale, btnNext.height * btnScale);
   adjustToContent(btnNext, { v: 'center', h: 'right' }, { x: btnNext.width * 0.5 });
   contentContainer.addChild(btnNext);
 
   const btnPrev = app.createBitmapFromImage(imgs.btnPrev);
-  btnPrev.scaleX = btnPrev.scaleY = btnScale;
+  btnPrev.setSize(btnPrev.width * btnScale, btnPrev.height * btnScale);
   adjustToContent(btnPrev, { v: 'center', h: 'left' }, { x: btnPrev.width * -0.5 });
   contentContainer.addChild(btnPrev);
 
   const btnOK = app.createBitmapFromImage(imgs.btnOK);
-  btnOK.scaleX = btnOK.scaleY = btnScale;
+  btnOK.setSize(btnOK.width * btnScale, btnOK.height * btnScale);
   adjustToContent(
     btnOK,
     { v: 'bottom', h: 'center' },
@@ -123,7 +125,7 @@ export function Confirm({
 
   if (imgs.btnCancel && onCancel) {
     btnCancel = app.createBitmapFromImage(imgs.btnCancel);
-    btnCancel.scaleX = btnCancel.scaleY = btnScale;
+    btnCancel.setSize(btnCancel.width * btnScale, btnCancel.height * btnScale);
     adjustToContent(
       btnCancel,
       { v: 'bottom', h: 'center' },
@@ -144,8 +146,11 @@ export function Confirm({
     const newBitmap = app.createBitmapFromImage(contents[pageIndex]);
     newBitmap.x = imgContentRef.current.x;
     newBitmap.y = imgContentRef.current.y;
-    newBitmap.scaleX = imgContentRef.current.scaleX;
-    newBitmap.scaleY = imgContentRef.current.scaleY;
+    /* 继承上一个 bitmap 的**尺寸**（不是 scale —— 尺寸已由 setSize 表达） */
+    newBitmap.setSize(
+      imgContentRef.current.width,
+      imgContentRef.current.height,
+    );
     newBitmap.anchorX = imgContentRef.current.anchorX;
     newBitmap.anchorY = imgContentRef.current.anchorY;
     

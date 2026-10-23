@@ -174,11 +174,11 @@ function createDialog(app: TinyUI, options: DialogOptions): DialogInstance {
     dialogWidth * 0.5
   );
 
-  container.setSize({ width: app.stageWidth, height: app.stageHeight });
+  container.setSize(app.stageWidth, app.stageHeight);
   container.x = app.stageWidth / 2;
   container.y = app.stageHeight / 2;
 
-  dialogContainer.setSize({ width: dialogWidth, height: finalDialogHeight });
+  dialogContainer.setSize(dialogWidth, finalDialogHeight);
 
   const adjustContainer = adjustTo(container, true);
   adjustContainer(bg, { v: "center", h: "center" });

@@ -110,7 +110,7 @@ function createToast(app: TinyUI, title: string, duration?: number): ToastInstan
 
   bg.drawRoundedRect(0, 0, bgWidth, bgHeight, bgHeight / 2, 0x000000);
 
-  container.setSize({ width: bgWidth, height: bgHeight });
+  container.setSize(bgWidth, bgHeight);
 
   const adjust = adjustTo(container, true);
 
