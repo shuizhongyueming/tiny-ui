@@ -187,8 +187,8 @@ width / height;
 
 ## 附录 A：本分支已提交的补丁
 
-分支 `feat/engine-coexistence`（基于 `d968160`），已通过 core 84 / components 91
-单测、集成 7、视觉 15、共存 8：
+分支 `feat/engine-coexistence`（相对 `origin/main`，即 1.9.0 之后 13 个 commit），
+已通过 core 84 / components 91 单测、集成 7、视觉 15、共存 8：
 
 - `e18ae25` 多指触摸按 `identifier` 逐个分发
 - `673b1ef` 引擎共存 helpers（`getContext` 版本重试、`normalizeFontFamily`、`manageCanvasSize`）
