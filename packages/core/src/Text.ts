@@ -17,6 +17,38 @@ type FontWeight = "normal" | "bold";
 type TextAlign = "left" | "center" | "right";
 
 /**
+ * 一次度量的完整产物。
+ *
+ * 拆成「度量」与「绘制」两阶段的原因：度量只用 canvas 2d 的 measureText，
+ * 不需要 GL；而绘制要建纹理、要等 GL task。把度量提前到属性变更时，
+ * 布局（layoutRow / layoutColumn）就能在 render 之前拿到真实尺寸。
+ *
+ * `plain` / `bbcode` 存各路径绘制阶段还要用的中间产物（换行结果等），
+ * 免得绘制时重新量一遍。
+ */
+export interface TextLayoutResult {
+  textureWidth: number;
+  textureHeight: number;
+  /** 节点布局尺寸（含 topPadding 与描边留白） */
+  width: number;
+  height: number;
+  visualTop: number;
+  visualHeight: number;
+  ascent: number;
+  descent: number;
+  plain?: {
+    lines: string[];
+    topPadding: number;
+    lineHeight: number;
+    halfBorder: number;
+  };
+  bbcode?: {
+    lines: LineInfo[];
+    padding: number;
+  };
+}
+
+/**
  * 规范化 font-family 字符串。
  *
  * 多词字体名在 CSS 里必须带引号，否则 `ctx.font = "bold 32px Fredoka One"`
@@ -97,7 +129,42 @@ export class Text extends DisplayObject {
   private _borderWidth: number = 0; // 0 表示无描边
 
   texture: WebGLTexture | null = null;
-  textureNeedsUpdate: boolean = true;
+
+  /**
+   * 纹理是否需要重建。**设成 true 会同步重新度量**。
+   *
+   * 为什么要做成访问器：以前这些值（width / height / visualTop / visualHeight /
+   * baselineOffset）只在 updateTexture() 里算，而 updateTexture() 只在 render()
+   * 时被调用。于是
+   *
+   *     const t = app.createText('abc');
+   *     layoutColumn(col, [t]);        // ← 拿到 width=0、height=0
+   *
+   * 游标不前进，多行文字全部叠在 y=0，而且**不报任何错**。
+   * 把所有「标脏」收敛到这一个入口，就能在属性变更的当下把度量算好，
+   * 不用逐个 setter 去加同步调用。
+   */
+  private _textureNeedsUpdate: boolean = true;
+
+  get textureNeedsUpdate(): boolean {
+    return this._textureNeedsUpdate;
+  }
+
+  set textureNeedsUpdate(value: boolean) {
+    this._textureNeedsUpdate = value;
+    if (value) {
+      this._layout = null;
+      this.measureLayout();
+    }
+  }
+
+  /**
+   * 最近一次度量的结果（含绘制阶段要用的中间产物）。
+   *
+   * 缓存的意义不只是「让 getter 快」：没有它的话，setter 时算一遍、
+   * updateTexture 时再算一遍，同样的 measureText 跑两次。
+   */
+  private _layout: TextLayoutResult | null = null;
   private textureUploadPending: boolean = false;
   private textureUpdateGen: number = 0;
   private textureWidth: number = 0;
@@ -341,7 +408,7 @@ export class Text extends DisplayObject {
   }
 
   updateTexture(): void {
-    // 如果文本为空，清除纹理
+    // 空文本：清掉纹理与尺寸，直接返回
     if (!this._text || this._text.length === 0) {
       if (this.texture) {
         const textureToDelete = this.texture;
@@ -359,10 +426,15 @@ export class Text extends DisplayObject {
       return;
     }
 
-    // 如果文本内容没有变化，不需要更新
+    // 内容没变、也不脏：什么都不用做
     if (!this.textureNeedsUpdate && this.previousText === this._text) {
       return;
     }
+
+    /* 度量通常已经在 setter 里做过了（textureNeedsUpdate 的 setter 会调
+       measureLayout），这里只是兜底：万一有人绕过 setter 改字段，
+       或者构造期间就调了 updateTexture。 */
+    if (!this._layout) this.measureLayout();
 
     if (this._bbcodeEnabled) {
       this.updateTextureBBCode();
@@ -371,19 +443,56 @@ export class Text extends DisplayObject {
     }
   }
 
-  private updateTexturePlain(): void {
-    const textureManager = this.app.textureManager;
-
+  /** 取（必要时创建）离屏 2D canvas。度量与绘制共用同一个。 */
+  private ensureCanvas(): HTMLCanvasElement {
     if (!this.canvas) {
       this.canvas = document.createElement("canvas");
     }
+    return this.canvas;
+  }
 
-    const canvas = this.canvas;
-    const ctx = canvas.getContext("2d");
-
-    if (!ctx) {
-      console.error("Failed to create 2D context for canvas");
+  /**
+   * 重新度量并写回 width / height / visualTop / visualHeight / ascent / descent。
+   *
+   * 由 `textureNeedsUpdate = true` 触发。这样任何影响布局的属性变化
+   * （文本、字号、字体、字距、maxWidth、描边…）都会**立刻**反映到尺寸上，
+   * 布局代码不必再先 render 一次。
+   */
+  private measureLayout(): void {
+    if (!this._text || this._text.length === 0) {
+      this._layout = null;
+      this.textureWidth = 0;
+      this.textureHeight = 0;
+      this.setWidth(0);
+      this.setHeight(0);
+      this._visualTop = 0;
+      this._visualHeight = 0;
+      this._ascent = 0;
+      this._descent = 0;
       return;
+    }
+
+    const result = this._bbcodeEnabled
+      ? this.measureBBCode()
+      : this.measurePlain();
+
+    this._layout = result;
+    this.textureWidth = result.textureWidth;
+    this.textureHeight = result.textureHeight;
+    this.setWidth(result.width);
+    this.setHeight(result.height);
+    this._visualTop = result.visualTop;
+    this._visualHeight = result.visualHeight;
+    this._ascent = result.ascent;
+    this._descent = result.descent;
+  }
+
+  /** 纯度量：只跑 measureText，不碰 GL、不改画布尺寸。 */
+  private measurePlain(): TextLayoutResult {
+    const canvas = this.ensureCanvas();
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      throw new Error("Failed to create 2D context for canvas");
     }
 
     applyFont(ctx, this._fontWeight, this._fontStyle, this._fontSize, this._fontFamily);
@@ -391,6 +500,7 @@ export class Text extends DisplayObject {
     // 测量前固定 baseline：绘制阶段会把 baseline 改成 "top" 并遗留在复用的
     // canvas 上，node-canvas 下会影响下一轮 actualBoundingBox 度量
     ctx.textBaseline = "alphabetic";
+
 
     const effectiveLineHeight = this.lineHeight;
     let textWidth: number;
@@ -522,86 +632,30 @@ export class Text extends DisplayObject {
     const originalWidth = textWidth + 4 + this._borderWidth;
     const originalHeight = textHeight + 4 + topPadding + this._borderWidth;
 
-    this.textureWidth = nextPowerOfTwo(originalWidth);
-    this.textureHeight = nextPowerOfTwo(originalHeight);
-
-    canvas.width = this.textureWidth;
-    canvas.height = this.textureHeight;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    applyFont(ctx, this._fontWeight, this._fontStyle, this._fontSize, this._fontFamily);
-    applyLetterSpacing(ctx, this._letterSpacing);
-    ctx.textBaseline = "top";
-    ctx.fillStyle = this._color;
-    ctx.textAlign = this._align;
-
-    let x = 2 + halfBorder;
-    if (this._align === "center") {
-      x = originalWidth / 2;
-    } else if (this._align === "right") {
-      x = originalWidth - 2 - halfBorder;
-    }
-
-    if (this._borderWidth > 0) {
-      ctx.lineWidth = this._borderWidth;
-      ctx.strokeStyle = this._borderColor;
-      // round 连接避免 miter 在字形尖角处炸刺
-      ctx.lineJoin = "round";
-    }
-
-    for (let i = 0; i < lines.length; i++) {
-      const y = topPadding + 2 + halfBorder + i * lineHeight;
-      if (this._borderWidth > 0) {
-        ctx.strokeText(lines[i], x, y);
-      }
-      ctx.fillText(lines[i], x, y);
-    }
-
-    this.setWidth(originalWidth);
-    this.setHeight(originalHeight);
-    this._visualTop = topPadding + 2 + halfBorder;
-    this._visualHeight = textHeight;
-    this._ascent = fontAscent;
-    this._descent = fontDescent;
-
-    const gen = ++this.textureUpdateGen;
-    const previousTexture = this.texture;
-    this.textureUploadPending = true;
-
-    this.textureNeedsUpdate = false;
-    this.previousText = this._text;
-
-    this.app.enqueueGLTask(() => {
-      if (this.destroyed) return;
-      if (gen !== this.textureUpdateGen) return;
-
-      if (previousTexture) {
-        this.app.gl.deleteTexture(previousTexture);
-      }
-
-      this.texture = textureManager.createCanvasTexture(canvas, false);
-      this.textureUploadPending = false;
-    });
-
-    widthCache.clear();
+    return {
+      textureWidth: nextPowerOfTwo(originalWidth),
+      textureHeight: nextPowerOfTwo(originalHeight),
+      width: originalWidth,
+      height: originalHeight,
+      visualTop: topPadding + 2 + halfBorder,
+      visualHeight: textHeight,
+      ascent: fontAscent,
+      descent: fontDescent,
+      plain: { lines, topPadding, lineHeight, halfBorder },
+    };
   }
 
-  private updateTextureBBCode(): void {
-    const textureManager = this.app.textureManager;
-
-    if (!this.canvas) {
-      this.canvas = document.createElement("canvas");
-    }
-
-    const canvas = this.canvas;
+  /** 纯度量（BBCode 路径）。 */
+  private measureBBCode(): TextLayoutResult {
+    const canvas = this.ensureCanvas();
     const ctx = canvas.getContext("2d");
-
     if (!ctx) {
-      console.error("Failed to create 2D context for canvas");
-      return;
+      throw new Error("Failed to create 2D context for canvas");
     }
 
-    // Parse BBCode
+    applyFont(ctx, this._fontWeight, this._fontStyle, this._fontSize, this._fontFamily);
+    applyLetterSpacing(ctx, this._letterSpacing);
+
     const segments = this.parser.parse(this._text);
 
     // Build render units
@@ -714,23 +768,96 @@ export class Text extends DisplayObject {
     const originalHeight =
       totalHeight + 4 + padding * 2 + topOverflow + bottomOverflow;
 
-    this.textureWidth = nextPowerOfTwo(originalWidth);
-    this.textureHeight = nextPowerOfTwo(originalHeight);
+    return {
+      textureWidth: nextPowerOfTwo(originalWidth),
+      textureHeight: nextPowerOfTwo(originalHeight),
+      width: originalWidth,
+      height: originalHeight,
+      visualTop: padding + topOverflow,
+      visualHeight: totalHeight,
+      ascent: maxFontSize * 0.8,
+      descent: maxFontSize * 0.2,
+      bbcode: { lines, padding },
+    };
+  }
 
-    canvas.width = this.textureWidth;
+  private updateTexturePlain(): void {
+    const layout = this._layout;
+    if (!layout || !layout.plain) return;
+
+    const canvas = this.ensureCanvas();
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      console.error("Failed to create 2D context for canvas");
+      return;
+    }
+
+    const { lines, topPadding, lineHeight, halfBorder } = layout.plain;
+    const originalWidth = layout.width;
+
+    canvas.width = layout.textureWidth;
+    canvas.height = layout.textureHeight;
+
     canvas.height = this.textureHeight;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    applyFont(ctx, this._fontWeight, this._fontStyle, this._fontSize, this._fontFamily);
+    applyLetterSpacing(ctx, this._letterSpacing);
+    ctx.textBaseline = "top";
+    ctx.fillStyle = this._color;
+    ctx.textAlign = this._align;
+
+    let x = 2 + halfBorder;
+    if (this._align === "center") {
+      x = originalWidth / 2;
+    } else if (this._align === "right") {
+      x = originalWidth - 2 - halfBorder;
+    }
+
+    if (this._borderWidth > 0) {
+      ctx.lineWidth = this._borderWidth;
+      ctx.strokeStyle = this._borderColor;
+      // round 连接避免 miter 在字形尖角处炸刺
+      ctx.lineJoin = "round";
+    }
+
+    for (let i = 0; i < lines.length; i++) {
+      const y = topPadding + 2 + halfBorder + i * lineHeight;
+      if (this._borderWidth > 0) {
+        ctx.strokeText(lines[i], x, y);
+      }
+      ctx.fillText(lines[i], x, y);
+    }
+
+
+    this.commitTexture(canvas);
+  }
+
+  private updateTextureBBCode(): void {
+    const layout = this._layout;
+    if (!layout || !layout.bbcode) return;
+
+    const canvas = this.ensureCanvas();
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      console.error("Failed to create 2D context for canvas");
+      return;
+    }
+
+    canvas.width = layout.textureWidth;
+    canvas.height = layout.textureHeight;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Render layers
-    this.renderBBCodeLayers(ctx, lines);
+    this.renderBBCodeLayers(ctx, layout.bbcode.lines);
 
-    this.setWidth(originalWidth);
-    this.setHeight(originalHeight);
-    this._visualTop = padding + topOverflow;
-    this._visualHeight = totalHeight;
-    this._ascent = maxFontSize * 0.8;
-    this._descent = maxFontSize * 0.2;
+    this.commitTexture(canvas);
+  }
+
+  /** 把已经画好的离屏 canvas 上传成纹理。两条路径共用。 */
+  private commitTexture(canvas: HTMLCanvasElement): void {
+    const textureManager = this.app.textureManager;
 
     const gen = ++this.textureUpdateGen;
     const previousTexture = this.texture;

@@ -374,3 +374,89 @@ describe('Text 字体属性与视觉度量', () => {
     expect(t.height).toBe(before.h);
   });
 });
+
+describe('Text 度量在渲染前就可用', () => {
+  /* 背景：以前 width / height / visualTop / visualHeight / baselineOffset 全都
+     在 updateTexture() 里才算，而 updateTexture() 只在 render() 时被调用。
+     于是 `const t = app.createText('abc'); layoutColumn(col, [t])` 拿到的是
+     全 0 尺寸 —— 游标不前进，多行文字全部叠在 y=0，而且**不报任何错**。
+
+     这个坑在游戏里不明显（它每帧重算布局），一次性布局的页面上必踩。
+     修法：把度量从「生成纹理」里拆出来，内容/样式变更时同步算。 */
+
+  const createMockApp = () =>
+    ({
+      enqueueGLTask: () => {},
+      textureManager: {},
+      gl: {},
+    }) as unknown as TinyUI;
+
+  it('构造后立即设置文本，width / height 就不为 0', () => {
+    const text = new Text(createMockApp());
+    text.fontSize = 32;
+    text.text = 'Hello';
+
+    // 注意：这里**没有**调用 render() / updateTexture()
+    expect(text.width).toBeGreaterThan(0);
+    expect(text.height).toBeGreaterThan(0);
+  });
+
+  it('修改 fontSize 后尺寸立刻跟着变', () => {
+    const text = new Text(createMockApp());
+    text.text = 'Hello';
+
+    text.fontSize = 12;
+    const smallWidth = text.width;
+    const smallHeight = text.height;
+
+    text.fontSize = 48;
+    expect(text.width).toBeGreaterThan(smallWidth);
+    expect(text.height).toBeGreaterThan(smallHeight);
+  });
+
+  it('修改文本内容后尺寸立刻跟着变', () => {
+    const text = new Text(createMockApp());
+    text.fontSize = 24;
+
+    text.text = 'i';
+    const narrow = text.width;
+
+    text.text = 'a much longer string';
+    expect(text.width).toBeGreaterThan(narrow);
+  });
+
+  it('visualTop / visualHeight / baselineOffset 也是立即可用', () => {
+    const text = new Text(createMockApp());
+    text.fontSize = 24;
+    text.text = 'Ag';
+
+    // 视觉度量是布局的基础（layoutColumn 的 useInk 直接读它们）
+    expect(text.visualHeight).toBeGreaterThan(0);
+    expect(text.visualHeight).toBeLessThanOrEqual(text.height);
+    expect(text.baselineOffset).toBeGreaterThan(0);
+  });
+
+  it('空文本的尺寸是 0，且不残留上一次的度量', () => {
+    const text = new Text(createMockApp());
+    text.fontSize = 24;
+    text.text = 'Hello';
+    expect(text.width).toBeGreaterThan(0);
+
+    text.text = '';
+    expect(text.width).toBe(0);
+    expect(text.height).toBe(0);
+    expect(text.visualHeight).toBe(0);
+  });
+
+  it('重复读取不会重复度量（有缓存）', () => {
+    const text = new Text(createMockApp());
+    text.fontSize = 24;
+    text.text = 'Hello';
+
+    const w1 = text.width;
+    const w2 = text.width;
+    const w3 = text.width;
+    expect(w2).toBe(w1);
+    expect(w3).toBe(w1);
+  });
+});

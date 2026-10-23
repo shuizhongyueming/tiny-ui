@@ -209,10 +209,12 @@
   cy += 130;
 
   /* ====================================================================
-     两阶段：先渲染让文字度量就绪，再排版，再渲染。
+     直接排版，不需要先渲染一次。
+     Text 的 width / height 在属性设置（含 createText 后赋 text）时就已经算好，
+     所以此刻直接 layout 就能拿到真实尺寸。
+     早期版本这里必须先 tiny.render()，否则 layoutColumn 拿到全 0 尺寸，
+     多行文字会全部叠在 y=0 —— 这个陷阱已经在框架里修掉了。
      ==================================================================== */
-  tiny.render();
-
   for (const s of sections) {
     if (s.kind === 'row') tiny.layoutRow(s.container, s.items, s.options);
     else tiny.layoutColumn(s.container, s.items, s.options);
