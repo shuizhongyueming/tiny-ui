@@ -19,6 +19,9 @@ export default defineConfig({
     },
   },
   webServer: {
+    /* 和 components 用不同端口：两个包的服务根不同（这里是 packages/core，
+       那边是 packages/），共用一个端口时先起的那个会把另一个的路径解析成 404，
+       表现为「所有视觉用例 30s 超时」。 */
     command: 'python3 -m http.server 5566',
     port: 5566,
     reuseExistingServer: true,

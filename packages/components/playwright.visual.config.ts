@@ -8,7 +8,7 @@ export default defineConfig({
      页面本身是稳定的（单页连采 24 帧字节完全一致），问题只出在并发。 */
   workers: 1,
   use: {
-    baseURL: 'http://localhost:5566',
+    baseURL: 'http://localhost:5567',
     ...devices['Desktop Chrome'],
     viewport: { width: 1920, height: 1080 },
     hasTouch: true,
@@ -20,8 +20,8 @@ export default defineConfig({
     },
   },
   webServer: {
-    command: 'python3 -m http.server 5566 --directory ..',
-    port: 5566,
+    command: 'python3 -m http.server 5567 --directory ..',
+    port: 5567,
     reuseExistingServer: true,
   },
   snapshotDir: './tests/visual/__snapshots__',
