@@ -33,7 +33,10 @@ Three-tier test architecture is now in place:
   - `just test-visual-update` - Update baseline screenshots
   - `just test-visual-report` - View test report
 - Notes:
-  - Screenshots stored in `tests/visual/__snapshots__/` (gitignored)
+  - Screenshots stored in `tests/visual/__snapshots__/` — **these are committed**.
+    A gitignored baseline means every fresh clone generates its own on first run, so the
+    test always passes and a broken page silently becomes the new truth (this repo did
+    ship a pure-white baseline for a while).
   - Threshold: 100 pixel difference, 10% color tolerance
   - Requires `dist/` to be built first
 
