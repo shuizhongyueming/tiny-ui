@@ -38,10 +38,18 @@ describe("Container", () => {
 
   it("should use setSize helper", () => {
     const container = new Container(mockApp);
-    container.setSize({ width: 400, height: 300 });
+    container.setSize(400, 300);
 
     expect(container.width).toBe(400);
     expect(container.height).toBe(300);
+  });
+
+  it("setSize 省略 height 时取 width（正方形）", () => {
+    const container = new Container(mockApp);
+    container.setSize(120);
+
+    expect(container.width).toBe(120);
+    expect(container.height).toBe(120);
   });
 
   it("should transfer child from one container to another", () => {

@@ -263,3 +263,114 @@ describe('Text border', () => {
     expect(text.height).toBe(baseHeight);
   });
 });
+
+// ============================================================================
+// 字体属性与视觉度量
+//
+// 这一组是排版依赖的契约：既要能"斜体 + 字距"表达原版 UI 的样式，
+// 又要能报出**文字真实基线** —— 多字号混排（13px 标签 + 16px 数值）时，
+// 按盒顶/盒底/中心对齐都会差几像素，只有基线对齐才对得上 CSS inline。
+// ============================================================================
+describe('Text 字体属性与视觉度量', () => {
+  const createMockApp = () =>
+    ({
+      enqueueGLTask: () => {},
+      textureManager: {},
+      gl: {},
+    }) as unknown as TinyUI;
+
+  const makeText = (content: string, fontSize = 32): Text => {
+    const t = new Text(createMockApp());
+    t.text = content;
+    t.fontSize = fontSize;
+    t.updateTexture();
+    return t;
+  };
+
+  it('fontStyle 默认 normal，可切成 italic', () => {
+    const t = makeText('AB');
+    expect(t.fontStyle).toBe('normal');
+    t.fontStyle = 'italic';
+    expect(t.fontStyle).toBe('italic');
+  });
+
+  it('fontStyle 变更会标脏纹理', () => {
+    const t = makeText('AB');
+    t.updateTexture();
+    expect(t.textureNeedsUpdate).toBe(false);
+    t.fontStyle = 'italic';
+    expect(t.textureNeedsUpdate).toBe(true);
+  });
+
+  it('letterSpacing 默认 0，可设置', () => {
+    const t = makeText('AB');
+    expect(t.letterSpacing).toBe(0);
+    t.letterSpacing = 4;
+    expect(t.letterSpacing).toBe(4);
+  });
+
+  it('letterSpacing 非有限值时归零（避免 NaN 扩散到纹理尺寸）', () => {
+    const t = makeText('AB');
+    t.letterSpacing = NaN;
+    expect(t.letterSpacing).toBe(0);
+    t.letterSpacing = Infinity;
+    expect(t.letterSpacing).toBe(0);
+  });
+
+  it('letterSpacing 变更会标脏纹理', () => {
+    const t = makeText('AB');
+    t.updateTexture();
+    expect(t.textureNeedsUpdate).toBe(false);
+    t.letterSpacing = 2;
+    expect(t.textureNeedsUpdate).toBe(true);
+  });
+
+  it('visualTop > 0：文字 ink 在盒内偏下（盒顶有 topPadding）', () => {
+    const t = makeText('AB', 32);
+    expect(t.visualTop).toBeGreaterThan(0);
+    // ink 底 = visualTop + visualHeight，应落在盒内
+    expect(t.visualBottom).toBeLessThanOrEqual(t.height);
+  });
+
+  it('visualHeight 小于盒高（盒含 topPadding 与描边留白）', () => {
+    const t = makeText('AB', 32);
+    expect(t.visualHeight).toBeLessThan(t.height);
+    expect(t.visualHeight).toBeGreaterThan(0);
+  });
+
+  it('baselineOffset 落在 ink 区间内（visualTop..visualBottom）', () => {
+    const t = makeText('AB', 32);
+    expect(t.baselineOffset).toBeGreaterThanOrEqual(t.visualTop);
+    expect(t.baselineOffset).toBeLessThanOrEqual(t.visualBottom);
+  });
+
+  it('字号越大，baselineOffset 越大（可用来做跨字号基线对齐）', () => {
+    const small = makeText('AB', 13);
+    const big = makeText('AB', 32);
+    expect(big.baselineOffset).toBeGreaterThan(small.baselineOffset);
+  });
+
+  it('两个不同字号的文字按基线对齐后，基线落在同一条线', () => {
+    const small = makeText('LABEL', 13);
+    const big = makeText('+24', 16);
+    small.anchorX = 0;
+    small.anchorY = 0;
+    big.anchorX = 0;
+    big.anchorY = 0;
+
+    // 让两者基线都落在 y = 100
+    small.y = 100 - small.baselineOffset;
+    big.y = 100 - big.baselineOffset;
+
+    expect(small.y + small.baselineOffset).toBeCloseTo(100);
+    expect(big.y + big.baselineOffset).toBeCloseTo(100);
+  });
+
+  it('setSize 是 no-op：Text 尺寸由内容与字号决定', () => {
+    const t = makeText('AB', 32);
+    const before = { w: t.width, h: t.height };
+    t.setSize(10, 10);
+    expect(t.width).toBe(before.w);
+    expect(t.height).toBe(before.h);
+  });
+});

@@ -16,7 +16,6 @@ export class DisplayObject extends Emitter {
   app: TinyUI;
   parent: Container | null = null;
   children: DisplayObject[] | null = null;
-  isScaleAffectedSize: boolean = false;
   x: number = 0;
   y: number = 0;
   protected _width: number = 0;
@@ -258,15 +257,17 @@ export class DisplayObject extends Emitter {
     return matrix;
   }
 
-  // 计算全局边界框
+  /**
+   * 计算全局包围盒（**含** scale，因为下面用的是全局变换矩阵）。
+   *
+   * 历史上有过 `isScaleAffectedSize` 开关，用来"手动把 scale 乘进尺寸"——
+   * 那个开关是矩阵还不含 scale 时的补丁。现在矩阵里已经有 `.scale(scaleX, scaleY)`，
+   * 开关打开会变成**双重缩放**（100×100 @ scale 0.5 得到 25×25 而非 50×50），
+   * 会让 Scroll 滚不到底、hitTest 点不中。已删除，行为就是原来的默认值 false。
+   */
   getBounds(): Rect {
-    // 获取元素自身的宽高（考虑scale是否影响尺寸）
-    const finalWidth = this.isScaleAffectedSize
-      ? this.width * this.scaleX
-      : this.width;
-    const finalHeight = this.isScaleAffectedSize
-      ? this.height * this.scaleY
-      : this.height;
+    const finalWidth = this.width;
+    const finalHeight = this.height;
 
     // 创建元素四个角的本地坐标
     const localPoints = [
