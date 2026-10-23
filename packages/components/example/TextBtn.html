@@ -67,7 +67,7 @@
 
     // ========== 容器 ==========
     const mainContainer = tinyUI.createContainer('MainContainer');
-    mainContainer.setSize({ width: colWidth, height: rowHeight * 10 });
+    mainContainer.setSize(colWidth, rowHeight * 10);
     tinyUI.root.addChild(mainContainer);
     adjustTo(tinyUI.root, true)(mainContainer, { h: 'center', v: 'top' }, { y: startY });
 
@@ -93,7 +93,7 @@
 
       // Buttons 容器
       const btnContainer = tinyUI.createContainer('BtnRow');
-      btnContainer.setSize({ width: colWidth - scale(20), height: scale(45) });
+      btnContainer.setSize(colWidth - scale(20), scale(45));
       container.addChild(btnContainer);
       adjustTo(container, true)(btnContainer, { h: 'left', v: 'top' }, { x: scale(10), y: y + scale(28) });
 

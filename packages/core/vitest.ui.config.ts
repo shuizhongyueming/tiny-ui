@@ -2,10 +2,18 @@ import { defineConfig } from "vitest/config";
 import { playwright } from "@vitest/browser-playwright";
 
 export default defineConfig({
+  /**
+   * 同 vitest.integration.config.ts：playwright-core 的 bidi / fsevents 静态 require
+   * 会让 Vite 的 optimizeDeps（esbuild 预构建）失败，必须排除。
+   */
+  optimizeDeps: {
+    exclude: ["playwright", "playwright-core", "@vitest/browser-playwright"],
+  },
+
   test: {
     // 包含所有测试（单元测试 + 集成测试）
     include: ["tests/unit/**/*.test.ts", "tests/integration/**/*.test.ts"],
-    exclude: ["tests/integration/engine-coexistence/coexistence.test.ts"],
+    exclude: ["tests/integration/engine-coexistence/**"],
 
     // 浏览器测试配置 - 启用 headed 模式
     browser: {

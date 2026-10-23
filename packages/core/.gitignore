@@ -1,5 +1,8 @@
 # Test outputs
-tests/visual/__snapshots__/
+# ⚠️ tests/visual/__snapshots__/ **必须入库** —— 它是截图基线。
+# 不入库时每台机器第一次跑都会「自动生成基线」，测试永远通过；
+# 而且本地基线可能是在页面渲染坏掉时生成的（本项目就出现过基线是纯白图，
+# 测试改成「白 == 白」）。真实产物目录是下面的 test-results/ 和 playwright-report/。
 playwright-report/
 test-results/
 

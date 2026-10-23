@@ -51,7 +51,7 @@
     const tinyUI = new TinyUI(canvas);
 
     const container = tinyUI.createContainer();
-    container.setSize(tinyUI.stageSize);
+    container.setSize(tinyUI.stageSize.width, tinyUI.stageSize.height);
     container.moveTo(container.width/2, container.height/2);
 
     const rect = await tinyUI.createBitmapFromUrl('rect.png')

@@ -1,5 +1,5 @@
 # Test outputs
-tests/visual/__snapshots__/
+# ⚠️ tests/visual/__snapshots__/ **必须入库**（截图基线），原因见 packages/core/.gitignore
 test-results/
 playwright-report/
 
