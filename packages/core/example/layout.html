@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Layout Row / Column Visual Test</title>
+  <script src="../dist/tiny-ui-core.js"></script>
+  <style>
+    html, body { margin: 0; background: #10141c; overflow: hidden; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+<canvas id="game" width="900" height="1260"></canvas>
+<script>
+/**
+ * layoutRow / layoutColumn 的视觉基线。
+ *
+ * 单元测试断言的是「算出来的 x / y 等于多少」；这里断言的是「画出来是那个样子」。
+ * 两者都要有：坐标算对但渲染错位（anchor / 视觉边界 / 字体度量）只有截图能抓到。
+ *
+ * 页面设计原则：
+ *  1. 每个场景都画出**容器边框** —— layoutRow/layoutColumn 会自动写
+ *     container.width/height，尺寸算错时边框立刻不对，光看子元素看不出来。
+ *  2. 必须**先渲染一次再做 layout** —— Text 的 width/height 在首次 render()
+ *     之前都是 0，此时 layoutColumn 的游标不会前进，多行文字会全部叠在 y=0。
+ *     这个坑单测抓不到（单测用假对象直接给 height）。
+ */
+(async () => {
+  const canvas = document.getElementById('game');
+  const tiny = new TinyUI(canvas);
+  window.tinyUI = tiny;
+
+  const COL = {
+    text: '#c8d4e8',
+    dim: '#5a6a85',
+    border: '#39465e',
+    a: '#ff6b6b',
+    b: '#4ecdc4',
+    c: '#ffd93d',
+    d: '#a06cd5',
+  };
+
+  /** 待排版的条目：容器 + 子节点 + 选项 */
+  const sections = [];
+
+  /* ⚠️ 所有节点显式设 anchor 0（= CSS 的 left/top）。
+     DisplayObject 默认 anchor 是 0.5，不设的话 x 代表「中心」，
+     文字会左移自身宽度的一半、容器会把自己的左缘推到 x - width/2，
+     整个页面看起来向右偏移一截，还容易被画布边缘裁掉。 */
+  function anchorTopLeft(node) {
+    node.anchorX = 0;
+    node.anchorY = 0;
+    return node;
+  }
+
+  function title(text, x, y) {
+    const t = anchorTopLeft(tiny.createText(text));
+    t.fontSize = 15;
+    t.color = COL.dim;
+    t.x = x;
+    t.y = y;
+    tiny.root.addChild(t);
+  }
+
+  function block(w, h, color) {
+    const g = anchorTopLeft(tiny.createGraphics());
+    g.drawRect(0, 0, w, h, color);
+    g.setSize(w, h);
+    return g;
+  }
+
+  function sizedText(str, size, color) {
+    const t = anchorTopLeft(tiny.createText(str));
+    t.fontSize = size;
+    t.color = color || COL.text;
+    return t;
+  }
+
+  /** 注册一个 row 场景 */
+  function addRow(items, options, x, y) {
+    const row = anchorTopLeft(tiny.createContainer());
+    row.x = x;
+    row.y = y;
+    for (const it of items) row.addChild(it);
+    tiny.root.addChild(row);
+    sections.push({ container: row, items, options, kind: 'row' });
+    return row;
+  }
+
+  function addColumn(items, options, x, y) {
+    const col = anchorTopLeft(tiny.createContainer());
+    col.x = x;
+    col.y = y;
+    for (const it of items) col.addChild(it);
+    tiny.root.addChild(col);
+    sections.push({ container: col, items, options, kind: 'column' });
+    return col;
+  }
+
+  let cy = 56;
+  const left = 80;
+
+  /* ---- 1. row align: start / center / end ---------------------------- */
+  title('layoutRow — 交叉轴对齐（20 / 56 / 36 高的块）', left, cy);
+  cy += 30;
+
+  for (const align of ['start', 'center', 'end']) {
+    addRow(
+      [block(44, 20, COL.a), block(44, 56, COL.b), block(44, 36, COL.c)],
+      { gap: 12, align },
+      left,
+      cy,
+    );
+    const tag = sizedText('align: ' + align, 13, COL.dim);
+    tag.x = left + 230;
+    tag.y = cy + 20;
+    tiny.root.addChild(tag);
+    cy += 104;
+  }
+
+  /* ---- 2. row align: baseline（最容易错的一条） ---------------------- */
+  title('layoutRow — 基线对齐（字号 12 / 36 / 20 的 Ag）', left, cy);
+  cy += 36;
+
+  addRow(
+    [
+      sizedText('Ag', 12),
+      sizedText('Ag', 36, COL.a),
+      sizedText('Ag', 20, COL.b),
+    ],
+    { gap: 20, align: 'baseline' },
+    left,
+    cy,
+  );
+  cy += 116;
+
+  /* ---- 3. row gaps：逐项不同间距 ------------------------------------- */
+  title('layoutRow — gaps: [4, 40, 4]', left, cy);
+  cy += 30;
+
+  addRow(
+    [
+      block(38, 38, COL.a),
+      block(38, 38, COL.b),
+      block(38, 38, COL.c),
+      block(38, 38, COL.d),
+    ],
+    { gaps: [4, 40, 4], align: 'center' },
+    left,
+    cy,
+  );
+  cy += 106;
+
+  /* ---- 4. row 跳过隐藏项 -------------------------------------------- */
+  title('layoutRow — visible=false 不占位（第 2 个被隐藏）', left, cy);
+  cy += 30;
+
+  {
+    const items = [
+      block(38, 38, COL.a),
+      block(38, 38, COL.b),
+      block(38, 38, COL.c),
+    ];
+    items[1].visible = false;
+    addRow(items, { gap: 10, align: 'center' }, left, cy);
+    cy += 106;
+  }
+
+  /* ---- 5. column：useInk 开 / 关 对比 -------------------------------- */
+  title('layoutColumn — 左 useInk:true / 右默认（按盒边界堆叠）', left, cy);
+  cy += 36;
+
+  addColumn(
+    [sizedText('第一行', 18), sizedText('第二行', 18), sizedText('第三行', 18)],
+    { gap: 8, useInk: true },
+    left,
+    cy,
+  );
+  addColumn(
+    [sizedText('第一行', 18), sizedText('第二行', 18), sizedText('第三行', 18)],
+    { gap: 8 },
+    left + 240,
+    cy,
+  );
+
+  {
+    const tagOn = sizedText('useInk: true', 12, COL.b);
+    tagOn.x = left;
+    tagOn.y = cy + 120;
+    tiny.root.addChild(tagOn);
+
+    const tagOff = sizedText('useInk: false', 12, COL.a);
+    tagOff.x = left + 240;
+    tagOff.y = cy + 120;
+    tiny.root.addChild(tagOff);
+  }
+  cy += 190;
+
+  /* ---- 6. column gaps ------------------------------------------------- */
+  title('layoutColumn — gaps: [2, 30]', left, cy);
+  cy += 30;
+
+  addColumn(
+    [block(140, 26, COL.a), block(140, 26, COL.b), block(140, 26, COL.c)],
+    { gaps: [2, 30], align: 'start' },
+    left,
+    cy,
+  );
+  cy += 130;
+
+  /* ====================================================================
+     两阶段：先渲染让文字度量就绪，再排版，再渲染。
+     ==================================================================== */
+  tiny.render();
+
+  for (const s of sections) {
+    if (s.kind === 'row') tiny.layoutRow(s.container, s.items, s.options);
+    else tiny.layoutColumn(s.container, s.items, s.options);
+  }
+
+  tiny.render();
+
+  /* ---- 画容器边框（layout 已写回 width/height） ----------------------
+     每条边用一个**独立的** Graphics。
+     同一个 Graphics 上多次 drawRect 会做 union 扩尺寸，再叠加 setSize
+     容易让顶点范围和布局尺寸不一致（实测画出一个横跨多个场景的巨框）。 */
+  function borderLine(x, y, w, h) {
+    const g = anchorTopLeft(tiny.createGraphics());
+    g.drawRect(0, 0, w, h, COL.border);
+    g.setSize(w, h);
+    g.x = x;
+    g.y = y;
+    tiny.root.addChild(g);
+  }
+
+  for (const s of sections) {
+    const w = s.container.width;
+    const h = s.container.height;
+    const pad = 7;
+    const x = s.container.x - pad;
+    const y = s.container.y - pad;
+    const bw = w + pad * 2;
+    const bh = h + pad * 2;
+    borderLine(x, y, bw, 1);           // 上
+    borderLine(x, y + bh - 1, bw, 1);  // 下
+    borderLine(x, y, 1, bh);           // 左
+    borderLine(x + bw - 1, y, 1, bh);  // 右
+  }
+
+  tiny.render();
+
+  /* 导出数值指标：截图只能说明「画面变了」，数值能说明「变成什么」。
+     失败时看断言信息比重开截图快。 */
+  window.layoutMetrics = sections.map((s) => ({
+    kind: s.kind,
+    align: s.options.align ?? (s.kind === 'row' ? 'center' : 'start'),
+    // 容器尺寸由 layout 写回
+    width: Math.round(s.container.width * 100) / 100,
+    height: Math.round(s.container.height * 100) / 100,
+    // 子节点位置（相对容器左上角）
+    children: s.items.map((it) => ({
+      visible: it.visible !== false,
+      x: Math.round(it.x * 100) / 100,
+      y: Math.round(it.y * 100) / 100,
+      w: Math.round(it.width * 100) / 100,
+      h: Math.round(it.height * 100) / 100,
+      // 基线：layoutRow 的 align:"baseline" 就是让这些值加上 y 相等
+      baseline: Math.round(it.baselineOffset * 100) / 100,
+      visualTop: Math.round(it.visualTop * 100) / 100,
+      visualHeight: Math.round(it.visualHeight * 100) / 100,
+    })),
+  }));
+
+  window.layoutSceneReady = true;
+  console.log('layout scene ready');
+})();
+</script>
+</body>
+</html>
