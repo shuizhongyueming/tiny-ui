@@ -1,10 +1,8 @@
 import { test, expect } from '@playwright/test';
+import { openExample } from './stable';
 
 test('text-wrapping example screenshot', async ({ page }) => {
-  await page.goto('/example/text-wrapping.html');
-  
-  // 等待渲染完成
-  await page.waitForTimeout(500);
+  await openExample(page, "text-wrapping");
   
   // 截图 canvas 区域
   // text-wrapping.html 是三列布局，每列 350px + 标签宽度 + 间距

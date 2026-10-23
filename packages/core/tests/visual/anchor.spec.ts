@@ -1,10 +1,8 @@
 import { test, expect } from '@playwright/test';
+import { openExample } from './stable';
 
 test('anchor example screenshot', async ({ page }) => {
-  await page.goto('/example/anchor.html');
-  
-  // 等待图片加载
-  await page.waitForTimeout(800);
+  await openExample(page, "anchor");
   
   // 截图 canvas 区域
   const canvas = page.locator('canvas');

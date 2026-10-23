@@ -1,10 +1,8 @@
 import { test, expect } from '@playwright/test';
+import { openExample } from './stable';
 
 test('rounded-rect example screenshot', async ({ page }) => {
-  await page.goto('/example/rounded-rect.html');
-  
-  // 等待渲染完成
-  await page.waitForTimeout(500);
+  await openExample(page, "rounded-rect");
   
   // 截图 canvas 区域
   const canvas = page.locator('canvas');
