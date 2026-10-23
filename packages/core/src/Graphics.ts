@@ -53,13 +53,129 @@ export class Graphics extends DisplayObject {
   /** 上一帧视口是否为零尺寸，用来让零视口诊断按「状态周期」去重。 */
   private viewportWasZero = false;
 
+  /**
+   * 尺寸来源。见 `setSize()` / `autoSize()`。
+   *
+   * - `auto`（默认）：布局尺寸由绘制命令推导
+   * - `explicit`：调过 `setSize()`，布局尺寸由调用方决定，**后续绘制不再改写它**
+   */
+  private _sizeMode: "auto" | "explicit" = "auto";
+
+  /** 绘制命令覆盖的真实局部范围。第一条命令写入，之后做 min/max union。 */
+  private contentMinX = 0;
+  private contentMinY = 0;
+  private contentMaxX = 0;
+  private contentMaxY = 0;
+  private hasContent = false;
+
   constructor(app: TinyUI, name: string = "Graphics") {
     super(app, name);
   }
 
+  /**
+   * 清空绘制命令与内容边界。
+   *
+   * **不改变尺寸模式。** `setSize()` 表达的是布局意图，不会因为重画内容而消失 ——
+   * 与 CSS 里清空子元素不影响父容器 `width` 同理。要回到按内容推导，调 `autoSize()`。
+   */
   clear(): Graphics {
     this.commands = [];
+    this.hasContent = false;
+    this.contentMinX = 0;
+    this.contentMinY = 0;
+    this.contentMaxX = 0;
+    this.contentMaxY = 0;
+    this.syncSizeFromContent();
     return this;
+  }
+
+  /** 当前尺寸来源。 */
+  get sizeMode(): "auto" | "explicit" {
+    return this._sizeMode;
+  }
+
+  /**
+   * 绘制内容的真实局部范围，**只读**。
+   *
+   * 与 `width` / `height` 的区别：
+   * - 内容盒由命令决定，起点可能不是 `(0, 0)`（例如 `drawRect(50, 60, 10, 20)` → `x = 50`）
+   * - 布局盒 `width` / `height` 在 `auto` 模式下等于内容盒尺寸，`explicit` 模式下由 `setSize` 决定
+   *
+   * 两者不一致是合法的（内容可以小于布局盒，用于透明热区）。
+   */
+  get contentBounds(): Readonly<{ x: number; y: number; width: number; height: number }> {
+    if (!this.hasContent) return { x: 0, y: 0, width: 0, height: 0 };
+    return {
+      x: this.contentMinX,
+      y: this.contentMinY,
+      width: this.contentMaxX - this.contentMinX,
+      height: this.contentMaxY - this.contentMinY,
+    };
+  }
+
+  /**
+   * 显式指定布局尺寸，进入 `explicit` 模式。
+   *
+   * 之后的绘制命令只更新 `contentBounds`，**不再改写 `width` / `height`**。
+   * 这条规则是本类的核心契约：布局尺寸由调用方一次性决定，绘制不偷偷改它。
+   */
+  override setSize(width: number, height?: number): void {
+    this._sizeMode = "explicit";
+    super.setSize(width, height);
+  }
+
+  /**
+   * 回到 `auto` 模式：布局尺寸改由绘制命令推导，并立即按当前 `contentBounds` 重算。
+   */
+  autoSize(): this {
+    this._sizeMode = "auto";
+    this.syncSizeFromContent();
+    return this;
+  }
+
+  /**
+   * 把一条命令的范围并入内容盒。
+   *
+   * 关键点：记录的是**真实 min/max**，不是从 `width` 反推 —— 后者不满足幂等性
+   * （同样的四条命令会把尺寸越算越大）。
+   */
+  private includeContent(left: number, top: number, right: number, bottom: number): void {
+    // 负宽高会产生 left > right，归一化后再 union
+    const minX = Math.min(left, right);
+    const maxX = Math.max(left, right);
+    const minY = Math.min(top, bottom);
+    const maxY = Math.max(top, bottom);
+
+    if (!this.hasContent) {
+      this.hasContent = true;
+      this.contentMinX = minX;
+      this.contentMaxX = maxX;
+      this.contentMinY = minY;
+      this.contentMaxY = maxY;
+    } else {
+      if (minX < this.contentMinX) this.contentMinX = minX;
+      if (maxX > this.contentMaxX) this.contentMaxX = maxX;
+      if (minY < this.contentMinY) this.contentMinY = minY;
+      if (maxY > this.contentMaxY) this.contentMaxY = maxY;
+    }
+
+    this.syncSizeFromContent();
+  }
+
+  /**
+   * `auto` 模式下把布局尺寸同步为内容尺寸；`explicit` 模式下什么都不做。
+   *
+   * 无内容时归零 —— 否则 `clear()` 之后节点仍占着上一次的尺寸，与 `auto` 的语义不符。
+   */
+  private syncSizeFromContent(): void {
+    if (this._sizeMode !== "auto") return;
+    if (!this.hasContent) {
+      this.setWidth(0);
+      this.setHeight(0);
+      return;
+    }
+    this.setWidth(this.contentMaxX - this.contentMinX);
+    this.setHeight(this.contentMaxY - this.contentMinY);
   }
 
   /**
@@ -148,27 +264,8 @@ export class Graphics extends DisplayObject {
       fillColor,
     });
 
-    // 计算相对于锚点的边界
-    const left = x - radius;
-    const top = y - radius;
-    const right = x + radius;
-    const bottom = y + radius;
-
-    // 更新显示对象尺寸，但不更新位置
-    if (this.commands.length === 1) {
-      this.setWidth(right - left);
-      this.setHeight(bottom - top);
-    } else {
-      // 计算需要的最小宽高
-      const minLeft = Math.min(left, -this.width * this.anchorX);
-      const minTop = Math.min(top, -this.height * this.anchorY);
-      const maxRight = Math.max(right, this.width * (1 - this.anchorX));
-      const maxBottom = Math.max(bottom, this.height * (1 - this.anchorY));
-
-      // 设置新的宽高
-      this.setWidth(maxRight - minLeft);
-      this.setHeight(maxBottom - minTop);
-    }
+    // 圆的外接矩形并入内容盒
+    this.includeContent(x - radius, y - radius, x + radius, y + radius);
 
     return this;
   }
@@ -201,27 +298,7 @@ export class Graphics extends DisplayObject {
       fillColor,
     });
 
-    // 计算相对于锚点的边界
-    const left = x;
-    const top = y;
-    const right = x + width;
-    const bottom = y + height;
-
-    // 更新显示对象尺寸，但不更新位置
-    if (this.commands.length === 1) {
-      this.setWidth(width);
-      this.setHeight(height);
-    } else {
-      // 计算需要的最小宽高
-      const minLeft = Math.min(left, -this.width * this.anchorX);
-      const minTop = Math.min(top, -this.height * this.anchorY);
-      const maxRight = Math.max(right, this.width * (1 - this.anchorX));
-      const maxBottom = Math.max(bottom, this.height * (1 - this.anchorY));
-
-      // 设置新的宽高
-      this.setWidth(maxRight - minLeft);
-      this.setHeight(maxBottom - minTop);
-    }
+    this.includeContent(x, y, x + width, y + height);
 
     return this;
   }
@@ -284,25 +361,7 @@ export class Graphics extends DisplayObject {
       fillColor,
     });
 
-    // 计算边界（同 drawRect）
-    const left = x;
-    const top = y;
-    const right = x + width;
-    const bottom = y + height;
-
-    // 更新显示对象尺寸
-    if (this.commands.length === 1) {
-      this.setWidth(width);
-      this.setHeight(height);
-    } else {
-      const minLeft = Math.min(left, -this.width * this.anchorX);
-      const minTop = Math.min(top, -this.height * this.anchorY);
-      const maxRight = Math.max(right, this.width * (1 - this.anchorX));
-      const maxBottom = Math.max(bottom, this.height * (1 - this.anchorY));
-
-      this.setWidth(maxRight - minLeft);
-      this.setHeight(maxBottom - minTop);
-    }
+    this.includeContent(x, y, x + width, y + height);
 
     return this;
   }
