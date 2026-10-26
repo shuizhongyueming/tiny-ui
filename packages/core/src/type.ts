@@ -12,6 +12,7 @@ export type EventName =
   | 'touchmove'
   | 'touchstart'
   | 'touchend'
+  | 'touchcancel'
   | 'mousemove'
   | 'mousedown'
   | 'mouseup';

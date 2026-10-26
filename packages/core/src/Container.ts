@@ -80,8 +80,12 @@ export class Container extends DisplayObject {
   override destroy(): void {
     super.destroy();
 
-    // 销毁所有子节点
-    for (const child of this.children) {
+    /* 先快照再销毁：child.destroy() 会把 child 从 this.children 里 removeChild
+       掉（splice），直接 for...of 边遍历边改数组会跳元素 —— 一半子树泄漏
+       （监听器/贴图不释放，pressable 挂的输入面监听也摘不掉，实测 resize
+       重建一次监听器净增 ~45）。 */
+    const kids = this.children.slice();
+    for (const child of kids) {
       child.destroy();
     }
     this.children = [];

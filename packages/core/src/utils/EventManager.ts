@@ -4,7 +4,7 @@ import { DisplayObject } from "../DisplayObject";
 import { UIEvent, type StopType } from "../utils/UIEvent";
 import { Container } from "../Container";
 
-export type TouchEventName = "touchstart" | "touchmove" | "touchend";
+export type TouchEventName = "touchstart" | "touchmove" | "touchend" | "touchcancel";
 export type MouseEventName = "mousedown" | "mousemove" | "mouseup";
 export type TouchEventHandler = (event: TouchEvent) => void;
 export type TouchEventListeningHandler = (
@@ -15,18 +15,14 @@ export type TouchEventListeningHandler = (
 type TouchRecord = {
   stopTypes: StopType[];
   time: number;
+  /** 触摸是否已被 UI 消费（markHandled）。合成 mouse 事件是同一手势的重复，
+      被消费过的触摸对应的 mouse 直接跳过，否则按钮会一次点击触发两次。 */
+  handled: boolean;
 };
 
 export interface EventManagerOptions {
   handleTouchEventListening?: TouchEventListeningHandler;
 }
-
-// touch 到 mouse 的事件映射
-const TOUCH_TO_MOUSE_MAP: Record<TouchEventName, MouseEventName> = {
-  touchstart: "mousedown",
-  touchmove: "mousemove",
-  touchend: "mouseup",
-};
 
 // mouse 到 touch 的反向映射
 const MOUSE_TO_TOUCH_MAP: Record<MouseEventName, TouchEventName> = {
@@ -88,6 +84,20 @@ export class EventManager {
     }
     this.eventListeners.set("touchend", touchEndListener);
 
+    /* 触摸取消（系统手势打断、来电等）。宿主不一定会派发，但派发了就必须送达 UI 树 ——
+       否则按钮拿不到取消通知，「按下」状态会残留到下一次触摸（滑出/双指残留偏移的根因之一）。
+       注意 changedTouches 在 touchcancel 里通常包含被取消了的那根手指。 */
+    const touchCancelListener = this.createTouchListener("touchcancel");
+    if (options.handleTouchEventListening) {
+      options.handleTouchEventListening(
+        "touchcancel",
+        touchCancelListener as TouchEventHandler,
+      );
+    } else {
+      this.canvas.addEventListener("touchcancel", touchCancelListener);
+    }
+    this.eventListeners.set("touchcancel", touchCancelListener);
+
     // Mouse 事件 - 不使用 handleTouchEventListening
     const mouseDownListener = this.createMouseListener("mousedown");
     this.canvas.addEventListener("mousedown", mouseDownListener);
@@ -135,6 +145,10 @@ export class EventManager {
       const scaleY = this.canvas.height / canvasRect.height;
 
       const stoppedTypes: StopType[] = [];
+      /* 跨全部触点累计。uiEvent 是 for 块内的 const，块外引用会 ReferenceError
+         （且因 || 短路只在无 stopPropagation 时爆发，表现"偶发"）；
+         多指时任何一指被消费，对应的合成 mouse 就要抑制。 */
+      let anyHandled = false;
 
       for (let i = 0; i < touchList.length; i++) {
         const touch = touchList[i];
@@ -152,6 +166,8 @@ export class EventManager {
         // 将事件传递给UI树
         this.dispatchEventToNode(this.app.root, uiEvent);
 
+        if (uiEvent.handled) anyHandled = true;
+
         // 汇总被拦截的类型，供 mouse 桥接使用
         for (const stopType of uiEvent.getStopTypes()) {
           if (stoppedTypes.indexOf(stopType) === -1) {
@@ -160,11 +176,13 @@ export class EventManager {
         }
       }
 
-      // 分发完成后，如果被拦截，记录该事件
-      if (stoppedTypes.length > 0) {
+      // 分发完成后按事件聚合记录：被拦截或有任一触点被消费都要记 ——
+      // 对应名字的合成 mouse 事件（浏览器兼容层派发）据此跳过或补拦。
+      if (stoppedTypes.length > 0 || anyHandled) {
         this.touchEventRecords.set(eventName, {
           stopTypes: stoppedTypes,
           time: Date.now(),
+          handled: anyHandled,
         });
       }
     };
@@ -182,6 +200,9 @@ export class EventManager {
         // 检查时间窗口
         const timeDiff = Date.now() - record.time;
         if (timeDiff <= this.TIME_WINDOW_MS) {
+          // 触摸已被 UI 消费 —— 合成 mouse 是同一手势的重复，整条跳过，
+          // 否则 pressable 会把它当一次独立的桌面点击再触发一遍回调。
+          if (record.handled) return;
           // 在有效期内，执行同样的 stop 操作
           for (const stopType of record.stopTypes) {
             if (stopType === "stopImmediatePropagation") {

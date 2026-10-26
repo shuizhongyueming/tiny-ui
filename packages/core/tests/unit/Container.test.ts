@@ -16,6 +16,24 @@ describe("Container", () => {
     expect(child.parent).toBe(container);
   });
 
+  it("destroy 必须销毁全部子节点（边遍历边 splice 会跳元素）", () => {
+    const container = new Container(mockApp);
+    const kids = Array.from({ length: 5 }, () => new DisplayObject(mockApp));
+    kids.forEach((k) => container.addChild(k));
+    // 嵌套子树也要全毁
+    const nested = new Container(mockApp);
+    const grand = new DisplayObject(mockApp);
+    nested.addChild(grand);
+    container.addChild(nested);
+
+    container.destroy();
+
+    expect(container.children.length).toBe(0);
+    for (const k of kids) expect(k.destroyed).toBe(true);
+    expect(nested.destroyed).toBe(true);
+    expect(grand.destroyed).toBe(true);
+  });
+
   it("should remove child and clear parent", () => {
     const container = new Container(mockApp);
     const child = new DisplayObject(mockApp);
