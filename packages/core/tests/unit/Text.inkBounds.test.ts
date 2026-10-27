@@ -43,14 +43,10 @@ describe("Text.inkBounds", () => {
     ctx.putImageData(pixels, 0, 0);
     const read = vi.spyOn(ctx, "getImageData");
     const bounds = text.inkBounds;
-    /* 返回的是**节点盒**坐标：渲染时 UV 取 width / textureWidth，
-       所以纹素偏移必须乘这个系数，而不是纹素本身。 */
+    /* 节点盒的可见部分与 Canvas 纹素一一对应，pow2 补白不采样。 */
     expect(canvas.width).not.toBe(text.width);
     expect(bounds).toEqual({
-      x: 7 * (text.width / canvas.width),
-      y: 3 * (text.height / canvas.height),
-      width: 24 * (text.width / canvas.width),
-      height: 16 * (text.height / canvas.height),
+      x: 7, y: 3, width: 24, height: 16,
     });
     expect(Object.isFrozen(bounds)).toBe(true);
     expect(text.inkBounds).toBe(bounds);
@@ -61,13 +57,10 @@ describe("Text.inkBounds", () => {
     expect(read).toHaveBeenCalledTimes(2);
   });
 
-  it("maps texels onto the node box, not onto the power-of-two texture", () => {
+  it("keeps node coordinates one-to-one with visible texels", () => {
     const text = makeText("Coins");
     text.updateTexture();
     const canvas = (text as any).canvas as HTMLCanvasElement;
-    const scaleX = text.width / canvas.width;
-    const scaleY = text.height / canvas.height;
-    /* 非 2 的幂：只有这时纹素坐标与节点坐标才会明显不同。 */
     expect(text.width).not.toBe(canvas.width);
     expect(text.height).not.toBe(canvas.height);
     const ctx = canvas.getContext("2d")!;
@@ -75,16 +68,13 @@ describe("Text.inkBounds", () => {
     const pixels = ctx.createImageData(canvas.width, canvas.height);
     const put = (x: number, y: number) => { pixels.data[(y * canvas.width + x) * 4 + 3] = 255; };
     put(0, 0);
-    put(canvas.width - 1, canvas.height - 1);
+    put(Math.ceil(text.width) - 1, Math.ceil(text.height) - 1);
     ctx.putImageData(pixels, 0, 0);
     const bounds = text.inkBounds!;
-    expect(bounds.x).toBeCloseTo(0);
-    expect(bounds.y).toBeCloseTo(0);
-    expect(bounds.width).toBeCloseTo(canvas.width * scaleX, 6);
-    expect(bounds.height).toBeCloseTo(canvas.height * scaleY, 6);
-    /* 墨迹铺满整块纹理时，节点盒内的右/下边界不能超过 width / height。 */
-    expect(bounds.x + bounds.width).toBeCloseTo(text.width, 6);
-    expect(bounds.y + bounds.height).toBeCloseTo(text.height, 6);
+    expect(bounds.x).toBe(0);
+    expect(bounds.y).toBe(0);
+    expect(bounds.x + bounds.width).toBe(Math.ceil(text.width));
+    expect(bounds.y + bounds.height).toBe(Math.ceil(text.height));
   });
 
   it("includes stroke and BBCode background pixels including padding", () => {

@@ -211,16 +211,13 @@ export class Text extends DisplayObject {
         }
       }
       if (right >= left) {
-        /* 画布尺寸恒等于 textureWidth / textureHeight（渲染时 UV 取
-           width / textureWidth），所以纹素必须乘「节点盒 / 纹素」系数才是
-           节点盒坐标。直接用 textureWidth / canvas.width 会恒为 1，
-           返回出来的就是纹素值，跟文档约定的坐标系不一致。 */
-        const sx = this.width / canvas.width;
-        const sy = this.height / canvas.height;
+        /* 顶点使用 0..width/height，UV 使用 width/textureWidth。
+           节点盒的可见部分与 Canvas 纹素是 1:1，不存在拉伸；
+           右侧和底部的 2 的幂补白不会被采样。 */
         this.cachedInkBounds = Object.freeze({
-          x: left * sx, y: top * sy,
-          width: (right - left + 1) * sx,
-          height: (bottom - top + 1) * sy,
+          x: left, y: top,
+          width: right - left + 1,
+          height: bottom - top + 1,
         });
       }
     } catch {
