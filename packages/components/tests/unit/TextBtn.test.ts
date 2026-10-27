@@ -5,7 +5,9 @@ import { TextBtn } from "../../src/TextBtn";
 // Mock TinyUI factory function
 function createMockTinyUI(): TinyUI {
   const mockEventListeners = new Map();
-  
+  let capture: any;
+  const event = (type: string) => ({ type, identifier: 1, originalEvent: {}, x: 0, y: 0,
+    stopPropagation: vi.fn(), stop: vi.fn(), markHandled: vi.fn() });
   return {
     viewportWidth: 750,
     viewportHeight: 1334,
@@ -31,6 +33,9 @@ function createMockTinyUI(): TinyUI {
       addChild: vi.fn(),
       removeChild: vi.fn(),
       destroy: vi.fn(),
+      on: vi.fn(() => () => {}),
+      hitTest: vi.fn(() => true),
+      getGlobalTransformMatrix: vi.fn(() => ({ invert: () => ({ transformPoint: (x: number, y: number) => ({ x, y }) }) })),
       setSize: vi.fn(function(this: any, width: number, height?: number) {
         this.width = width;
         this.height = height === undefined ? width : height;
@@ -89,6 +94,8 @@ function createMockTinyUI(): TinyUI {
       addChild: vi.fn(),
       removeChild: vi.fn(),
     })),
+    _event: event,
+    eventManager: { addEventObserver: vi.fn((fn: any) => { capture = fn; return () => {}; }) },
     addTick: vi.fn(),
     removeTick: vi.fn(),
     render: vi.fn(),
@@ -258,92 +265,25 @@ describe("TextBtn", () => {
   });
 
   describe("Event Handling", () => {
-    it("should add touchstart listener without press effect", () => {
-      const onClick = vi.fn();
-      TextBtn({
-        app: mockApp,
-        text: "Test",
-        pressEffect: false,
-        onClick,
-      });
+    /* 点击行为（含移动取消、按下视觉）已在 PressablePopup.test.ts 里
+       用真实 EventManager 覆盖。这里只验证 TextBtn 是否正确装配了
+       Pressable：绑定 touchstart/mousedown，并按需注册捕获观察器。 */
+    it("binds both touch and mouse entry points", () => {
+      TextBtn({ app: mockApp, text: "Test", pressEffect: false, onClick: vi.fn() });
 
       const container = (mockApp.createContainer as any).mock.results[0].value;
       expect(container.addEventListener).toHaveBeenCalledWith("touchstart", expect.any(Function));
+      expect(container.addEventListener).toHaveBeenCalledWith("mousedown", expect.any(Function));
+      expect(container.addEventListener).not.toHaveBeenCalledWith("touchend", expect.any(Function));
     });
 
-    it("should trigger onClick on touchend when pressEffect is false", () => {
-      const onClick = vi.fn();
-      TextBtn({
-        app: mockApp,
-        text: "Test",
-        pressEffect: false,
-        onClick,
-      });
+    it("registers the capture observer lazily on press", () => {
+      TextBtn({ app: mockApp, text: "Test", pressEffect: true, onClick: vi.fn() });
 
       const container = (mockApp.createContainer as any).mock.results[0].value;
-      // touchstart then touchend triggers onClick (same as pressEffect=true)
-      container._triggerEvent("touchstart");
-      container._triggerEvent("touchend");
-
-      expect(onClick).toHaveBeenCalled();
-    });
-
-    it("should add event listeners with press effect", () => {
-      const onClick = vi.fn();
-      TextBtn({
-        app: mockApp,
-        text: "Test",
-        pressEffect: true,
-        onClick,
-      });
-
-      const container = (mockApp.createContainer as any).mock.results[0].value;
-      expect(container.addEventListener).toHaveBeenCalledWith("touchstart", expect.any(Function));
-      expect(container.addEventListener).toHaveBeenCalledWith("touchmove", expect.any(Function));
-      expect(container.addEventListener).toHaveBeenCalledWith("touchend", expect.any(Function));
-    });
-
-    it("should trigger onClick on touchend when pressed", () => {
-      const onClick = vi.fn();
-      const result = TextBtn({
-        app: mockApp,
-        text: "Test",
-        pressEffect: true,
-        onClick,
-      });
-
-      const container = (mockApp.createContainer as any).mock.results[0].value;
-      
-      // First trigger touchstart to set pressed state
-      container._triggerEvent("touchstart");
-      
-      // Then trigger touchend to complete the click
-      container._triggerEvent("touchend");
-      
-      expect(onClick).toHaveBeenCalled();
-    });
-
-    it("should not trigger onClick if moved too far", () => {
-      const onClick = vi.fn();
-      const result = TextBtn({
-        app: mockApp,
-        text: "Test",
-        pressEffect: true,
-        onClick,
-      });
-
-      const container = (mockApp.createContainer as any).mock.results[0].value;
-      
-      // Trigger touchstart at origin
-      container._triggerEvent("touchstart", { stopPropagation: vi.fn(), x: 0, y: 0 });
-      
-      // Trigger touchmove far away
-      container._triggerEvent("touchmove", { stopPropagation: vi.fn(), x: 20, y: 0 });
-      
-      // Trigger touchend
-      container._triggerEvent("touchend", { stopPropagation: vi.fn(), x: 20, y: 0 });
-      
-      expect(onClick).not.toHaveBeenCalled();
+      expect(mockApp.eventManager.addEventObserver).not.toHaveBeenCalled();
+      container._triggerEvent("touchstart", (mockApp as any)._event("touchstart"));
+      expect(mockApp.eventManager.addEventObserver).toHaveBeenCalledOnce();
     });
   });
 

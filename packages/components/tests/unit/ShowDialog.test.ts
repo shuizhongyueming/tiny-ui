@@ -33,6 +33,7 @@ function createMockTinyUI(): TinyUI {
       addChild: vi.fn(),
       removeChild: vi.fn(),
       destroy: vi.fn(),
+      on: vi.fn(() => () => {}),
       setSize: vi.fn(function(this: any, size: { width: number; height: number }) {
         this.width = size.width;
         this.height = size.height;
@@ -89,6 +90,7 @@ function createMockTinyUI(): TinyUI {
       addChild: vi.fn(),
       destroy: vi.fn(),
     })),
+    eventManager: { addEventObserver: vi.fn(() => () => {}) },
     addTick: vi.fn((callback: (delta: number) => void) => {
       callback(16.67);
     }),

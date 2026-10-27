@@ -164,7 +164,9 @@ export class EventManager {
         });
 
         // 将事件传递给UI树
-        this.dispatchEventToNode(this.app.root, uiEvent);
+        if (this.notifyObservers(uiEvent)) {
+          this.dispatchEventToNode(this.app.root, uiEvent);
+        }
 
         if (uiEvent.handled) anyHandled = true;
 
@@ -250,7 +252,38 @@ export class EventManager {
     });
 
     // 将事件传递给UI树
-    this.dispatchEventToNode(this.app.root, uiEvent);
+    if (this.notifyObservers(uiEvent)) {
+      this.dispatchEventToNode(this.app.root, uiEvent);
+    }
+  }
+
+  private observers = new Set<(event: UIEvent) => void | boolean>();
+
+  addEventObserver(observer: (event: UIEvent) => void | boolean): () => void {
+    this.observers.add(observer);
+    return () => this.observers.delete(observer);
+  }
+
+  /**
+   * 在显示树分发**之前**通知捕获观察者，每个 UIEvent 只走一次。
+   *
+   * 调用点必须是事件入口（touch 的每个触点、mouse 的 processMouseEvent），
+   * 不能放在 dispatchEventToNode 里 —— 那里按节点递归，节点多就会被调用多次，
+   * 既放大开销又让语义变成「每节点一次」。
+   *
+   * 返回 `false` 表示本事件已被观察者消费：标记 handled 并跳过显示树分发。
+   * 返回其他值只观察，旧分发语义完全不变。
+   */
+  private notifyObservers(event: UIEvent): boolean {
+    if (this.observers.size === 0) return true;
+    // 每个事件取一次快照：回调里卸载观察者不会影响本轮遍历
+    for (const observer of Array.from(this.observers)) {
+      if (observer(event) === false) {
+        event.markHandled();
+        return false;
+      }
+    }
+    return true;
   }
 
   private dispatchEventToNode(
@@ -304,5 +337,6 @@ export class EventManager {
 
     this.eventListeners.clear();
     this.touchEventRecords.clear();
+    this.observers.clear();
   }
 }

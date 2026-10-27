@@ -739,6 +739,21 @@ canvas.height = canvas.clientHeight * dpr;
 
 ## 8. Appendix
 
+### EventManager.addEventObserver：输入捕获观察
+
+`app.eventManager.addEventObserver(event => ...)` 返回卸载函数。每个 UIEvent 在旧显示树分发前调用**且仅调用一次**（不随显示树节点数增加），touch 的每个触点、mouse、自定义 `handleTouchEventListening` 都走同一入口。返回 `false` 停止后续分发并标记 handled；返回其他值只观察，旧语义不变。因为返回 `false` 会丢掉整条事件，只有真正消费该手势的控件才应返回 `false`；「不是我的触点」必须返回真值放行，否则会吞掉其他控件和游戏的输入。长按/取消等需要可靠收尾的控件只在活跃手势期间注册，结束立即卸载。
+
+### Text.inkBounds：已绘制内容的像素边界
+
+只读 `Readonly<{ x, y, width, height }> | null`，坐标相对节点盒左上角（**不是**纹理像素），包含描边与 BBCode 背景。Texture 是 2 的幂尺寸，所以纹素偏移会乘以 `width / textureWidth`、`height / textureHeight` 换算回节点盒，数值可直接与 `node.x/y/width/height` 相加。完整扫描已绘制 Canvas 中 alpha > 8 的像素，结果按纹理版本惰性缓存。透明空白、未绘制、dirty、销毁或读取失败返回 null。getter 不触发绘制，不公开 canvas，不过滤防指纹噪声。
+
+```javascript
+const label = tinyUI.createText('Coins');
+label.updateTexture();
+const ink = label.inkBounds;
+if (ink) icon.y = label.y + ink.y + ink.height / 2 - icon.height / 2;
+```
+
 ### 8.1 术语表
 
 | 术语 | 说明 |

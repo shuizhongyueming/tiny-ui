@@ -183,6 +183,51 @@ export class Text extends DisplayObject {
   private _bbcodeEnabled: boolean = false;
   private _canvasPadding: number = 10;
   private parser: BBCodeParser = new BBCodeParser();
+  private inkBoundsVersion: number = -1;
+  private cachedInkBounds: Readonly<{ x: number; y: number; width: number; height: number }> | null = null;
+
+  get inkBounds(): Readonly<{ x: number; y: number; width: number; height: number }> | null {
+    if (this.destroyed || this.textureNeedsUpdate || !this._text ||
+        !this.canvas || this.textureUpdateGen === 0) return null;
+    if (this.inkBoundsVersion === this.textureUpdateGen) return this.cachedInkBounds;
+    this.inkBoundsVersion = this.textureUpdateGen;
+    this.cachedInkBounds = null;
+    try {
+      const canvas = this.canvas;
+      const ctx = canvas.getContext("2d");
+      if (!ctx || !canvas.width || !canvas.height) return null;
+      const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      let left = canvas.width;
+      let top = canvas.height;
+      let right = -1;
+      let bottom = -1;
+      for (let y = 0; y < canvas.height; y++) {
+        for (let x = 0; x < canvas.width; x++) {
+          if (data[(y * canvas.width + x) * 4 + 3] <= 8) continue;
+          left = Math.min(left, x);
+          top = Math.min(top, y);
+          right = Math.max(right, x);
+          bottom = Math.max(bottom, y);
+        }
+      }
+      if (right >= left) {
+        /* 画布尺寸恒等于 textureWidth / textureHeight（渲染时 UV 取
+           width / textureWidth），所以纹素必须乘「节点盒 / 纹素」系数才是
+           节点盒坐标。直接用 textureWidth / canvas.width 会恒为 1，
+           返回出来的就是纹素值，跟文档约定的坐标系不一致。 */
+        const sx = this.width / canvas.width;
+        const sy = this.height / canvas.height;
+        this.cachedInkBounds = Object.freeze({
+          x: left * sx, y: top * sy,
+          width: (right - left + 1) * sx,
+          height: (bottom - top + 1) * sy,
+        });
+      }
+    } catch {
+      return null;
+    }
+    return this.cachedInkBounds;
+  }
 
   constructor(app: TinyUI, name: string = "Text") {
     super(app, name);

@@ -1,7 +1,7 @@
 # Tiny UI Components 通用接口说明与 Demo
 
 > 目标：让第一次接触 Tiny UI Components 的人能在 5 分钟内知道"有哪些组件、怎么用"。  
-> 版本：对应代码库 v1.0.3  
+> 版本：对应代码库 v2.1.0
 > 依赖：@shuizhongyueming/tiny-ui-core
 
 ---
@@ -917,6 +917,59 @@ createResponsiveUI(tinyUI);
 ---
 
 ## 8. Appendix
+
+### Pressable 与 Popup
+
+`Pressable(app, node, { onTap, onPressChange, pressDy, slop, moveThreshold, stopPropagation })` 返回 `{ node, setEnabled, cancel, destroy }`。首根手指独占：其他手指不能完成或取消本手势，但**它们的输入不会被吞**——另一根手指照常点别的按钮，游戏也能收到。本指事件在结束后（命中取消、抬手、取消）仍会被拦住，避免落到下层。默认无视觉；`pressDy/onPressChange` 可选。
+
+`slop` 与 `moveThreshold` 是两件事：
+
+- `slop`（默认 0）：抬起点/移动点距节点盒边缘多少像素内仍算「在按钮上」。`slop=0` 时离开节点盒即取消。
+- `moveThreshold`（默认 0，即关闭）：起手点移动超过该距离即**永久**取消本次手势，用于区分点击与滑动。
+
+TextBtn 用 `moveThreshold: 10` 保留历史上的「移动超过 10px 不算点击」。`pressDy` 只影响视觉位移，命中判定按起手位置计算，边缘点按不会丢。
+
+鼠标手势期间会临时挂 window 级 `mouseup`/`blur`（capture）监听：在画布外松开或窗口失焦也能可靠收尾，不会把手势卡死。销毁或结束即摘除。
+
+```javascript
+const p = TinyUIComponents.Pressable(app, button, { onTap: start });
+const popup = TinyUIComponents.Popup({ app, parent: app.root, modal: true,
+  closeDuration: 0.25, onClose: () => console.log('closed') });
+popup.addContent(panel);
+TinyUIComponents.registerPressable(panel, p);
+popup.close(); // 取消子树内所有按压；淡出期整块画布模态；onClose 只一次
+```
+
+`registerPressable(owner, pressable)` 登记归属。`Popup.close()` 按**子树**查找：弹窗内任何位置登记的 Pressable（包括 TextBtn 自己登记的）都会被 `cancel()`——复位按下视觉、本次不触发 `onTap`，但控件不会被永久禁用，容器复用时仍可点。
+
+`Popup.close()` 只注册关闭期间的 tick（`dt` 毫秒，`closeDuration` 秒）。`closeDuration`/`options.duration` 为非有限值或负数时按 0 处理（立即关闭）；`alpha` 非有限值回落到默认值，避免 NaN 污染渲染。直接 `destroy()` 立即清理且不调用 `onClose`。
+
+**关闭动画期间是全局模态**：从 `close()` 到销毁这段时间，整个画布上的输入都被拦截。需要在淡出后打开更高层的 UI，请等 `onClose` 回调。
+
+`container` 参数用于**接管**已有外壳：传入即转移所有权，`close()`/`destroy()` 会销毁它。需要重复打开请每次新建容器，不要复用同一个。resize 时宿主负责更新全屏容器和遮罩尺寸。
+
+### TweenGroup：宿主驱动补间
+
+每个 `new TweenGroup()` 拥有独立动画集合。`to(target, values, duration, { delay?, ease?, from?, onComplete? })`、`wait(seconds, onComplete, owner?)` 返回 `{ cancel() }`。时间单位为秒，由宿主调用 `update(dt)`；没有内部 rAF。`clear()` 取消本组全部动画。取消指定动画时保留并调用其句柄的 `cancel()`。
+
+同组同目标的新动画只接管冲突属性，旧动画非冲突属性继续。完全被替代的动画或主动取消均不触发完成回调。TinyUI 节点销毁自动取消，wait 可绑定节点 owner；完成与取消都移除生命周期监听。完成回调中新建的动画从下一次 update 开始推进。`to()`/`wait()` 的 duration/delay 必须是有限非负数，动画属性必须是有限数；但 `update(dt)` 对非有限或负 `dt`（时钟回跳、页签节流、首帧）**忽略本次调用而不抛异常**，避免打断宿主帧循环。
+
+```javascript
+const { TweenGroup, Ease, cubicBezier } = TinyUIComponents;
+const hudTweens = new TweenGroup();
+const popupTweens = new TweenGroup();
+const handle = hudTweens.to(label, { alpha: 1 }, 0.3, {
+  delay: 0.1, ease: Ease.outCubic,
+  onComplete: () => hudTweens.wait(1, () => label.destroy(), label),
+});
+// 宿主帧循环里：
+hudTweens.update(dtSeconds);
+popupTweens.update(dtSeconds);
+// 切换 HUD 不影响 popupTweens：
+hudTweens.clear();
+```
+
+内置 `Ease.linear/inQuad/outQuad/outCubic`，也可传自定义函数。`cubicBezier(x1,y1,x2,y2)` 要求 x 控制点在 [0,1]，y 可超出该范围；允许过冲。完成帧固定写终值。
 
 ### 8.1 术语表
 

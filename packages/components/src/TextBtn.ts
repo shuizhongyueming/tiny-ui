@@ -1,5 +1,7 @@
 import type { TinyUI, Callback, Container, Graphics } from "@shuizhongyueming/tiny-ui-core";
 import { adjustTo } from "./utils/adjustTo";
+import { Pressable } from "./Pressable";
+import { registerPressable } from "./utils/pressableGroup";
 
 export interface TextBtnProps {
   app: TinyUI;
@@ -101,63 +103,18 @@ export function TextBtn({
   }
   adjustToBtn(btnText, { h: "center", v: "center" });
 
-  // 按钮交互 - 统一绑定到容器，确保点击按钮任何区域（包括文字）都能触发
-  let isPressed = false;
-  let shouldTriggerClick = false;
-  let startX = 0;
-  let startY = 0;
-
-  const setPressed = (pressed: boolean) => {
-    isPressed = pressed;
-    if (pressed) {
-      shouldTriggerClick = true;
-      if (pressEffect) {
-        if (isTransparent) {
-          btnContainer.alpha = 0.6;
-        } else if (btnBg) {
-          btnBg.alpha = 0.7;
-        }
-      }
-    } else if (pressEffect) {
-      if (isTransparent) {
-        btnContainer.alpha = 1;
-      } else if (btnBg) {
-        btnBg.alpha = 1;
-      }
-    }
-  };
-
-  btnContainer.addEventListener('touchstart', (e) => {
-    e.stopPropagation();
-    startX = (e as any).x;
-    startY = (e as any).y;
-    setPressed(true);
+  const pressable = Pressable(app, btnContainer, {
+    onTap: onClick,
+    /* 原实现是「移动超过 10px 就取消点击」，那是移动距离阈值，
+       不是命中容差 —— 两者混用会让宽按钮上的拖拽被当成点击。 */
+    moveThreshold: 10,
+    onPressChange: pressed => {
+      if (!pressEffect) return;
+      if (isTransparent) btnContainer.alpha = pressed ? 0.6 : 1;
+      else if (btnBg) btnBg.alpha = pressed ? 0.7 : 1;
+    },
   });
-
-  btnContainer.addEventListener('touchmove', (e) => {
-    e.stopPropagation();
-    if (!isPressed) return;
-
-    const dx = (e as any).x - startX;
-    const dy = (e as any).y - startY;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-
-    if (distance > 10) {
-      setPressed(false);
-      shouldTriggerClick = false;
-    }
-  });
-
-  if (onClick) {
-    btnContainer.addEventListener('touchend', (e) => {
-      e.stopPropagation();
-      const wasPressed = isPressed;
-      setPressed(false);
-      if (wasPressed && shouldTriggerClick) {
-        onClick();
-      }
-    });
-  }
+  registerPressable(btnContainer, pressable);
 
   return {
     container: btnContainer,

@@ -270,6 +270,13 @@
       baseline: Math.round(it.baselineOffset * 100) / 100,
       visualTop: Math.round(it.visualTop * 100) / 100,
       visualHeight: Math.round(it.visualHeight * 100) / 100,
+      // 已绘制像素的真实边界：getter 不会自行补画 dirty Text
+      inkBounds: it.inkBounds ? {
+        x: Math.round(it.inkBounds.x * 100) / 100,
+        y: Math.round(it.inkBounds.y * 100) / 100,
+        width: Math.round(it.inkBounds.width * 100) / 100,
+        height: Math.round(it.inkBounds.height * 100) / 100,
+      } : null,
     })),
   }));
 
