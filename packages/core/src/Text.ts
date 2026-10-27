@@ -187,8 +187,9 @@ export class Text extends DisplayObject {
   private cachedInkBounds: Readonly<{ x: number; y: number; width: number; height: number }> | null = null;
 
   get inkBounds(): Readonly<{ x: number; y: number; width: number; height: number }> | null {
-    if (this.destroyed || this.textureNeedsUpdate || !this._text ||
-        !this.canvas || this.textureUpdateGen === 0) return null;
+    if (this.destroyed || !this._text) return null;
+    if (this.textureNeedsUpdate) this.updateTexture();
+    if (!this.canvas || this.textureUpdateGen === 0) return null;
     if (this.inkBoundsVersion === this.textureUpdateGen) return this.cachedInkBounds;
     this.inkBoundsVersion = this.textureUpdateGen;
     this.cachedInkBounds = null;

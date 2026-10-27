@@ -745,7 +745,7 @@ canvas.height = canvas.clientHeight * dpr;
 
 ### Text.inkBounds：已绘制内容的像素边界
 
-只读 `Readonly<{ x, y, width, height }> | null`，坐标相对节点盒左上角，包含描边与 BBCode 背景。节点盒的可见部分与 Canvas 纹素一一对应；右侧和底部的 2 的幂补白不会被采样，因此不能再次按 `width / textureWidth` 缩放。数值可直接与 `node.x/y/width/height` 相加。完整扫描已绘制 Canvas 中 alpha > 8 的像素，结果按纹理版本惰性缓存。透明空白、未绘制、dirty、销毁或读取失败返回 null。getter 不触发绘制，不公开 canvas，不过滤防指纹噪声。
+只读 `Readonly<{ x, y, width, height }> | null`，坐标相对节点盒左上角，包含描边与 BBCode 背景。节点盒的可见部分与 Canvas 纹素一一对应；右侧和底部的 2 的幂补白不会被采样，因此不能再次按 `width / textureWidth` 缩放。数值可直接与 `node.x/y/width/height` 相加。完整扫描已绘制 Canvas 中 alpha > 8 的像素，结果按纹理版本缓存。文本属性标脏时 getter 先调用 `updateTexture()` 更新 Canvas 和度量，再读取边界；GL 上传仍按 safe section 延迟执行。透明空白、销毁或读取失败返回 null。首次读取有绘制与扫描成本，后续读取复用缓存；不要用于大量文本的逐帧测量。getter 不公开 canvas，不过滤防指纹噪声。
 
 ```javascript
 const label = tinyUI.createText('Coins');

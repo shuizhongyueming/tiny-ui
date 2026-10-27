@@ -12,17 +12,15 @@ const makeText = (value = "Hello") => {
 };
 
 describe("Text.inkBounds", () => {
-  it("does not draw and invalidates on dirty, empty and destroyed text", () => {
+  it("draws lazily for current text and returns null only when empty or destroyed", () => {
     const text = makeText();
     const draw = vi.spyOn(text, "updateTexture");
-    expect(text.inkBounds).toBeNull();
-    expect(draw).not.toHaveBeenCalled();
-    text.updateTexture();
     expect(text.inkBounds?.width).toBeGreaterThan(0);
+    expect(draw).toHaveBeenCalledTimes(1);
+    const before = text.inkBounds;
     text.fontSize = 40;
-    expect(text.inkBounds).toBeNull();
-    text.updateTexture();
-    expect(text.inkBounds?.width).toBeGreaterThan(0);
+    expect(text.inkBounds?.width).toBeGreaterThan(before!.width);
+    expect(draw).toHaveBeenCalledTimes(2);
     text.text = "";
     text.updateTexture();
     expect(text.inkBounds).toBeNull();
