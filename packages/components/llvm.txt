@@ -950,9 +950,11 @@ popup.close(); // 取消子树内所有按压；淡出期整块画布模态；on
 
 ### TweenGroup：宿主驱动补间
 
-每个 `new TweenGroup()` 拥有独立动画集合。`to(target, values, duration, { delay?, ease?, from?, onComplete? })`、`wait(seconds, onComplete, owner?)` 返回 `{ cancel() }`。时间单位为秒，由宿主调用 `update(dt)`；没有内部 rAF。`clear()` 取消本组全部动画。取消指定动画时保留并调用其句柄的 `cancel()`。
+每个 `new TweenGroup()` 拥有独立动画集合。`to(target, values, duration, { delay?, ease?, from?, onUpdate?, onComplete? })`、`wait(seconds, onComplete, owner?)` 返回 `{ cancel() }`。时间单位为秒，由宿主调用 `update(dt)`；没有内部 rAF。`clear()` 取消本组全部动画。取消指定动画时保留并调用其句柄的 `cancel()`。
 
 同组同目标的新动画只接管冲突属性，旧动画非冲突属性继续。完全被替代的动画或主动取消均不触发完成回调。TinyUI 节点销毁自动取消，wait 可绑定节点 owner；完成与取消都移除生命周期监听。完成回调中新建的动画从下一次 update 开始推进。`to()`/`wait()` 的 duration/delay 必须是有限非负数，动画属性必须是有限数；但 `update(dt)` 对非有限或负 `dt`（时钟回跳、页签节流、首帧）**忽略本次调用而不抛异常**，避免打断宿主帧循环。
+
+`onUpdate` 在每次有效推进写完所有属性后调用一次（含最终帧，且在 `onComplete` 之前）；延迟期间不调用，取消或节点销毁后也不再调用。`onUpdate` 是宿主代码：在其中 `cancel()`/`clear()` 或对同目标启动替代动画后，旧动画的 `onComplete` 不会误触发；替代动画从下一次 update 开始推进。
 
 ```javascript
 const { TweenGroup, Ease, cubicBezier } = TinyUIComponents;

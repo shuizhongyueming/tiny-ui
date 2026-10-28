@@ -114,4 +114,143 @@ describe("TweenGroup", () => {
     expect(target.x).toBe(10);
     expect(done).toHaveBeenCalledTimes(1);
   });
+
+  it("formats a tweened counter into label text on every advance, update before complete on the final frame", () => {
+    const group = new TweenGroup();
+    const score = { value: 0 };
+    const label = { text: "0" };
+    const events: string[] = [];
+    group.to(score, { value: 100 }, 1, {
+      ease: Ease.linear,
+      onUpdate: () => {
+        events.push(`update:${score.value}`);
+        label.text = Math.round(score.value).toString();
+      },
+      onComplete: () => events.push("complete"),
+    });
+    group.update(0.5);
+    expect(score.value).toBe(50);
+    expect(label.text).toBe("50");
+    expect(events).toEqual(["update:50"]);
+    group.update(0.5);
+    expect(score.value).toBe(100);
+    expect(label.text).toBe("100");
+    expect(events).toEqual(["update:50", "update:100", "complete"]);
+    /* 完成后条目已移除，多余的 update 不再回调。 */
+    group.update(1);
+    expect(events).toHaveLength(3);
+  });
+
+  it("does not call onUpdate during delay and consumes only the remainder after it", () => {
+    const group = new TweenGroup();
+    const target = { x: 0 };
+    const onUpdate = vi.fn();
+    group.to(target, { x: 100 }, 1, { delay: 0.15, ease: Ease.linear, onUpdate });
+    group.update(0.1);
+    expect(onUpdate).not.toHaveBeenCalled();
+    expect(target.x).toBe(0);
+    group.update(0.1);
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+    expect(target.x).toBeCloseTo(5);
+  });
+
+  it("fires onUpdate once with final values before onComplete for zero-duration tweens", () => {
+    const group = new TweenGroup();
+    const target = { x: 0, y: 1 };
+    const events: string[] = [];
+    group.to(target, { x: 10, y: 5 }, 0, {
+      onUpdate: () => events.push(`update:${target.x},${target.y}`),
+      onComplete: () => events.push("complete"),
+    });
+    group.update(0.5);
+    expect(target).toEqual({ x: 10, y: 5 });
+    expect(events).toEqual(["update:10,5", "complete"]);
+    group.update(1);
+    expect(events).toHaveLength(2);
+  });
+
+  it("skips onUpdate and onComplete after cancel, clear or owner destruction", () => {
+    const group = new TweenGroup();
+    const a = { x: 0 };
+    const onUpdateA = vi.fn();
+    const handle = group.to(a, { x: 10 }, 1, { onUpdate: onUpdateA });
+    handle.cancel();
+    group.update(1);
+    expect(a.x).toBe(0);
+    expect(onUpdateA).not.toHaveBeenCalled();
+    const b = { x: 0 };
+    const onUpdateB = vi.fn();
+    group.to(b, { x: 10 }, 1, { onUpdate: onUpdateB });
+    group.clear();
+    group.update(1);
+    expect(b.x).toBe(0);
+    expect(onUpdateB).not.toHaveBeenCalled();
+    const c = Object.assign(new Emitter(), { x: 0, destroyed: false });
+    const onUpdateC = vi.fn();
+    const doneC = vi.fn();
+    group.to(c, { x: 10 }, 1, { onUpdate: onUpdateC, onComplete: doneC });
+    c.destroyed = true;
+    c.emit("destroyed");
+    group.update(1);
+    expect(c.x).toBe(0);
+    expect(onUpdateC).not.toHaveBeenCalled();
+    expect(doneC).not.toHaveBeenCalled();
+  });
+
+  it("keeps onComplete from firing when onUpdate cancels, clears or replaces the tween", () => {
+    const group = new TweenGroup();
+    const a = { x: 0 };
+    const doneA = vi.fn();
+    let handle: ReturnType<TweenGroup["to"]> | undefined;
+    handle = group.to(a, { x: 10 }, 1, {
+      ease: Ease.linear,
+      onUpdate: () => handle?.cancel(),
+      onComplete: doneA,
+    });
+    group.update(0.5);
+    expect(a.x).toBe(5);
+    expect(doneA).not.toHaveBeenCalled();
+    group.update(1);
+    expect(a.x).toBe(5);
+    expect(doneA).not.toHaveBeenCalled();
+    const b = { x: 0 };
+    const doneB = vi.fn();
+    group.to(b, { x: 10 }, 1, {
+      ease: Ease.linear,
+      onUpdate: () => group.clear(),
+      onComplete: doneB,
+    });
+    group.update(0.5);
+    expect(b.x).toBe(5);
+    expect(doneB).not.toHaveBeenCalled();
+    group.update(1);
+    expect(b.x).toBe(5);
+    expect(doneB).not.toHaveBeenCalled();
+    const c = { x: 0 };
+    const doneOld = vi.fn();
+    const doneNew = vi.fn();
+    const onUpdateNew = vi.fn();
+    group.to(c, { x: 100 }, 1, {
+      ease: Ease.linear,
+      onUpdate: () => {
+        /* 同目标启动替代动画：旧条目被接管，不应再触发旧 onComplete，
+           新动画从下一次 update 开始推进。 */
+        if (c.x >= 50) {
+          group.to(c, { x: 200 }, 1, { ease: Ease.linear, onUpdate: onUpdateNew, onComplete: doneNew });
+        }
+      },
+      onComplete: doneOld,
+    });
+    group.update(0.6);
+    expect(c.x).toBe(60);
+    expect(doneOld).not.toHaveBeenCalled();
+    group.update(0.4);
+    expect(c.x).toBe(116);
+    expect(onUpdateNew).toHaveBeenCalledTimes(1);
+    expect(doneNew).not.toHaveBeenCalled();
+    group.update(0.6);
+    expect(c.x).toBe(200);
+    expect(doneNew).toHaveBeenCalledTimes(1);
+    expect(doneOld).not.toHaveBeenCalled();
+  });
 });

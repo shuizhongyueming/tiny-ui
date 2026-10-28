@@ -40,6 +40,7 @@ export interface TweenOptions {
   delay?: number;
   ease?: EaseFunction;
   from?: Record<string, number>;
+  onUpdate?: () => void;
   onComplete?: () => void;
 }
 
@@ -51,6 +52,7 @@ interface Entry {
   duration: number;
   delay: number;
   ease: EaseFunction;
+  onUpdate?: () => void;
   onComplete?: () => void;
   detach?: () => void;
   cancel: () => void;
@@ -75,7 +77,8 @@ export class TweenGroup {
     }
     this.cancel(target, Object.keys(to));
     return this.add({ target, values: to, from, duration, delay: options.delay ?? 0,
-      ease: options.ease ?? Ease.outCubic, onComplete: options.onComplete }, target as TweenOwner);
+      ease: options.ease ?? Ease.outCubic, onUpdate: options.onUpdate,
+      onComplete: options.onComplete }, target as TweenOwner);
   }
 
   wait(seconds: number, onComplete: () => void, owner?: TweenOwner): TweenHandle {
@@ -117,6 +120,10 @@ export class TweenGroup {
             entry.from[key] + (entry.values[key] - entry.from[key]) * eased;
         }
       }
+      /* onUpdate 是宿主代码，可能 cancel/clear 本条目或同目标启动替代动画，
+         之后必须重新确认条目仍在集合中再决定完成，避免误触发 onComplete。 */
+      if (!this.entries.has(entry)) continue;
+      entry.onUpdate?.();
       if (progress === 1 && this.entries.has(entry)) {
         entry.cancel();
         entry.onComplete?.();
