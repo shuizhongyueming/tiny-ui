@@ -464,8 +464,11 @@ export class Text extends DisplayObject {
       if (this.texture) {
         const textureToDelete = this.texture;
         this.texture = null;
+        // Through the manager, not straight to the context: a direct
+        // gl.deleteTexture leaves the manager's key behind and the bookkeeping
+        // grows with every text change.
         this.app.enqueueGLTask(() => {
-          this.app.gl.deleteTexture(textureToDelete);
+          this.app.textureManager.deleteTexture(textureToDelete);
         });
       }
       this.setWidth(0);
@@ -922,7 +925,7 @@ export class Text extends DisplayObject {
       if (gen !== this.textureUpdateGen) return;
 
       if (previousTexture) {
-        this.app.gl.deleteTexture(previousTexture);
+        textureManager.deleteTexture(previousTexture);
       }
 
       this.texture = textureManager.createCanvasTexture(canvas, false);
@@ -1393,7 +1396,7 @@ export class Text extends DisplayObject {
       const textureToDelete = this.texture;
       this.texture = null;
       this.app.enqueueGLTask(() => {
-        this.app.gl.deleteTexture(textureToDelete);
+        this.app.textureManager.deleteTexture(textureToDelete);
       });
     }
     this.textureUploadPending = false;

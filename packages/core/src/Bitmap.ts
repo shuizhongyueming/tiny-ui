@@ -46,7 +46,7 @@ export class Bitmap extends DisplayObject {
       if (gen !== this.textureUpdateGen) return;
 
       if (previousTexture) {
-        this.app.gl.deleteTexture(previousTexture);
+        this.app.textureManager.deleteTexture(previousTexture);
       }
 
       this.texture = this.app.textureManager.createImageTexture(image);
@@ -73,7 +73,7 @@ export class Bitmap extends DisplayObject {
       if (gen !== this.textureUpdateGen) return;
 
       if (previousTexture) {
-        this.app.gl.deleteTexture(previousTexture);
+        this.app.textureManager.deleteTexture(previousTexture);
       }
 
       this.texture = this.app.textureManager.createCanvasTexture(canvas);
@@ -92,7 +92,7 @@ export class Bitmap extends DisplayObject {
       this.texture = null;
 
       this.app.enqueueGLTask(() => {
-        this.app.gl.deleteTexture(textureToDelete);
+        this.app.textureManager.deleteTexture(textureToDelete);
       });
     }
     this.textureUploadPending = false;
