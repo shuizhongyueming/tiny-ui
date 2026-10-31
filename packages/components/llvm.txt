@@ -348,6 +348,7 @@ function Scroll(props: ScrollProps): ScrollResult;
 2. 内容变化时自动刷新（`autoUpdate: true` 时监听 `childrenChanged` 和 `resize` 事件）
 3. 滚动条仅在内容超出可视区域时显示
 4. 触摸事件被遮罩层拦截，不会穿透到下层
+5. 使用 `EventManager.capturePointer` 接管拖动；移出视口后仍能滚动，cancel 和 destroy 会释放捕获
 
 **常见坑**：
 - 直接操作 `content.x/y` 会破坏滚动状态，应使用 `scrollTo()`

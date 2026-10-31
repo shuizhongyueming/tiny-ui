@@ -365,9 +365,7 @@ export function Scroll({
     animate();
   }
 
-  // 全局事件处理器引用（用于解绑）
-  let globalTouchMoveHandler: ((e: UIEvent) => void) | null = null;
-  let globalTouchEndHandler: ((e: UIEvent) => void) | null = null;
+  let releasePointerCapture: (() => void) | null = null;
 
   // 事件处理
   function onTouchStart(e: UIEvent): void {
@@ -386,12 +384,12 @@ export function Scroll({
     }
 
     showScrollbars();
-
-    // 阻止事件穿透到下层
     e.stopPropagation();
-
-    // 绑定全局事件，确保移出 maskLayer 后仍能处理
-    bindGlobalEvents();
+    releasePointerCapture = app.eventManager.capturePointer(e, {
+      onMove: onTouchMove,
+      onEnd: onTouchEnd,
+      onCancel: onTouchCancel,
+    });
   }
 
   function onTouchMove(e: UIEvent): void {
@@ -444,54 +442,23 @@ export function Scroll({
     lastTime = now;
 
     updateScrollbars();
-
-    // 阻止事件穿透到下层
-    e.stopPropagation();
   }
 
-  function onTouchEnd(e: UIEvent): void {
+  function onTouchEnd(): void {
     if (!isDragging) return;
     isDragging = false;
+    releasePointerCapture?.();
+    releasePointerCapture = null;
     startMomentum();
-
-    // 解绑全局事件
-    unbindGlobalEvents();
-
-    // 阻止事件穿透到下层
-    e.stopPropagation();
   }
 
-  // 绑定全局事件
-  function bindGlobalEvents(): void {
-    globalTouchMoveHandler = onTouchMove;
-    globalTouchEndHandler = onTouchEnd;
-
-    app.root.addEventListener(
-      'touchmove',
-      globalTouchMoveHandler,
-    );
-    app.root.addEventListener(
-      'touchend',
-      globalTouchEndHandler,
-    );
-  }
-
-  // 解绑全局事件
-  function unbindGlobalEvents(): void {
-    if (globalTouchMoveHandler) {
-      app.root.removeEventListener(
-        'touchmove',
-        globalTouchMoveHandler,
-      );
-      globalTouchMoveHandler = null;
-    }
-    if (globalTouchEndHandler) {
-      app.root.removeEventListener(
-        'touchend',
-        globalTouchEndHandler,
-      );
-      globalTouchEndHandler = null;
-    }
+  function onTouchCancel(): void {
+    if (!isDragging) return;
+    isDragging = false;
+    releasePointerCapture?.();
+    releasePointerCapture = null;
+    if (bounce) springBack();
+    else clampScroll();
   }
 
   // 绑定初始事件（只在 maskLayer 上监听 touchstart）
@@ -606,8 +573,8 @@ export function Scroll({
       unsubscribeChildren?.();
       unsubscribeResize?.();
 
-      // 清理全局事件绑定
-      unbindGlobalEvents();
+      releasePointerCapture?.();
+      releasePointerCapture = null;
 
       container.destroy();
     },
