@@ -739,6 +739,10 @@ canvas.height = canvas.clientHeight * dpr;
 
 ## 8. Appendix
 
+### EventManager.capturePointer：指针捕获
+
+`app.eventManager.capturePointer(startEvent, { onMove, onEnd, onCancel })` 捕获 start 对应的触点，在显示树分发前处理后续 `touchmove/mousemove`、`touchend/mouseup` 和 `touchcancel`。返回幂等的释放函数；end/cancel 也会自动释放。已消费的 start 不会阻断后续 move，调用方无需再向 `app.root` 注册拖动监听。捕获只消费本方触点，其他触点继续正常分发；mouse 在内部归一为单一指针，不依赖每次事件自增的 identifier。节点销毁或页面关闭时必须调用释放函数。
+
 ### EventManager.addEventObserver：输入捕获观察
 
 `app.eventManager.addEventObserver(event => ...)` 返回卸载函数。每个 UIEvent 在旧显示树分发前调用**且仅调用一次**（不随显示树节点数增加），touch 的每个触点、mouse、自定义 `handleTouchEventListening` 都走同一入口。返回 `false` 停止后续分发并标记 handled；返回其他值只观察，旧语义不变。因为返回 `false` 会丢掉整条事件，只有真正消费该手势的控件才应返回 `false`；「不是我的触点」必须返回真值放行，否则会吞掉其他控件和游戏的输入。长按/取消等需要可靠收尾的控件只在活跃手势期间注册，结束立即卸载。

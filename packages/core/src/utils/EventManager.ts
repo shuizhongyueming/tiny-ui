@@ -24,6 +24,12 @@ export interface EventManagerOptions {
   handleTouchEventListening?: TouchEventListeningHandler;
 }
 
+export interface PointerCaptureHandlers {
+  onMove?: (event: UIEvent) => void;
+  onEnd?: (event: UIEvent) => void;
+  onCancel?: (event: UIEvent) => void;
+}
+
 // mouse 到 touch 的反向映射
 const MOUSE_TO_TOUCH_MAP: Record<MouseEventName, TouchEventName> = {
   mousedown: "touchstart",
@@ -262,6 +268,44 @@ export class EventManager {
   addEventObserver(observer: (event: UIEvent) => void | boolean): () => void {
     this.observers.add(observer);
     return () => this.observers.delete(observer);
+  }
+
+  /** 捕获 start 对应的触点，在显示树分发前处理后续 move/end/cancel。
+   * 只消费本方触点，其他触点继续按原路径分发。返回的释放函数可重复调用。 */
+  capturePointer(startEvent: UIEvent, handlers: PointerCaptureHandlers): () => void {
+    const pointerKey = (event: UIEvent): number | string =>
+      event.type.startsWith("mouse") ? "mouse" : event.identifier;
+    const captured = pointerKey(startEvent);
+    let active = true;
+    const release = () => {
+      if (!active) return;
+      active = false;
+      removeObserver();
+    };
+    const removeObserver = this.addEventObserver((event) => {
+      if (!active || pointerKey(event) !== captured) return true;
+      if (event.type === "touchmove" || event.type === "mousemove") {
+        handlers.onMove?.(event);
+      } else if (event.type === "touchend" || event.type === "mouseup") {
+        try {
+          handlers.onEnd?.(event);
+        } finally {
+          release();
+        }
+      } else if (event.type === "touchcancel") {
+        try {
+          handlers.onCancel?.(event);
+        } finally {
+          release();
+        }
+      } else {
+        return true;
+      }
+      event.markHandled();
+      return false;
+    });
+    startEvent.markHandled();
+    return release;
   }
 
   /**

@@ -250,3 +250,78 @@ describe("EventManager 触摸记录与合成 mouse 抑制", () => {
     expect(seen).toEqual([99]);
   });
 });
+
+describe("EventManager 指针捕获", () => {
+  const RealMouseEvent = globalThis.MouseEvent;
+  beforeEach(() => {
+    (globalThis as any).TouchEvent = FakeTouchEvent;
+    (globalThis as any).MouseEvent = FakeMouseEvent as any;
+  });
+  afterEach(() => {
+    delete (globalThis as any).TouchEvent;
+    (globalThis as any).MouseEvent = RealMouseEvent;
+  });
+
+  it("已消费 start 后仍接收 move/end，第二指不被捕获", () => {
+    const { em, fire, root } = setup();
+    const scroll = new Container({} as TinyUI, "scroll");
+    scroll.pivotX = scroll.pivotY = 0;
+    scroll.setSize(800, 600);
+    root.addChild(scroll);
+    const moves: number[] = [];
+    const otherMove = vi.fn();
+    root.addEventListener("touchmove", e => {
+      otherMove();
+      e.stop();
+    });
+    scroll.addEventListener("touchstart", e => {
+      em.capturePointer(e, {
+        onMove: event => moves.push(event.y),
+      });
+    });
+
+    fire.touch("touchstart", [new FakeTouch(1, 10, 10)], [new FakeTouch(1, 10, 10)]);
+    fire.touch("touchmove", [new FakeTouch(1, 10, 30)], [new FakeTouch(1, 10, 30)]);
+    fire.touch("touchmove", [new FakeTouch(2, 20, 80)], [new FakeTouch(2, 20, 80)]);
+    fire.touch("touchend", [new FakeTouch(1, 10, 30)], [new FakeTouch(1, 10, 30)]);
+    fire.touch("touchmove", [new FakeTouch(1, 10, 50)], [new FakeTouch(1, 10, 50)]);
+
+    expect(moves).toEqual([60]);
+    expect(otherMove).toHaveBeenCalledTimes(2);
+  });
+
+  it("mouse 不依赖每次自增的 identifier，cancel 和手动释放均幂等", () => {
+    const { em, fire, root } = setup();
+    const seen: string[] = [];
+    const btn = new Container({} as TinyUI);
+    btn.pivotX = btn.pivotY = 0;
+    btn.setSize(800, 600);
+    root.addChild(btn);
+    let release = () => {};
+    btn.addEventListener("mousedown", e => {
+      release = em.capturePointer(e, {
+        onMove: event => seen.push(`move:${event.y}`),
+        onEnd: () => seen.push("end"),
+        onCancel: () => seen.push("cancel"),
+      });
+    });
+    fire.mouse("mousedown", 10, 10);
+    fire.mouse("mousemove", 10, 30);
+    fire.mouse("mouseup", 10, 30);
+    release();
+    fire.mouse("mousemove", 10, 50);
+    expect(seen).toEqual(["move:60", "end"]);
+
+    btn.addEventListener("touchstart", e => {
+      release = em.capturePointer(e, {
+        onMove: event => seen.push(`touchmove:${event.y}`),
+        onCancel: () => seen.push("cancel"),
+      });
+    });
+    fire.touch("touchstart", [new FakeTouch(7, 0, 0)], [new FakeTouch(7, 0, 0)]);
+    fire.touch("touchcancel", [new FakeTouch(7, 0, 20)], [new FakeTouch(7, 0, 20)]);
+    release();
+    fire.touch("touchmove", [new FakeTouch(7, 0, 40)], [new FakeTouch(7, 0, 40)]);
+    expect(seen).toEqual(["move:60", "end", "cancel"]);
+  });
+});
