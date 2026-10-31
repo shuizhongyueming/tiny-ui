@@ -1,6 +1,6 @@
 {
   "name": "@shuizhongyueming/tiny-ui-components",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "",
   "main": "dist/tiny-ui-components.js",
   "types": "types/main.d.ts",
