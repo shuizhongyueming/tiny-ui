@@ -174,8 +174,10 @@ class DisplayObject {
   scaleX: number;
   scaleY: number;
   rotation: number;             // 角度（0-360）
-  anchorX: number;              // 0-1，默认 0.5
-  anchorY: number;              // 0-1，默认 0.5
+  anchorX: number;              // 0-1 归一化，默认 0.5；超范围开发构建抛 RangeError
+  anchorY: number;              // 0-1 归一化，默认 0.5；超范围开发构建抛 RangeError
+  pivotX: number;               // 0-1 归一化，x/y 指向的盒内点；未设时跟随 anchorX
+  pivotY: number;               // 0-1 归一化；未设时跟随 anchorY
   alpha: number;
   visible: boolean;
   
@@ -685,7 +687,7 @@ canvas.width = canvas.clientWidth * dpr;
 canvas.height = canvas.clientHeight * dpr;
 ```
 
-### 6.3 锚点（Anchor）
+### 6.3 锚点与 pivot（都是 0-1 归一化，不是像素）
 
 | anchorX | anchorY | (x, y) 对应位置 |
 |---------|---------|-----------------|
@@ -694,6 +696,12 @@ canvas.height = canvas.clientHeight * dpr;
 | 1 | 1 | 右下角 |
 
 变换（旋转/缩放）围绕锚点进行。
+
+`pivotX / pivotY` 是同一套 0-1 比例，决定 `x / y` 指向节点上的哪个点
+（未显式设置时跟随 anchor）。**超出 0-1 的赋值在开发构建直接抛
+`RangeError`**：最常见的事故是把像素当比例传（`pivotX = 182`），节点会被
+平移 182 倍宽度出屏，表现为「节点不渲染」而各项查询全部自洽。确需盒外
+取值时用 `TinyUI.setDiagnosticsEnabled(false)` 关闭校验。
 
 ### 6.4 父子变换
 

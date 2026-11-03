@@ -151,3 +151,37 @@ export function resetDiagnosticsForTest(): void {
   override = undefined;
   nextLabel = 1;
 }
+
+/**
+ * 校验 anchor / pivot 一类的归一化比例入参，超出 0-1 直接抛错。
+ *
+ * 这类错是**静默失败**的极端形态：`pivotX = 182`（把像素当比例传）会让
+ * `width * pivotX` 的平移量变成六万+像素，节点被推出屏幕 —— 画面上表现为
+ * 「节点不渲染」，而 `getBounds()`、`hitTest()` 全部自洽，肉眼之外无从发现。
+ * 见 docs/coordinate-contract.md 的「单位与常见错误」。
+ *
+ * 跟随 `isDiagnosticsEnabled()`：生产构建默认关闭（一次布尔判断的成本），
+ * `TinyUI.debug = true` 可在真机上打开 —— 现场让错误立刻炸出来而不是静默。
+ * 确需盒外取值（>1 或 <0）的调用方，用 `setDiagnosticsEnabled(false)` 显式关闭。
+ */
+export function assertUnitRange(
+  owner: object,
+  api: string,
+  value: number,
+): void {
+  if (!isDiagnosticsEnabled()) return;
+  if (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    value >= 0 &&
+    value <= 1
+  ) {
+    return;
+  }
+  throw new RangeError(
+    `[TinyUI] ${nodeLabel(owner)}.${api}: 期望 0-1 的归一化比例` +
+      `（0 = 左上/顶边，0.5 = 中心，1 = 右下/底边），收到 ${describeValue(value)}。` +
+      `该值会乘以节点宽/高作为平移量 —— 传像素值（比如 182）等于把节点平移 ` +
+      `182 倍宽度出屏。确需盒外取值时用 setDiagnosticsEnabled(false) 关闭校验。`,
+  );
+}

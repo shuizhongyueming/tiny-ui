@@ -96,6 +96,33 @@ const tX = target.x - targetWidth * target.anchorX;   // 应该用 pivotX
 
 它想算的是左上角，所以改 `pivotX`。
 
+## 单位与常见错误
+
+`anchor` 与 `pivot` 都是**节点盒的 0-1 归一化比例**，不是像素：
+
+```
+0   = 左上角（顶边/左边缘）
+0.5 = 中心
+1   = 右下角（底边/右边缘）
+```
+
+矩阵第一句 `translate(x - width * pivotX, y - height * pivotY)` 把这个比例
+直接乘进平移量。最常见的 accident 是把像素当比例传：
+
+```js
+sprite.pivotX = 182;   // ❌ 想设"182px 处"，实际是 182 倍盒宽
+```
+
+后果：节点被平移 `182 × width` 出屏，画面上表现为**节点不渲染**，而
+`getBounds()` / `hitTest()` / 纹理检查全部自洽 —— 极难排查（2026-11 rocket-fling
+首页卡片就是这样消失的）。防御：开发构建对 `anchorX/Y`、`pivotX/Y` 超出
+0-1 的赋值直接抛 `RangeError`（`utils/diagnostics.ts` 的 `assertUnitRange`）；
+确需盒外取值时 `setDiagnosticsEnabled(false)` 显式关闭。
+
+另一条语义要记住：**`x / y` 指向节点上 pivot 那个点**。把 pivot 从 0 改成
+0.5 后，同一个 `x` 的含义就从"左上角在哪"变成"中心在哪"——原来按左上角
+算好的 `x` 必须加上 `width * pivotX` 补偿，否则整节点平移半个宽度。
+
 ## 迁移与验收
 
 字段拆分本身零行为变化（实测：core 视觉 15 + components 视觉 27 基线一像素未动）。要拿到「全屏遮罩不写补偿」的收益，调用方把 `pivot` 设 0 即可：

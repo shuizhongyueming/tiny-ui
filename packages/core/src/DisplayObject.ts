@@ -1,6 +1,7 @@
 import { type Container } from "./Container";
 import type { EventName, Callback, Rect, Size, Point } from "./type";
 import { Matrix } from "./utils/Matrix";
+import { assertUnitRange } from "./utils/diagnostics";
 import type { UIEvent } from "./utils/UIEvent";
 import { Emitter } from "./utils/Emitter";
 import type TinyUI from "./TinyUI";
@@ -28,8 +29,24 @@ export class DisplayObject extends Emitter {
    *
    * 只影响矩阵里的 rotate / scale 部分，不影响 `x / y` 指向哪里。
    */
-  anchorX: number = 0.5;
-  anchorY: number = 0.5;
+  private _anchorX: number = 0.5;
+  private _anchorY: number = 0.5;
+  /** 0-1 归一化（0 = 左边缘，0.5 = 中心，1 = 右边缘）。超出范围开发构建直接抛错。 */
+  get anchorX(): number {
+    return this._anchorX;
+  }
+  set anchorX(value: number) {
+    assertUnitRange(this, "anchorX", value);
+    this._anchorX = value;
+  }
+  /** 0-1 归一化（0 = 顶边，0.5 = 中心，1 = 底边）。超出范围开发构建直接抛错。 */
+  get anchorY(): number {
+    return this._anchorY;
+  }
+  set anchorY(value: number) {
+    assertUnitRange(this, "anchorY", value);
+    this._anchorY = value;
+  }
 
   private _pivotX: number | undefined = undefined;
   private _pivotY: number | undefined = undefined;
@@ -50,6 +67,7 @@ export class DisplayObject extends Emitter {
   }
 
   set pivotX(value: number) {
+    assertUnitRange(this, "pivotX", value);
     this._pivotX = value;
   }
 
@@ -58,6 +76,7 @@ export class DisplayObject extends Emitter {
   }
 
   set pivotY(value: number) {
+    assertUnitRange(this, "pivotY", value);
     this._pivotY = value;
   }
   alpha: number = 1;

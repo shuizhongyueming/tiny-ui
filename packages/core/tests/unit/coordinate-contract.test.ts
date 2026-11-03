@@ -201,3 +201,50 @@ describe("pivot 未显式设置时跟随 anchor（兼容旧代码）", () => {
     expect(g.pivotX).toBe(0);
   });
 });
+
+describe("pivot/anchor 单位校验（0-1 归一化）", () => {
+  it("像素值（>1）在开发构建直接抛 RangeError，消息说明单位", () => {
+    const g = new Graphics(mockApp);
+    expect(() => (g.pivotX = 182)).toThrow(RangeError);
+    expect(() => (g.pivotY = 344)).toThrow(RangeError);
+    expect(() => (g.anchorX = 200)).toThrow(RangeError);
+    // 抛错前赋值不生效，节点状态不被污染
+    expect(g.pivotX).toBe(0.5);
+  });
+
+  it("边界值 0 与 1 合法", () => {
+    const g = new Graphics(mockApp);
+    g.pivotX = 0;
+    g.pivotY = 1;
+    g.anchorX = 1;
+    g.anchorY = 0;
+    expect(g.pivotX).toBe(0);
+    expect(g.pivotY).toBe(1);
+    expect(g.anchorX).toBe(1);
+    expect(g.anchorY).toBe(0);
+  });
+
+  it("位置按 pivot 点换算：pivot=0.5 时 x/y 指向盒中心", () => {
+    const g = new Graphics(mockApp);
+    g.drawRect(0, 0, 100, 50, "#000");
+    g.pivotX = 0.5;
+    g.pivotY = 0.5;
+    g.x = 30;
+    g.y = 40;
+    // 盒左上角 = (x - width*pivotX, y - height*pivotY)
+    expect(originOf(g)).toEqual({ x: -20, y: 15 });
+  });
+});
+
+describe("pivot/anchor 校验的开关", () => {
+  it("TinyUI.debug = false 时静默放行，true 恢复抛错", async () => {
+    const { default: TinyUI } = await import("../../src/TinyUI");
+    const g = new Graphics(mockApp);
+    const prev = TinyUI.debug;
+    TinyUI.debug = false;
+    expect(() => (g.pivotX = 182)).not.toThrow();
+    TinyUI.debug = true;
+    expect(() => (g.pivotX = 182)).toThrow(RangeError);
+    TinyUI.debug = prev;
+  });
+});
