@@ -11,14 +11,34 @@ export interface PixelTextureOptions {
 /**
  * 像素上传的目标区域。
  *
- * 不传 `x`/`y` 时整张重新定义（texImage2D）；
- * 传了则只更新该子矩形（texSubImage2D），`rgba` 必须正好是 `width * height * 4` 字节。
+ * `x`/`y` 必须**成对**出现：
+ * - 两个都不传：整张重新定义（texImage2D）
+ * - 两个都传：只更新该子矩形（texSubImage2D）
+ * - 只传一个：直接抛错。否则会静默退化成整张重定义，把纹理尺寸改错。
+ *
+ * `rgba` 长度必须**正好**是 `width * height * 4` 字节。
  */
 export interface PixelTextureUpdate {
   width: number;
   height: number;
   x?: number;
   y?: number;
+}
+
+function assertPositiveInteger(value: number, name: string): void {
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new Error(
+      `[TinyUI] 像素纹理 ${name} 非法: ${String(value)}。必须是正整数。`,
+    );
+  }
+}
+
+function assertNonNegativeInteger(value: number, name: string): void {
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error(
+      `[TinyUI] 像素纹理 ${name} 非法: ${String(value)}。必须是非负整数。`,
+    );
+  }
 }
 
 /**
@@ -32,16 +52,35 @@ export function assertPixelBuffer(
   width: number,
   height: number,
 ): void {
-  if (width <= 0 || height <= 0) {
+  assertPositiveInteger(width, "width");
+  assertPositiveInteger(height, "height");
+
+  const expected = width * height * 4;
+  if (rgba.length !== expected) {
     throw new Error(
-      `[TinyUI] 像素纹理尺寸非法: ${width}x${height}。宽高必须是正整数。`,
+      `[TinyUI] 像素数据长度不匹配: ${width}x${height} 必须正好 ${expected} 字节，实际 ${rgba.length}。`,
     );
   }
-  const expected = width * height * 4;
-  if (rgba.length < expected) {
+}
+
+/**
+ * 校验更新区域：`x`/`y` 必须成对出现，且为非负整数。
+ *
+ * 同样独立导出，供上层在入队前同步校验。
+ */
+export function assertPixelUpdate(update: PixelTextureUpdate): void {
+  const hasX = update.x !== undefined;
+  const hasY = update.y !== undefined;
+
+  if (hasX !== hasY) {
     throw new Error(
-      `[TinyUI] 像素数据不足: ${width}x${height} 需要 ${expected} 字节，实际 ${rgba.length}。检查 RGBA 长度与宽高是否匹配。`,
+      "[TinyUI] updateTextureFromPixels 的 x/y 必须同时提供或同时省略：只给一半会被当成整张重定义。",
     );
+  }
+
+  if (hasX) {
+    assertNonNegativeInteger(update.x as number, "x");
+    assertNonNegativeInteger(update.y as number, "y");
   }
 }
 
@@ -52,6 +91,11 @@ export class TextureManager {
   private textureCache: Map<string, WebGLTexture> = new Map();
   private inflight: Map<string, Deferred<WebGLTexture>> = new Map();
   private pixelTextureSeq: number = 0;
+  /** 像素纹理的创建参数与尺寸，用于更新时继承 alpha 口径并校验子矩形范围 */
+  private pixelTextureInfo: Map<
+    WebGLTexture,
+    { width: number; height: number; premultiplyAlpha: boolean }
+  > = new Map();
 
   constructor(gl: WebGLRenderingContext, app: TinyUI) {
     this.gl = gl;
@@ -156,6 +200,11 @@ export class TextureManager {
 
     this.pixelTextureSeq++;
     this.textures.set(`pixels-${this.pixelTextureSeq}`, texture);
+    this.pixelTextureInfo.set(texture, {
+      width,
+      height,
+      premultiplyAlpha: options.premultiplyAlpha ?? false,
+    });
 
     return texture;
   }
@@ -163,8 +212,11 @@ export class TextureManager {
   /**
    * 更新已存在的纹理内容（必须在 safe section 内调用）。
    *
-   * 不传 `x`/`y`：整张重新定义，适合尺寸不变但内容整体重画的场景。
-   * 传了 `x`/`y`：只上传该子矩形，适合脏矩形增量更新。
+   * - 不传 `x`/`y`：整张重新定义，适合尺寸不变但内容整体重画的场景。
+   * - 两个都传：只上传该子矩形，适合脏矩形增量更新。
+   * - 只传一个：抛错（否则会静默退化成整张重定义，把纹理尺寸改错）。
+   *
+   * alpha 上传口径继承创建时的 `premultiplyAlpha`。
    */
   updateTextureFromPixels(
     texture: WebGLTexture,
@@ -172,14 +224,30 @@ export class TextureManager {
     update: PixelTextureUpdate,
   ): void {
     const { width, height, x, y } = update;
+
+    assertPixelUpdate(update);
     this.assertPixelBuffer(rgba, width, height);
+
+    const info = this.pixelTextureInfo.get(texture);
+    const hasX = x !== undefined;
+
+    if (hasX && info) {
+      if (
+        (x as number) + width > info.width ||
+        (y as number) + height > info.height
+      ) {
+        throw new Error(
+          `[TinyUI] 脏矩形越界: (${x},${y}) ${width}x${height} 超出纹理 ${info.width}x${info.height}。`,
+        );
+      }
+    }
 
     const gl = this.gl;
 
     gl.bindTexture(gl.TEXTURE_2D, texture);
-    this.applyPixelUploadState(false);
+    this.applyPixelUploadState(info?.premultiplyAlpha ?? false);
 
-    if (x === undefined || y === undefined) {
+    if (!hasX) {
       gl.texImage2D(
         gl.TEXTURE_2D,
         0,
@@ -191,14 +259,20 @@ export class TextureManager {
         gl.UNSIGNED_BYTE,
         rgba,
       );
+
+      /* 整张重定义后尺寸变了，同步记录，否则后续脏矩形的越界校验会用到旧尺寸 */
+      if (info) {
+        info.width = width;
+        info.height = height;
+      }
       return;
     }
 
     gl.texSubImage2D(
       gl.TEXTURE_2D,
       0,
-      x,
-      y,
+      x as number,
+      y as number,
       width,
       height,
       gl.RGBA,
@@ -326,6 +400,8 @@ export class TextureManager {
   deleteTexture(texture: WebGLTexture): void {
     const gl = this.gl;
 
+    this.pixelTextureInfo.delete(texture);
+
     // 从纹理列表中删除
     for (const [key, value] of this.textures.entries()) {
       if (value === texture) {
@@ -357,6 +433,7 @@ export class TextureManager {
 
     this.textures.clear();
     this.textureCache.clear();
+    this.pixelTextureInfo.clear();
     this.pixelTextureSeq = 0;
   }
 }

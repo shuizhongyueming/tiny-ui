@@ -156,18 +156,18 @@ describe("TextureManager 像素纹理", () => {
     app.destroy();
   });
 
-  it("像素数据不足时同步抛错（不能变成静默失败）", () => {
+  it("像素数据长度不匹配时同步抛错（不能变成静默失败）", () => {
     const app = makeApp();
 
     expect(() => app.createBitmapFromPixels(new Uint8Array(4), 8, 8)).toThrowError(
-      /像素数据不足/,
+      /长度不匹配/,
     );
     expect(() =>
       app.textureManager.createTextureFromPixels(new Uint8Array(4), 8, 8),
-    ).toThrowError(/像素数据不足/);
+    ).toThrowError(/长度不匹配/);
     expect(() =>
       app.textureManager.createTextureFromPixels(new Uint8Array(4), 0, 8),
-    ).toThrowError(/尺寸非法/);
+    ).toThrowError(/width 非法/);
 
     app.destroy();
   });
@@ -198,8 +198,7 @@ describe("TextureManager 像素纹理", () => {
     app.destroy();
   });
 
-  it("destroy() 释放像素纹理并清空 GL 任务队列", () => {
-    const app = makeApp();
+  it("destroy() 释放像素纹理并清空 GL 任务队列", () => {    const app = makeApp();
     const gl = app.gl;
 
     const bitmap = app.createBitmapFromPixels(
@@ -218,5 +217,170 @@ describe("TextureManager 像素纹理", () => {
 
     expect(gl.isTexture(texture)).toBe(false);
     expect((app as any)._glTasks.length).toBe(0);
+  });
+
+  describe("边界与校验", () => {
+    it("x/y 只给一半时同步抛错（不能静默退化成整张重定义）", () => {
+      const app = makeApp();
+      const rgba = makeRgba(4, 4, [1, 1, 1, 255]);
+
+      expect(() =>
+        app.createBitmapFromPixels(new Uint8Array(4), 1, 1, {
+          filter: "nearest",
+        }),
+      ).not.toThrow();
+
+      const bitmap = app.createBitmapFromPixels(rgba, 4, 4);
+      app.root.addChild(bitmap);
+      app.render();
+
+      expect(() =>
+        bitmap.updateTextureFromPixels(makeRgba(1, 1, [9, 9, 9, 255]), {
+          width: 1,
+          height: 1,
+          x: 0,
+        }),
+      ).toThrowError(/x\/y 必须同时提供/);
+
+      expect(() =>
+        bitmap.updateTextureFromPixels(makeRgba(1, 1, [9, 9, 9, 255]), {
+          width: 1,
+          height: 1,
+          y: 0,
+        }),
+      ).toThrowError(/x\/y 必须同时提供/);
+
+      const texture = bitmap.texture!;
+      /* manager 层的校验也是同步的，但不能再包进 inGLTask：
+         enqueueGLTask 会吞掉任务内异常，那样测不出东西 */
+      expect(() =>
+        app.textureManager.updateTextureFromPixels(
+          texture,
+          makeRgba(1, 1, [9, 9, 9, 255]),
+          { width: 1, height: 1, x: 0 },
+        ),
+      ).toThrowError(/x\/y 必须同时提供/);
+
+      app.destroy();
+    });
+
+    it("x/y 同时给 0 时走 texSubImage2D", () => {
+      const app = makeApp();
+      const gl = app.gl;
+      const bitmap = app.createBitmapFromPixels(makeRgba(4, 4, [1, 2, 3, 255]), 4, 4, {
+        filter: "nearest",
+      });
+      app.root.addChild(bitmap);
+      app.render();
+
+      const calls = { sub: 0, image: 0 };
+      const originSub = gl.texSubImage2D.bind(gl);
+      const originImage = gl.texImage2D.bind(gl);
+      (gl as any).texSubImage2D = (...args: any[]) => {
+        calls.sub++;
+        return originSub(...(args as any));
+      };
+      (gl as any).texImage2D = (...args: any[]) => {
+        calls.image++;
+        return originImage(...(args as any));
+      };
+
+      bitmap.updateTextureFromPixels(makeRgba(1, 1, [200, 0, 0, 255]), {
+        width: 1,
+        height: 1,
+        x: 0,
+        y: 0,
+      });
+      app.render();
+
+      (gl as any).texSubImage2D = originSub;
+      (gl as any).texImage2D = originImage;
+
+      expect(calls.sub).toBe(1);
+      expect(calls.image).toBe(0);
+      expect(gl.getError()).toBe(0);
+
+      app.destroy();
+    });
+
+    it("宽高必须是正整数，缓冲区长度必须精确匹配", () => {
+      const app = makeApp();
+
+      expect(() =>
+        app.textureManager.createTextureFromPixels(new Uint8Array(16), NaN, 2),
+      ).toThrowError(/width 非法/);
+      expect(() =>
+        app.textureManager.createTextureFromPixels(new Uint8Array(16), 2.5, 2),
+      ).toThrowError(/width 非法/);
+      expect(() =>
+        app.textureManager.createTextureFromPixels(
+          new Uint8Array(16),
+          Infinity,
+          2,
+        ),
+      ).toThrowError(/width 非法/);
+      expect(() =>
+        app.textureManager.createTextureFromPixels(new Uint8Array(16), 2, -1),
+      ).toThrowError(/height 非法/);
+
+      // 超长缓冲区也必须拒绝：文档写的是“正好”
+      expect(() =>
+        app.textureManager.createTextureFromPixels(new Uint8Array(17), 2, 2),
+      ).toThrowError(/长度不匹配/);
+
+      app.destroy();
+    });
+
+    it("脏矩形越界抛错", () => {
+      const app = makeApp();
+      const bitmap = app.createBitmapFromPixels(makeRgba(4, 4, [5, 5, 5, 255]), 4, 4);
+      app.root.addChild(bitmap);
+      app.render();
+
+      expect(() =>
+        bitmap.updateTextureFromPixels(makeRgba(2, 2, [1, 1, 1, 255]), {
+          width: 2,
+          height: 2,
+          x: 3,
+          y: 0,
+        }),
+      ).toThrowError(/超出纹理|脏矩形越界/);
+
+      app.destroy();
+    });
+
+    it("脏矩形更新继承创建时的 premultiplyAlpha", () => {
+      const app = makeApp();
+      const gl = app.gl;
+      const bitmap = app.createBitmapFromPixels(makeRgba(4, 4, [1, 1, 1, 255]), 4, 4, {
+        filter: "nearest",
+        premultiplyAlpha: true,
+      });
+      app.root.addChild(bitmap);
+      app.render();
+
+      const observed: boolean[] = [];
+      const originSub = gl.texSubImage2D.bind(gl);
+      (gl as any).texSubImage2D = (...args: any[]) => {
+        observed.push(
+          gl.getParameter(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL) as boolean,
+        );
+        return originSub(...(args as any));
+      };
+
+      bitmap.updateTextureFromPixels(makeRgba(1, 1, [7, 7, 7, 128]), {
+        width: 1,
+        height: 1,
+        x: 1,
+        y: 1,
+      });
+      app.render();
+
+      (gl as any).texSubImage2D = originSub;
+
+      expect(observed).toEqual([true]);
+
+      app.destroy();
+    });
   });
 });

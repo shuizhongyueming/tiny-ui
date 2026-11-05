@@ -279,8 +279,8 @@ interface PixelTextureOptions {
 interface PixelTextureUpdate {
   width: number;
   height: number;
-  x?: number;  // 传了走 texSubImage2D 脏矩形，不传走 texImage2D 整张
-  y?: number;
+  x?: number;  // 与 y 必须成对：都不传 = 整张重定义(texImage2D)，都传 = 脏矩形(texSubImage2D)
+  y?: number;  // 只传一个会抛错（否则会静默退化成整张重定义）
 }
 ```
 
@@ -289,7 +289,11 @@ interface PixelTextureUpdate {
 2. `createBitmapFromUrl()` 是异步的，返回 Promise
 3. 纹理在 `destroy()` 时自动释放
 4. 像素画用 `createBitmapFromPixels(rgba, w, h, { filter: "nearest" })`：`rgba` 行优先、第 0 行是图像顶部；像素数据不足会在**入队前同步抛错**，不会被 `enqueueGLTask` 吞掉
-5. 动态内容用 `updateTextureFromPixels(rgba, { width, height, x?, y? })`：不传 `x/y` 整张重传，传了走脏矩形
+5. 动态内容用 `updateTextureFromPixels(rgba, { width, height, x?, y? })`：`x/y` 必须成对——
+   都不传走整张 `texImage2D`，都传走脏矩形 `texSubImage2D`，只传一个直接抛错
+6. `rgba` 长度必须**正好**是 `width * height * 4`；宽高必须是正整数（`NaN`/小数/0 一律抛错）
+7. 脏矩形更新会继承创建时的 `premultiplyAlpha`，并校验子矩形不越界
+8. 校验都在**入队前**同步执行：`enqueueGLTask` 会吞掉任务内异常，放队列里就成了静默失败
 
 **常见坑**：
 - 跨域图片需要设置 `crossOrigin`，否则 WebGL 报错

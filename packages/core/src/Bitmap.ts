@@ -2,6 +2,7 @@ import { DisplayObject } from "./DisplayObject";
 import type TinyUI from "./TinyUI";
 import {
   assertPixelBuffer,
+  assertPixelUpdate,
   type PixelTextureOptions,
   type PixelTextureUpdate,
 } from "./utils/TextureManager";
@@ -14,6 +15,8 @@ export class Bitmap extends DisplayObject {
   source: HTMLImageElement | HTMLCanvasElement | null = null;
   private textureUploadPending: boolean = false;
   private textureUpdateGen: number = 0;
+  /** 像素纹理的实际尺寸，用于在入队前校验脏矩形范围 */
+  private pixelTextureSize: { width: number; height: number } | null = null;
 
   constructor(app: TinyUI, name: string = 'Bitmap') {
     super(app, name);
@@ -130,6 +133,7 @@ export class Bitmap extends DisplayObject {
         height,
         textureOptions,
       );
+      this.pixelTextureSize = { width, height };
       this.textureUploadPending = false;
     });
 
@@ -149,7 +153,27 @@ export class Bitmap extends DisplayObject {
     if (this.destroyed) return;
     if (!this.texture) return;
 
+    assertPixelUpdate(update);
     assertPixelBuffer(rgba, update.width, update.height);
+
+    const { width, height, x, y } = update;
+    const isSubRect = x !== undefined && y !== undefined;
+
+    /* 边界校验也放在入队前：manager 里的检查会被 enqueueGLTask 吞掉 */
+    if (isSubRect && this.pixelTextureSize) {
+      if (
+        x + width > this.pixelTextureSize.width ||
+        y + height > this.pixelTextureSize.height
+      ) {
+        throw new Error(
+          `[TinyUI] 脏矩形越界: (${x},${y}) ${width}x${height} 超出纹理 ${this.pixelTextureSize.width}x${this.pixelTextureSize.height}。`,
+        );
+      }
+    }
+
+    if (!isSubRect) {
+      this.pixelTextureSize = { width, height };
+    }
 
     const texture = this.texture;
 
@@ -175,6 +199,7 @@ export class Bitmap extends DisplayObject {
     }
     this.textureUploadPending = false;
     this.textureUpdateGen++;
+    this.pixelTextureSize = null;
   }
 
   render(_matrix: Matrix): void {
