@@ -1,5 +1,10 @@
 import { DisplayObject } from "./DisplayObject";
 import type TinyUI from "./TinyUI";
+import {
+  assertPixelBuffer,
+  type PixelTextureOptions,
+  type PixelTextureUpdate,
+} from "./utils/TextureManager";
 import { type Matrix } from "./utils/Matrix";
 
 export class Bitmap extends DisplayObject {
@@ -81,6 +86,79 @@ export class Bitmap extends DisplayObject {
     });
     this.imgLoadPromise = Promise.resolve(this);
     return this;
+  }
+
+  /**
+   * 用像素数组建纹理（颜色通道顺序 RGBA，行优先，第 0 行是图像顶部）。
+   *
+   * 像素画传 `{ filter: "nearest" }`，否则放大会糊。
+   */
+  loadFromPixels(
+    rgba: Uint8Array,
+    width: number,
+    height: number,
+    options: PixelTextureOptions & { resize?: boolean } = {},
+  ): Bitmap {
+    const { resize = true, ...textureOptions } = options;
+
+    /* 同步校验：enqueueGLTask 会吞掉任务内的异常，放在队列里就变成静默失败 */
+    assertPixelBuffer(rgba, width, height);
+
+    this.src = "<pixels>";
+    this.source = null;
+
+    if (resize) {
+      this.setWidth(width);
+      this.setHeight(height);
+    }
+
+    const gen = ++this.textureUpdateGen;
+    const previousTexture = this.texture;
+    this.textureUploadPending = true;
+
+    this.app.enqueueGLTask(() => {
+      if (this.destroyed) return;
+      if (gen !== this.textureUpdateGen) return;
+
+      if (previousTexture) {
+        this.app.textureManager.deleteTexture(previousTexture);
+      }
+
+      this.texture = this.app.textureManager.createTextureFromPixels(
+        rgba,
+        width,
+        height,
+        textureOptions,
+      );
+      this.textureUploadPending = false;
+    });
+
+    this.imgLoadPromise = Promise.resolve(this);
+    return this;
+  }
+
+  /**
+   * 更新已有纹理内容（整张或脏矩形）。
+   *
+   * 未建纹理时不做事；已销毁时不做事；异步排队，在 safe section 内执行。
+   */
+  updateTextureFromPixels(
+    rgba: Uint8Array,
+    update: PixelTextureUpdate,
+  ): void {
+    if (this.destroyed) return;
+    if (!this.texture) return;
+
+    assertPixelBuffer(rgba, update.width, update.height);
+
+    const texture = this.texture;
+
+    this.app.enqueueGLTask(() => {
+      if (this.destroyed) return;
+      if (this.texture !== texture) return;
+
+      this.app.textureManager.updateTextureFromPixels(texture, rgba, update);
+    });
   }
 
   override destroy(): void {

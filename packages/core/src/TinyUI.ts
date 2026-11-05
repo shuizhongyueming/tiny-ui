@@ -9,7 +9,10 @@ import { type Size, type Color, type EventName } from "./type";
 import { EventManager, TouchEventListeningHandler } from "./utils/EventManager";
 import { Matrix } from "./utils/Matrix";
 import { ShaderManager } from "./utils/ShaderManager";
-import { TextureManager } from "./utils/TextureManager";
+import {
+  TextureManager,
+  type PixelTextureOptions,
+} from "./utils/TextureManager";
 import { GLState } from "./utils/GLState";
 import { layoutRow, layoutColumn } from "./utils/layout";
 
@@ -871,10 +874,18 @@ class TinyUI {
   destroy() {
     const gl = this.gl;
 
-    // Flush any pending GL tasks (e.g. queued texture deletes).
     this._glSafeDepth++;
     try {
+      // 先冲掉销毁前排队的 GL 任务（共享 canvas 时其他方可能排了上传/删除）
       this._flushGLTasks();
+
+      // 先销毁节点：节点的 destroy 会再排队纹理删除任务，
+      // 所以必须在 textureManager.destroy() 之前再冲一次，否则这些删除永远不执行。
+      this.root.destroy();
+      this._flushGLTasks();
+
+      // 清理纹理管理器
+      this.textureManager.destroy();
     } finally {
       this._glSafeDepth--;
     }
@@ -888,14 +899,8 @@ class TinyUI {
     // 删除着色器程序
     this.shaderManager.deleteProgram(this.shaderProgram);
 
-    // 清理纹理管理器
-    this.textureManager.destroy();
-
     // 销毁事件管理器
     this.eventManager.destroy();
-
-    // 销毁根容器及所有子节点
-    this.root.destroy();
 
     // 恢复GL状态
       this.restoreGLState();
@@ -1037,6 +1042,20 @@ class TinyUI {
   ): Bitmap {
     const bitmap = new Bitmap(this);
     bitmap.loadFromCanvas(canvas, resize);
+    return bitmap;
+  }
+  /**
+   * 用像素数组创建 Bitmap（RGBA，行优先，第 0 行是图像顶部）。
+   * 像素画传 `{ filter: "nearest" }`。
+   */
+  createBitmapFromPixels(
+    rgba: Uint8Array,
+    width: number,
+    height: number,
+    options: PixelTextureOptions & { resize?: boolean } = {},
+  ): Bitmap {
+    const bitmap = new Bitmap(this);
+    bitmap.loadFromPixels(rgba, width, height, options);
     return bitmap;
   }
   createText(textContent: string, name?: string): Text {

@@ -142,6 +142,7 @@ class TinyUI {
   createBitmapFromUrl(url: string): Promise<Bitmap>;
   createBitmapFromImage(image: HTMLImageElement): Bitmap;
   createBitmapFromCanvas(canvas: HTMLCanvasElement, resize?: boolean): Bitmap;
+  createBitmapFromPixels(rgba: Uint8Array, width: number, height: number, options?: PixelTextureOptions & { resize?: boolean }): Bitmap;
   
   render(): void;
   patchRender(): void;
@@ -266,6 +267,20 @@ class Bitmap extends DisplayObject {
   loadFromUrl(url: string, resize?: boolean): Promise<Bitmap>;
   loadFromImage(image: HTMLImageElement, resize?: boolean): Bitmap;
   loadFromCanvas(canvas: HTMLCanvasElement, resize?: boolean): Bitmap;
+  loadFromPixels(rgba: Uint8Array, width: number, height: number, options?: PixelTextureOptions & { resize?: boolean }): Bitmap;
+  updateTextureFromPixels(rgba: Uint8Array, update: PixelTextureUpdate): void;
+}
+
+interface PixelTextureOptions {
+  filter?: "linear" | "nearest";
+  premultiplyAlpha?: boolean;
+}
+
+interface PixelTextureUpdate {
+  width: number;
+  height: number;
+  x?: number;  // 传了走 texSubImage2D 脏矩形，不传走 texImage2D 整张
+  y?: number;
 }
 ```
 
@@ -273,6 +288,8 @@ class Bitmap extends DisplayObject {
 1. `resize = true` 时，加载后自动设置 `width/height` 为图片尺寸
 2. `createBitmapFromUrl()` 是异步的，返回 Promise
 3. 纹理在 `destroy()` 时自动释放
+4. 像素画用 `createBitmapFromPixels(rgba, w, h, { filter: "nearest" })`：`rgba` 行优先、第 0 行是图像顶部；像素数据不足会在**入队前同步抛错**，不会被 `enqueueGLTask` 吞掉
+5. 动态内容用 `updateTextureFromPixels(rgba, { width, height, x?, y? })`：不传 `x/y` 整张重传，传了走脏矩形
 
 **常见坑**：
 - 跨域图片需要设置 `crossOrigin`，否则 WebGL 报错
