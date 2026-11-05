@@ -297,6 +297,8 @@ interface PixelTextureUpdate {
    尺寸与 alpha 口径都来自 `textureInfo`。外部用 `gl.createTexture()` 自建的纹理没有元数据，会同步报错，
    不会默认按 `premultiplyAlpha=false`、无边界静默上传
 9. `textureManager.getTextureInfo(texture)` 可同步读取 `{ width, height, premultiplyAlpha }`（非 manager 创建返回 null）
+   - image 纹理记的是**自然尺寸**（`naturalWidth/naturalHeight`），不是显示尺寸：`texImage2D` 上传的是自然像素，
+     用显示尺寸做越界校验会出现「校验通过、GL 报 INVALID_VALUE」
 10. 校验都在**入队前**同步执行：`enqueueGLTask` 会吞掉任务内异常，放队列里就成了静默失败
 
 **常见坑**：

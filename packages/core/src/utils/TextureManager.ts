@@ -408,9 +408,12 @@ export class TextureManager {
     // 添加到缓存
     this.textureCache.set(url, texture);
     this.textures.set(url, texture);
+    /* 上传的是图片的自然像素，必须用 naturalWidth/Height。
+       image.width/height 是显示尺寸，被 CSS 或属性改过时会与纹理真实尺寸不一致，
+       拿它做越界校验会出现「校验通过、GL 报 INVALID_VALUE」。 */
     this.textureInfo.set(texture, {
-      width: image.width,
-      height: image.height,
+      width: image.naturalWidth || image.width,
+      height: image.naturalHeight || image.height,
       premultiplyAlpha: false,
     });
 

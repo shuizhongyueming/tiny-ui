@@ -466,6 +466,41 @@ describe("TextureManager 像素纹理", () => {
       app.destroy();
     });
 
+    it("image 纹理的元数据用自然尺寸，不用显示尺寸", async () => {
+      const app = makeApp();
+      const gl = app.gl;
+
+      const image = await app.textureManager.loadImage(
+        "tests/fixtures/64x64-red.png",
+      );
+      expect(image.naturalWidth).toBe(64);
+
+      // 把显示尺寸改成两倍，元数据仍必须是自然尺寸
+      image.width = 128;
+      image.height = 128;
+
+      const texture = inGLTask(app, () =>
+        app.textureManager.createImageTexture(image),
+      );
+
+      const info = app.textureManager.getTextureInfo(texture);
+      expect(info?.width).toBe(64);
+      expect(info?.height).toBe(64);
+
+      // 真实纹理是 64×64，髞 (64,0) 必须同步报错，而不是留下 GL 1281
+      expect(() =>
+        app.textureManager.updateTextureFromPixels(
+          texture,
+          makeRgba(1, 1, [1, 1, 1, 255]),
+          { x: 64, y: 0, width: 1, height: 1 },
+        ),
+      ).toThrowError(/脏矩形越界/);
+
+      expect(gl.getError()).toBe(0);
+
+      app.destroy();
+    });
+
     it("非 manager 创建的纹理同步报错，不静默上传", () => {
       const app = makeApp();
       const gl = app.gl;
