@@ -349,8 +349,7 @@ describe("TextureManager 像素纹理", () => {
       app.destroy();
     });
 
-    it("脏矩形更新继承创建时的 premultiplyAlpha", () => {
-      const app = makeApp();
+    it("脏矩形更新继承创建时的 premultiplyAlpha", () => {      const app = makeApp();
       const gl = app.gl;
       const bitmap = app.createBitmapFromPixels(makeRgba(4, 4, [1, 1, 1, 255]), 4, 4, {
         filter: "nearest",
@@ -379,6 +378,107 @@ describe("TextureManager 像素纹理", () => {
       (gl as any).texSubImage2D = originSub;
 
       expect(observed).toEqual([true]);
+
+      app.destroy();
+    });
+
+    it("canvas 纹理也登记元数据：alpha 继承与越界校验都生效", () => {
+      const app = makeApp();
+      const gl = app.gl;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = 4;
+      canvas.height = 4;
+
+      const texture = inGLTask(app, () =>
+        app.textureManager.createCanvasTexture(canvas, true),
+      );
+
+      const info = app.textureManager.getTextureInfo(texture);
+      expect(info).toEqual({
+        width: 4,
+        height: 4,
+        premultiplyAlpha: true,
+      });
+
+      const observed: boolean[] = [];
+      const originSub = gl.texSubImage2D.bind(gl);
+      (gl as any).texSubImage2D = (...args: any[]) => {
+        observed.push(
+          gl.getParameter(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL) as boolean,
+        );
+        return originSub(...(args as any));
+      };
+
+      inGLTask(app, () => {
+        app.textureManager.updateTextureFromPixels(
+          texture,
+          makeRgba(1, 1, [3, 3, 3, 255]),
+          { x: 0, y: 0, width: 1, height: 1 },
+        );
+      });
+      (gl as any).texSubImage2D = originSub;
+
+      expect(observed).toEqual([true]);
+
+      expect(() =>
+        app.textureManager.updateTextureFromPixels(
+          texture,
+          makeRgba(2, 2, [1, 1, 1, 255]),
+          { x: 3, y: 0, width: 2, height: 2 },
+        ),
+      ).toThrowError(/脏矩形越界/);
+
+      app.destroy();
+    });
+
+    it("pixels → canvas 切换后用新尺寸校验，不再用旧尺寸", () => {
+      const app = makeApp();
+
+      const bitmap = app.createBitmapFromPixels(
+        makeRgba(2, 2, [1, 1, 1, 255]),
+        2,
+        2,
+      );
+      app.root.addChild(bitmap);
+      app.render();
+
+      const small = document.createElement("canvas");
+      small.width = 1;
+      small.height = 1;
+      bitmap.loadFromCanvas(small);
+      app.render();
+
+      const info = app.textureManager.getTextureInfo(bitmap.texture!);
+      expect(info?.width).toBe(1);
+      expect(info?.height).toBe(1);
+
+      // 旧的 2×2 尺寸不再有效：1×1 纹理上放 2×2 脏矩形必须报错
+      expect(() =>
+        bitmap.updateTextureFromPixels(makeRgba(2, 2, [9, 9, 9, 255]), {
+          x: 0,
+          y: 0,
+          width: 2,
+          height: 2,
+        }),
+      ).toThrowError(/脏矩形越界/);
+
+      app.destroy();
+    });
+
+    it("非 manager 创建的纹理同步报错，不静默上传", () => {
+      const app = makeApp();
+      const gl = app.gl;
+      const raw = gl.createTexture()!;
+
+      expect(app.textureManager.getTextureInfo(raw)).toBeNull();
+      expect(() =>
+        app.textureManager.updateTextureFromPixels(
+          raw,
+          makeRgba(1, 1, [1, 1, 1, 255]),
+          { width: 1, height: 1 },
+        ),
+      ).toThrowError(/只支持由 TextureManager 创建的纹理/);
 
       app.destroy();
     });

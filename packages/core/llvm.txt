@@ -293,7 +293,11 @@ interface PixelTextureUpdate {
    都不传走整张 `texImage2D`，都传走脏矩形 `texSubImage2D`，只传一个直接抛错
 6. `rgba` 长度必须**正好**是 `width * height * 4`；宽高必须是正整数（`NaN`/小数/0 一律抛错）
 7. 脏矩形更新会继承创建时的 `premultiplyAlpha`，并校验子矩形不越界
-8. 校验都在**入队前**同步执行：`enqueueGLTask` 会吞掉任务内异常，放队列里就成了静默失败
+8. `updateTextureFromPixels` 适用于**任何由 TextureManager 创建的纹理**（pixels / image / canvas）：
+   尺寸与 alpha 口径都来自 `textureInfo`。外部用 `gl.createTexture()` 自建的纹理没有元数据，会同步报错，
+   不会默认按 `premultiplyAlpha=false`、无边界静默上传
+9. `textureManager.getTextureInfo(texture)` 可同步读取 `{ width, height, premultiplyAlpha }`（非 manager 创建返回 null）
+10. 校验都在**入队前**同步执行：`enqueueGLTask` 会吞掉任务内异常，放队列里就成了静默失败
 
 **常见坑**：
 - 跨域图片需要设置 `crossOrigin`，否则 WebGL 报错

@@ -18,6 +18,13 @@ export interface PixelTextureOptions {
  *
  * `rgba` 长度必须**正好**是 `width * height * 4` 字节。
  */
+/** 由 TextureManager 创建的纹理的元数据 */
+export interface TextureInfo {
+  width: number;
+  height: number;
+  premultiplyAlpha: boolean;
+}
+
 export interface PixelTextureUpdate {
   width: number;
   height: number;
@@ -91,11 +98,14 @@ export class TextureManager {
   private textureCache: Map<string, WebGLTexture> = new Map();
   private inflight: Map<string, Deferred<WebGLTexture>> = new Map();
   private pixelTextureSeq: number = 0;
-  /** 像素纹理的创建参数与尺寸，用于更新时继承 alpha 口径并校验子矩形范围 */
-  private pixelTextureInfo: Map<
-    WebGLTexture,
-    { width: number; height: number; premultiplyAlpha: boolean }
-  > = new Map();
+  /**
+   * 本 manager 创建的每条纹理的尺寸与上传口径。
+   *
+   * 用途：`updateTextureFromPixels` 需要知道目标纹理多大才能校验脏矩形范围，
+   * 也需要知道创建时的 `premultiplyAlpha` 才能保证前后口径一致。
+   * 不由 manager 创建的纹理没有这条元数据，更新时会同步报错而不是静默按默认值处理。
+   */
+  private textureInfo: Map<WebGLTexture, TextureInfo> = new Map();
 
   constructor(gl: WebGLRenderingContext, app: TinyUI) {
     this.gl = gl;
@@ -200,7 +210,7 @@ export class TextureManager {
 
     this.pixelTextureSeq++;
     this.textures.set(`pixels-${this.pixelTextureSeq}`, texture);
-    this.pixelTextureInfo.set(texture, {
+    this.textureInfo.set(texture, {
       width,
       height,
       premultiplyAlpha: options.premultiplyAlpha ?? false,
@@ -211,6 +221,10 @@ export class TextureManager {
 
   /**
    * 更新已存在的纹理内容（必须在 safe section 内调用）。
+   *
+   * 适用于**任何由本 manager 创建的纹理**（pixels / image / canvas），
+   * 因为只有它们登记了尺寸与 alpha 口径。外部自建的 `gl.createTexture()` 没有元数据，
+   * 直接抛错而不是按默认值静默上传。
    *
    * - 不传 `x`/`y`：整张重新定义，适合尺寸不变但内容整体重画的场景。
    * - 两个都传：只上传该子矩形，适合脏矩形增量更新。
@@ -228,24 +242,24 @@ export class TextureManager {
     assertPixelUpdate(update);
     this.assertPixelBuffer(rgba, width, height);
 
-    const info = this.pixelTextureInfo.get(texture);
+    const info = this.textureInfo.get(texture);
+    if (!info) {
+      throw new Error(
+        "[TinyUI] updateTextureFromPixels 只支持由 TextureManager 创建的纹理：缺少尺寸与 alpha 元数据。" +
+          "请改用 createTextureFromPixels / createImageTexture / createCanvasTexture。",
+      );
+    }
+
     const hasX = x !== undefined;
 
-    if (hasX && info) {
-      if (
-        (x as number) + width > info.width ||
-        (y as number) + height > info.height
-      ) {
-        throw new Error(
-          `[TinyUI] 脏矩形越界: (${x},${y}) ${width}x${height} 超出纹理 ${info.width}x${info.height}。`,
-        );
-      }
+    if (hasX) {
+      this.assertSubRectInBounds(update, info);
     }
 
     const gl = this.gl;
 
     gl.bindTexture(gl.TEXTURE_2D, texture);
-    this.applyPixelUploadState(info?.premultiplyAlpha ?? false);
+    this.applyPixelUploadState(info.premultiplyAlpha);
 
     if (!hasX) {
       gl.texImage2D(
@@ -261,10 +275,8 @@ export class TextureManager {
       );
 
       /* 整张重定义后尺寸变了，同步记录，否则后续脏矩形的越界校验会用到旧尺寸 */
-      if (info) {
-        info.width = width;
-        info.height = height;
-      }
+      info.width = width;
+      info.height = height;
       return;
     }
 
@@ -279,6 +291,22 @@ export class TextureManager {
       gl.UNSIGNED_BYTE,
       rgba,
     );
+  }
+
+  /** 读取纹理元数据。不是本 manager 创建的纹理返回 null。 */
+  getTextureInfo(texture: WebGLTexture): TextureInfo | null {
+    return this.textureInfo.get(texture) ?? null;
+  }
+
+  /** 校验脏矩形是否越界（同步可用，不碰 GL） */
+  assertSubRectInBounds(update: PixelTextureUpdate, info: TextureInfo): void {
+    const { width, height, x, y } = update;
+    if (x === undefined || y === undefined) return;
+    if (x + width > info.width || y + height > info.height) {
+      throw new Error(
+        `[TinyUI] 脏矩形越界: (${x},${y}) ${width}x${height} 超出纹理 ${info.width}x${info.height}。`,
+      );
+    }
   }
 
   // 设置采样参数：不生成 mipmap，避免非 2 的幂尺寸下采样不完整
@@ -380,6 +408,11 @@ export class TextureManager {
     // 添加到缓存
     this.textureCache.set(url, texture);
     this.textures.set(url, texture);
+    this.textureInfo.set(texture, {
+      width: image.width,
+      height: image.height,
+      premultiplyAlpha: false,
+    });
 
     return texture;
   }
@@ -392,6 +425,11 @@ export class TextureManager {
 
     // 添加到纹理列表 (但不缓存)
     this.textures.set(`canvas-${Date.now()}`, texture);
+    this.textureInfo.set(texture, {
+      width: canvas.width,
+      height: canvas.height,
+      premultiplyAlpha,
+    });
 
     return texture;
   }
@@ -400,7 +438,7 @@ export class TextureManager {
   deleteTexture(texture: WebGLTexture): void {
     const gl = this.gl;
 
-    this.pixelTextureInfo.delete(texture);
+    this.textureInfo.delete(texture);
 
     // 从纹理列表中删除
     for (const [key, value] of this.textures.entries()) {
@@ -433,7 +471,7 @@ export class TextureManager {
 
     this.textures.clear();
     this.textureCache.clear();
-    this.pixelTextureInfo.clear();
+    this.textureInfo.clear();
     this.pixelTextureSeq = 0;
   }
 }
