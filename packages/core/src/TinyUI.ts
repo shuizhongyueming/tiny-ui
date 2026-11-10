@@ -11,6 +11,7 @@ import { Matrix } from "./utils/Matrix";
 import { ShaderManager } from "./utils/ShaderManager";
 import {
   TextureManager,
+  type ImageTextureOptions,
   type PixelTextureOptions,
 } from "./utils/TextureManager";
 import { GLState } from "./utils/GLState";
@@ -1026,14 +1027,14 @@ class TinyUI {
     this._rafId = requestAnimationFrame(() => this._runTickLoop());
   }
 
-  async createBitmapFromUrl(url: string): Promise<Bitmap> {
+  async createBitmapFromUrl(url: string, options: ImageTextureOptions = {}): Promise<Bitmap> {
     const bitmap = new Bitmap(this);
-    await bitmap.loadFromUrl(url);
+    await bitmap.loadFromUrl(url, true, options);
     return bitmap;
   }
-  createBitmapFromImage(image: HTMLImageElement): Bitmap {
+  createBitmapFromImage(image: HTMLImageElement, options: ImageTextureOptions = {}): Bitmap {
     const bitmap = new Bitmap(this);
-    bitmap.loadFromImage(image);
+    bitmap.loadFromImage(image, true, options);
     return bitmap;
   }
   createBitmapFromCanvas(

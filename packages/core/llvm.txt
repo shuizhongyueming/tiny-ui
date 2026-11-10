@@ -139,8 +139,8 @@ class TinyUI {
   createContainer(name?: string): Container;
   createText(text: string, name?: string): Text;
   createGraphics(name?: string): Graphics;
-  createBitmapFromUrl(url: string): Promise<Bitmap>;
-  createBitmapFromImage(image: HTMLImageElement): Bitmap;
+  createBitmapFromUrl(url: string, options?: ImageTextureOptions): Promise<Bitmap>;
+  createBitmapFromImage(image: HTMLImageElement, options?: ImageTextureOptions): Bitmap;
   createBitmapFromCanvas(canvas: HTMLCanvasElement, resize?: boolean): Bitmap;
   createBitmapFromPixels(rgba: Uint8Array, width: number, height: number, options?: PixelTextureOptions & { resize?: boolean }): Bitmap;
   
@@ -264,8 +264,8 @@ class Bitmap extends DisplayObject {
   texture: WebGLTexture | null;
   imgLoadPromise: Promise<Bitmap> | null;
   
-  loadFromUrl(url: string, resize?: boolean): Promise<Bitmap>;
-  loadFromImage(image: HTMLImageElement, resize?: boolean): Bitmap;
+  loadFromUrl(url: string, resize?: boolean, options?: ImageTextureOptions): Promise<Bitmap>;
+  loadFromImage(image: HTMLImageElement, resize?: boolean, options?: ImageTextureOptions): Bitmap;
   loadFromCanvas(canvas: HTMLCanvasElement, resize?: boolean): Bitmap;
   loadFromPixels(rgba: Uint8Array, width: number, height: number, options?: PixelTextureOptions & { resize?: boolean }): Bitmap;
   updateTextureFromPixels(rgba: Uint8Array, update: PixelTextureUpdate): void;
@@ -812,3 +812,14 @@ A：跨域问题，需设置 `crossOrigin = 'anonymous'`。
 
 **Q：如何设置背景色？**  
 A：创建全屏 Graphics 绘制矩形作为背景。
+
+### 图像纹理采样
+
+`ImageTextureOptions = { filter?: "linear" | "nearest" }`。未指定 `filter` 时保留旧行为：
+2 的幂（POT）图像生成 mipmap，不覆盖 MIN/MAG；MIN 保持 WebGL 默认 NEAREST_MIPMAP_LINEAR（9986），MAG 为 LINEAR（9729）；
+非 2 的幂（NPOT）图像的 MIN/MAG 均为 LINEAR（9729）。空选项对象也使用旧行为。
+`TextureManager.createImageTexture(image, options?)` 与 Bitmap 的 URL/Image 路径支持此选项。
+显式 `linear` 时，POT 和 NPOT 的 MIN/MAG 均为 LINEAR（9729）；显式 `nearest` 时均为 NEAREST（9728）。
+显式指定采样时环绕为 CLAMP_TO_EDGE。缺省、linear、nearest 使用不同缓存键。
+像素画用 `app.createBitmapFromImage(image, { filter: "nearest" })`；已有节点用
+`bitmap.loadFromImage(image, true, { filter: "nearest" })`。

@@ -3,6 +3,7 @@ import type TinyUI from "./TinyUI";
 import {
   assertPixelBuffer,
   assertPixelUpdate,
+  type ImageTextureOptions,
   type PixelTextureOptions,
   type PixelTextureUpdate,
 } from "./utils/TextureManager";
@@ -20,9 +21,9 @@ export class Bitmap extends DisplayObject {
     super(app, name);
   }
 
-  private async realLoadFromUrl(url: string, resize: boolean = true): Promise<Bitmap> {
+  private async realLoadFromUrl(url: string, resize: boolean, options: ImageTextureOptions): Promise<Bitmap> {
     const image = await this.app.textureManager.loadImage(url);
-    return this.loadFromImage(image, resize);
+    return this.loadFromImage(image, resize, options);
   }
 
   /**
@@ -30,11 +31,11 @@ export class Bitmap extends DisplayObject {
   * @param resize 是否调整 Bitmap 的大小为图片的大小
   * @returns
   */
-  loadFromUrl(url: string, resize: boolean = true): Promise<Bitmap> {
-    this.imgLoadPromise = this.realLoadFromUrl(url, resize);
+  loadFromUrl(url: string, resize: boolean = true, options: ImageTextureOptions = {}): Promise<Bitmap> {
+    this.imgLoadPromise = this.realLoadFromUrl(url, resize, options);
     return this.imgLoadPromise;
   }
-  loadFromImage(image: HTMLImageElement, resize: boolean = true): Bitmap {
+  loadFromImage(image: HTMLImageElement, resize: boolean = true, options: ImageTextureOptions = {}): Bitmap {
     this.src = image.src;
     this.source = image;
 
@@ -55,7 +56,7 @@ export class Bitmap extends DisplayObject {
         this.app.textureManager.deleteTexture(previousTexture);
       }
 
-      this.texture = this.app.textureManager.createImageTexture(image);
+      this.texture = this.app.textureManager.createImageTexture(image, options);
       this.textureUploadPending = false;
     });
     this.imgLoadPromise = Promise.resolve(this);

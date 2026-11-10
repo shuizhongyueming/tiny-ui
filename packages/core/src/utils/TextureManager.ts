@@ -1,6 +1,10 @@
 import type TinyUI from "../TinyUI";
 import { Deferred } from "./Deferred";
 
+export interface ImageTextureOptions {
+  filter?: "linear" | "nearest";
+}
+
 /** 像素纹理的采样参数。像素画必须用 "nearest"，否则缩放会糊。 */
 export interface PixelTextureOptions {
   filter?: "linear" | "nearest";
@@ -361,9 +365,10 @@ export class TextureManager {
 
   // 加载纹理（deferred upload，在 safe section 内完成 GL 上传）
   async loadTexture(url: string): Promise<WebGLTexture> {
+    const cacheKey = `${url}|default`;
     // 1. 检查缓存
-    if (this.textureCache.has(url)) {
-      return this.textureCache.get(url)!;
+    if (this.textureCache.has(cacheKey)) {
+      return this.textureCache.get(cacheKey)!;
     }
 
     // 2. 检查 inflight（合并并发请求）
@@ -400,10 +405,14 @@ export class TextureManager {
   }
 
   // 创建图像纹理（必须在 safe section 内调用）
-  createImageTexture(image: HTMLImageElement): WebGLTexture {
+  createImageTexture(image: HTMLImageElement, options: ImageTextureOptions = {}): WebGLTexture {
     const texture = this.createTexture();
-    const url = image.src;
+    const url = `${image.src}|${options.filter ?? "default"}`;
     this.setTextureFromImage(texture, image);
+    // 未指定 filter 时保留旧路径：POT 使用 mipmap，NPOT 使用 LINEAR。
+    if (options.filter !== undefined) {
+      this.applyPixelTextureParams(texture, options.filter);
+    }
 
     // 添加到缓存
     this.textureCache.set(url, texture);
