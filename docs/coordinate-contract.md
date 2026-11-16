@@ -86,6 +86,18 @@ it.y = cursor - inkTop + it.pivotY * it.height;
 `hitTest` / `getBounds` / `setClipRect` 都通过 `getGlobalTransformMatrix()` 工作，
 矩阵改对之后它们自动正确 —— **前提是它们真的走矩阵**，不要有第二套坐标换算。
 
+命中盒默认等于布局盒（`0..width × 0..height`）。需要更大的触摸区时，
+设 `DisplayObject.hitPadding`：单位是**本地坐标**，绕中心向四边外扩，
+不影响绘制、不影响 `getBounds()`、不影响 `layoutRow/layoutColumn`。
+`hitTest` 与事件分发同时变宽，因此 `Pressable` 的起点过滤也能通过。
+
+```ts
+// 视觉 24×24，触摸区 44×44：本地每边多 10。
+node.hitPadding = 10;
+// 只有宽度需要放大时分开给。
+node.hitPadding = { x: 12, y: 0 };
+```
+
 ### `adjustTo`
 
 `packages/components/src/utils/adjustTo.ts` 用 `target.anchorX` 反算「左上角」：

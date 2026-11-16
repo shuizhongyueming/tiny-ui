@@ -170,6 +170,12 @@ get contentBounds(): { x, y, width, height };
 
 ### B5 命中盒：本轮不改，只文档化现状
 
+> **修订（`b593fcf`）**：已新增命中外扩字段，本节「无独立配置入口」的说法不再成立。
+> 现为 `DisplayObject.hitPadding`（局部坐标外扩，不影响渲染与 `getBounds()`），
+> `Pressable` 用 `hitPadding?: number | {x,y} | (() => ...)` 暴露，`slop` 保留兼容。
+> 仍不改布局盒：`width/height` 是布局与排版依据，扩命中区不动它。
+> 三个盒的关系因此变成：命中盒 = 布局盒 + 可选外扩；内容盒仍只读、仍不影响命中。
+
 现状：`hitTest()`（`DisplayObject.ts:318`）只有 `0 <= localPoint <= width/height` 判断，
 **没有独立配置入口**。
 
@@ -310,7 +316,7 @@ core 的 15 个视觉基线**全过**，但那只覆盖 `example/`，**不覆盖
 | 项 | 原因 |
 |---|---|
 | `Graphics.width/height` 派生只读 | 推翻 `3a2055c` 刚确立的布局契约 |
-| 命中区域 API（`hitTestUI` / 显式热区） | 需先定义坐标空间、祖先可见性、裁剪、透明节点、遮挡规则；起点应是「显式交互节点」 |
+| 命中盒独立于布局盒（改 `width/height`） | 布局盒同时是排版与 `getBounds` 依据；改它会连带错位。需要大热区时用 `DisplayObject.hitPadding` / `Pressable.hitPadding`，只放宽命中，不动布局 |
 | `render` 签名替换 | 兼容性；用新增别名替代 |
 | text setter 自动重置样式 | 会改变现有行为（保留 `letterSpacing` 属样式持久化，不是泄漏） |
 | 尺寸模式从 X 改到 Y | 本轮不动既有调用方行为 |
