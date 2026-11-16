@@ -10,6 +10,7 @@ export * from "./utils/Matrix";
 export * from "./utils/ShaderManager";
 export * from "./utils/TextureManager";
 export * from "./utils/UIEvent";
+export * from "./utils/hitArea";
 export * from "./utils/layout";
 
 import TinyUI from "./TinyUI";

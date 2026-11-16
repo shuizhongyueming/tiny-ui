@@ -1,5 +1,5 @@
 import type { TinyUI, DisplayObject } from "@shuizhongyueming/tiny-ui-core";
-import type { UIEvent } from "@shuizhongyueming/tiny-ui-core";
+import type { UIEvent, HitPadding } from "@shuizhongyueming/tiny-ui-core";
 
 export interface PressableOptions {
   onTap?: () => void;
@@ -8,6 +8,16 @@ export interface PressableOptions {
   pressDy?: number;
   /** 命中容差：抬起点距节点盒边缘多少像素内仍算命中。默认 0。 */
   slop?: number;
+  /**
+   * 命中区外扩量，单位是节点局部坐标。视觉尺寸不变。
+   *
+   * 数字表示四边相同；对象分别给 x/y。可以传函数，在每次命中判定时求值 ——
+   * 按钮在按下反馈里会重设尺寸，固定值算出的外扩量会失准。
+   *
+   * 典型用法是「视觉 20、想要 44 的触摸区」：传 `() => 12`，
+   * 或用 `hitSlopFor(w, h, 44)` 让 core 帮你算。
+   */
+  hitPadding?: HitPadding;
   /**
    * 移动距离阈值：起手点移动超过该距离即**永久**取消本次手势。
    * 与 `slop` 是两件事 —— `slop` 判定「抬起点还在不在按钮上」，
@@ -56,6 +66,23 @@ export function onPressableDispose(
 export function Pressable(app: TinyUI, node: DisplayObject,
   options: PressableOptions = {}): PressableInstance {
   const slop = options.slop ?? 0;
+  const hitPadding = options.hitPadding;
+  /**
+   * 命中区挂在节点上，事件分发、手写命中与 Pressable 三处共用同一份定义。
+   *
+   * 这一步是必需的：事件管理器先按 `node.hitTest` 过滤，才轮到 Pressable 判定。
+   * 只把容差留在 Pressable 内部，起点就被挡在节点外，永远收不到事件。
+   */
+  if (hitPadding !== undefined || slop > 0) {
+    node.hitPadding = () => {
+      const padding = typeof hitPadding === "function" ? hitPadding() : hitPadding;
+      const padX = padding === undefined || padding === null ? 0
+        : typeof padding === "number" ? padding : padding.x;
+      const padY = padding === undefined || padding === null ? 0
+        : typeof padding === "number" ? padding : padding.y;
+      return { x: Math.max(slop, padX), y: Math.max(slop, padY) };
+    };
+  }
   const moveThreshold = options.moveThreshold ?? 0;
   const pressDy = options.pressDy ?? 0;
   let pointer: number | null = null;
@@ -91,12 +118,9 @@ export function Pressable(app: TinyUI, node: DisplayObject,
     const restore = pressDy !== 0 && originalY !== baseY;
     if (restore) node.y = baseY;
     try {
-      if (slop <= 0) return node.hitTest(event.x, event.y);
-      const inverse = node.getGlobalTransformMatrix().invert();
-      if (!inverse) return false;
-      const point = inverse.transformPoint(event.x, event.y);
-      return point.x >= -slop && point.x <= node.width + slop &&
-        point.y >= -slop && point.y <= node.height + slop;
+      // 命中区统一由 `node.hitTest` 判定：它在入口过滤与 Pressable 判定里是同一份实现，
+      // 不会出现「起点能进事件、抬手被判出去」这种两套边界。
+      return node.hitTest(event.x, event.y);
     } finally {
       if (restore) node.y = originalY;
     }

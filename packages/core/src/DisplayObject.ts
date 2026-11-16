@@ -2,6 +2,7 @@ import { type Container } from "./Container";
 import type { EventName, Callback, Rect, Size, Point } from "./type";
 import { Matrix } from "./utils/Matrix";
 import { assertUnitRange } from "./utils/diagnostics";
+import { resolveHitPadding, type HitPadding } from "./utils/hitArea";
 import type { UIEvent } from "./utils/UIEvent";
 import { Emitter } from "./utils/Emitter";
 import type TinyUI from "./TinyUI";
@@ -22,6 +23,13 @@ export class DisplayObject extends Emitter {
   protected _width: number = 0;
   protected _height: number = 0;
   visible: boolean = true;
+  /**
+   * 命中区外扩量，单位是本地坐标，不影响渲染与 `getBounds()`。
+   *
+   * 触摸控件常常画得比手指小：把这里设成「视觉尺寸到 44 的差」，
+   * `hitTest` 与事件分发就一起变宽，不需要放大节点本身。
+   */
+  hitPadding: HitPadding = 0;
   scaleX: number = 1;
   scaleY: number = 1;
   /**
@@ -385,12 +393,13 @@ export class DisplayObject extends Emitter {
     // 将全局坐标转换为本地坐标
     const localPoint = invertMatrix.transformPoint(x, y);
 
-    // 检查本地坐标是否在对象的边界内
+    // 检查本地坐标是否在对象边界内；`hitPadding` 在四边额外放宽。
+    const padding = resolveHitPadding(this.hitPadding);
     return (
-      localPoint.x >= 0 &&
-      localPoint.x <= this.width &&
-      localPoint.y >= 0 &&
-      localPoint.y <= this.height
+      localPoint.x >= -padding.x &&
+      localPoint.x <= this.width + padding.x &&
+      localPoint.y >= -padding.y &&
+      localPoint.y <= this.height + padding.y
     );
   }
 
