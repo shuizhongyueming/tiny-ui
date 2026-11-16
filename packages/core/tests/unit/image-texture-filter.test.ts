@@ -10,7 +10,7 @@ function fixture() {
     CLAMP_TO_EDGE: 6, LINEAR: 7, NEAREST: 8,
     createTexture: vi.fn(() => ({})), bindTexture: vi.fn(),
     texImage2D: vi.fn(), texParameteri: vi.fn(), pixelStorei: vi.fn(),
-    generateMipmap: vi.fn(), deleteTexture: vi.fn(),
+    generateMipmap: vi.fn(), deleteTexture: vi.fn(), isTexture: vi.fn(() => true),
   };
   const tasks: Array<() => void> = [];
   const app: any = { enqueueGLTask: (task: () => void) => tasks.push(task) };
@@ -63,6 +63,25 @@ describe("图像纹理采样", () => {
     manager.createImageTexture(image, { filter: "nearest" });
     expect(await manager.loadTexture(image.src)).toBe(legacy);
     expect(manager.loadImage).toHaveBeenCalledTimes(1);
+  });
+
+  it("相同 URL 与 filter 复用纹理，单个 Bitmap 销毁不释放缓存", () => {
+    const { gl, app, image } = fixture();
+    const manager = app.textureManager;
+    const first = manager.createImageTexture(image, { filter: "nearest" });
+    const second = manager.createImageTexture(image, { filter: "nearest" });
+    expect(second).toBe(first);
+    expect(gl.createTexture).toHaveBeenCalledTimes(1);
+
+    manager.deleteTexture(first);
+    expect(gl.deleteTexture).not.toHaveBeenCalled();
+    expect(manager.getTextureInfo(first)?.width).toBe(8);
+
+    const third = manager.createImageTexture(image, { filter: "nearest" });
+    expect(third).toBe(first);
+    expect(gl.createTexture).toHaveBeenCalledTimes(1);
+    manager.destroy();
+    expect(gl.deleteTexture).toHaveBeenCalledWith(first);
   });
 
   it("Bitmap 的 Image/URL 和工厂路径透传选项，并保留 resize=false", async () => {

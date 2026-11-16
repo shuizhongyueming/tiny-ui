@@ -406,8 +406,12 @@ export class TextureManager {
 
   // 创建图像纹理（必须在 safe section 内调用）
   createImageTexture(image: HTMLImageElement, options: ImageTextureOptions = {}): WebGLTexture {
-    const texture = this.createTexture();
     const url = `${image.src}|${options.filter ?? "default"}`;
+    const cached = this.textureCache.get(url);
+    if (cached && this.gl.isTexture(cached)) return cached;
+    if (cached) this.textureCache.delete(url);
+
+    const texture = this.createTexture();
     this.setTextureFromImage(texture, image);
     // 未指定 filter 时保留旧路径：POT 使用 mipmap，NPOT 使用 LINEAR。
     if (options.filter !== undefined) {
@@ -449,6 +453,10 @@ export class TextureManager {
   // 删除纹理（必须在 safe section 内调用）
   deleteTexture(texture: WebGLTexture): void {
     const gl = this.gl;
+
+    // 图片纹理是可复用缓存。销毁单个 Bitmap 时不能连带释放缓存，
+    // 否则下一张卡片或下一个路由会再次支付完整的图片上传成本。
+    if ([...this.textureCache.values()].includes(texture)) return;
 
     this.textureInfo.delete(texture);
 
