@@ -47,8 +47,16 @@ export type GraphicsCommand =
   | GraphicsCommandCircle
   | GraphicsCommandRoundedRect;
 
+type CachedShape = {
+  position: Float32Array;
+  color: Float32Array;
+  index: Uint16Array;
+};
+
 export class Graphics extends DisplayObject {
   commands: GraphicsCommand[] = [];
+  /** 每条命令的几何只构建并上传一次；绘制命令本身不可变。 */
+  private shapeCache = new WeakMap<GraphicsCommand, CachedShape>();
 
   /** 上一帧视口是否为零尺寸，用来让零视口诊断按「状态周期」去重。 */
   private viewportWasZero = false;
@@ -79,7 +87,9 @@ export class Graphics extends DisplayObject {
    * 与 CSS 里清空子元素不影响父容器 `width` 同理。要回到按内容推导，调 `autoSize()`。
    */
   clear(): Graphics {
+    for (const cmd of this.commands) this.app._releaseCachedGeometry?.(cmd);
     this.commands = [];
+    this.shapeCache = new WeakMap();
     this.hasContent = false;
     this.contentMinX = 0;
     this.contentMinY = 0;
@@ -403,8 +413,20 @@ export class Graphics extends DisplayObject {
   }
 
   override destroy(): void {
+    for (const cmd of this.commands) this.app._releaseCachedGeometry?.(cmd);
     super.destroy();
     this.commands = [];
+    this.shapeCache = new WeakMap();
+  }
+
+  private drawShape(cmd: GraphicsCommand, positions: number[], colors: number[], indices: number[]) {
+    const shape = {
+      position: new Float32Array(positions),
+      color: new Float32Array(colors),
+      index: new Uint16Array(indices),
+    };
+    this.shapeCache.set(cmd, shape);
+    this.app._drawCachedGeometry(cmd, shape.position, shape.color, shape.index, this.alpha);
   }
 
   render(_matrix: Matrix): void {
@@ -418,6 +440,11 @@ export class Graphics extends DisplayObject {
     gl.uniform1i(this.app._useTextureLocation, 0);
 
     for (const cmd of this.commands) {
+      const cached = this.shapeCache.get(cmd);
+      if (cached) {
+        this.app._drawCachedGeometry(cmd, cached.position, cached.color, cached.index, this.alpha);
+        continue;
+      }
       if (cmd.type === "rect") {
         // 顶点位置 (矩形)
         const positions = [
@@ -442,29 +469,25 @@ export class Graphics extends DisplayObject {
           color.r,
           color.g,
           color.b,
-          color.a * this.alpha,
+          color.a,
           color.r,
           color.g,
           color.b,
-          color.a * this.alpha,
+          color.a,
           color.r,
           color.g,
           color.b,
-          color.a * this.alpha,
+          color.a,
           color.r,
           color.g,
           color.b,
-          color.a * this.alpha,
+          color.a,
         ];
 
         // 索引 (两个三角形)
         const indices = [0, 1, 2, 0, 2, 3];
 
-        // 设置缓冲区数据
-        this.app._setBufferData(positions, texCoords, colors, indices);
-
-        // 绘制
-        gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+        this.drawShape(cmd, positions, colors, indices);
       } else if (cmd.type === "circle") {
         // 生成圆形顶点
         const segments = 40; // 分段数
@@ -479,7 +502,7 @@ export class Graphics extends DisplayObject {
         // 圆心
         positions.push(cmd.x, cmd.y);
         texCoords.push(0.5, 0.5);
-        colors.push(color.r, color.g, color.b, color.a * this.alpha);
+        colors.push(color.r, color.g, color.b, color.a);
 
         // 外围顶点
         for (let i = 0; i <= segments; i++) {
@@ -492,18 +515,14 @@ export class Graphics extends DisplayObject {
             0.5 + Math.cos(angle) * 0.5,
             0.5 + Math.sin(angle) * 0.5,
           );
-          colors.push(color.r, color.g, color.b, color.a * this.alpha);
+          colors.push(color.r, color.g, color.b, color.a);
 
           if (i > 0) {
             indices.push(0, i, i + 1);
           }
         }
 
-        // 设置缓冲区数据
-        this.app._setBufferData(positions, texCoords, colors, indices);
-
-        // 绘制
-        gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
+        this.drawShape(cmd, positions, colors, indices);
       } else if (cmd.type === "roundedRect") {
         const positions: number[] = [];
         const texCoords: number[] = [];
@@ -523,7 +542,7 @@ export class Graphics extends DisplayObject {
         const addVertex = (x: number, y: number): number => {
           positions.push(x, y);
           texCoords.push(0, 0);
-          colors.push(color.r, color.g, color.b, color.a * this.alpha);
+          colors.push(color.r, color.g, color.b, color.a);
           return vertexIndex++;
         };
 
@@ -658,9 +677,7 @@ export class Graphics extends DisplayObject {
           segments,
         ); // 左下
 
-        // 设置缓冲区并绘制
-        this.app._setBufferData(positions, texCoords, colors, indices);
-        gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
+        this.drawShape(cmd, positions, colors, indices);
       }
     }
   }

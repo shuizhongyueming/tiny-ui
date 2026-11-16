@@ -1422,62 +1422,10 @@ export class Text extends DisplayObject {
       return;
     }
 
-    const gl = this.app.gl;
-
-    // 顶点位置 (矩形)
-    const positions = [
-      0,
-      0,
-      this.width,
-      0,
-      this.width,
-      this.height,
-      0,
-      this.height,
-    ];
-
     // 计算纹理坐标比例 - 实际内容与Power-of-2尺寸的比例
     const texCoordX = this.width / this.textureWidth;
     const texCoordY = this.height / this.textureHeight;
 
-    // 纹理坐标 (矩形) - 只使用纹理的一部分
-    const texCoords = [0, 0, texCoordX, 0, texCoordX, texCoordY, 0, texCoordY];
-
-    // 顶点颜色 (应用透明度)
-    const colors = [
-      1,
-      1,
-      1,
-      this.alpha,
-      1,
-      1,
-      1,
-      this.alpha,
-      1,
-      1,
-      1,
-      this.alpha,
-      1,
-      1,
-      1,
-      this.alpha,
-    ];
-
-    // 索引 (两个三角形)
-    const indices = [0, 1, 2, 0, 2, 3];
-
-    // 使用纹理
-    gl.uniform1i(this.app._useTextureLocation, 1);
-
-    // 绑定纹理
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, this.texture);
-    gl.uniform1i(this.app._imageLocation, 0);
-
-    // 设置缓冲区数据
-    this.app._setBufferData(positions, texCoords, colors, indices);
-
-    // 绘制
-    gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+    this.app._drawTexturedQuad(matrix, this.width, this.height, this.texture, this.alpha, texCoordX, texCoordY);
   }
 }

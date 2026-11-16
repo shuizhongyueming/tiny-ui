@@ -17,6 +17,13 @@ import {
 import { GLState } from "./utils/GLState";
 import { layoutRow, layoutColumn } from "./utils/layout";
 
+type CachedGeometry = {
+  position: WebGLBuffer;
+  color: WebGLBuffer;
+  index: WebGLBuffer;
+  count: number;
+};
+
 type AttribSnapshot = {
   index: number;
   enabled: boolean;
@@ -36,6 +43,8 @@ attribute vec2 a_texCoord;
 attribute vec4 a_color;
 uniform mat3 u_matrix;
 uniform vec2 u_resolution;
+uniform vec4 u_tint;
+uniform vec2 u_uvScale;
 varying vec2 v_texCoord;
 varying vec4 v_color;
 
@@ -55,8 +64,8 @@ void main() {
   // WebGL中y轴向上，而屏幕坐标y轴向下，所以需要翻转y轴
   gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
 
-  v_texCoord = a_texCoord;
-  v_color = a_color;
+  v_texCoord = a_texCoord * u_uvScale;
+  v_color = a_color * u_tint;
 }
 `;
 
@@ -156,12 +165,22 @@ class TinyUI {
   private resolutionLocation: WebGLUniformLocation | null; // 新增
   _imageLocation: WebGLUniformLocation | null;
   _useTextureLocation: WebGLUniformLocation | null;
+  private _tintLocation: WebGLUniformLocation | null;
+  private _uvScaleLocation: WebGLUniformLocation | null;
 
   // 缓冲区
   private positionBuffer: WebGLBuffer;
   private texCoordBuffer: WebGLBuffer;
   private colorBuffer: WebGLBuffer;
   private indexBuffer: WebGLBuffer;
+  // 单位四边形：位置/纹理坐标/白色顶点色/索引都只上传一次。
+  private quadPositionBuffer: WebGLBuffer;
+  private quadTexCoordBuffer: WebGLBuffer;
+  private quadColorBuffer: WebGLBuffer;
+  private quadIndexBuffer: WebGLBuffer;
+  // Graphics 的每条绘制命令只上传一次几何；之后每帧只改 uniform 透明度。
+  private _geometryCache = new WeakMap<object, CachedGeometry>();
+  private _geometryBuffers: CachedGeometry[] = [];
 
   // 视口大小
   private viewportWidth: number;
@@ -341,6 +360,14 @@ class TinyUI {
       this.shaderProgram,
       "u_useTexture",
     );
+    this._tintLocation = this.gl.getUniformLocation(
+      this.shaderProgram,
+      "u_tint",
+    );
+    this._uvScaleLocation = this.gl.getUniformLocation(
+      this.shaderProgram,
+      "u_uvScale",
+    );
 
     // 使用着色器程序
     this.gl.useProgram(this.shaderProgram);
@@ -352,6 +379,20 @@ class TinyUI {
     this.texCoordBuffer = this.gl.createBuffer();
     this.colorBuffer = this.gl.createBuffer();
     this.indexBuffer = this.gl.createBuffer();
+    this.quadPositionBuffer = this.gl.createBuffer();
+    this.quadTexCoordBuffer = this.gl.createBuffer();
+    this.quadColorBuffer = this.gl.createBuffer();
+    this.quadIndexBuffer = this.gl.createBuffer();
+
+    const gl = this.gl;
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.quadPositionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]), gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.quadTexCoordBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]), gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.quadColorBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]), gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.quadIndexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array([0, 1, 2, 0, 2, 3]), gl.STATIC_DRAW);
   }
 
   private snapshotAttribs(indices: number[]): AttribSnapshot[] {
@@ -802,6 +843,131 @@ class TinyUI {
       new Uint16Array(indices),
       gl.STATIC_DRAW,
     );
+
+    // Graphics 逐个命令上传顶点色；这里复位共享 uniform，避免沿用上一个位图的透明度。
+    gl.uniform4f(this._tintLocation, 1, 1, 1, 1);
+    gl.uniform2f(this._uvScaleLocation, 1, 1);
+  }
+
+  /**
+   * 用共享的单位四边形绘制一个纹理节点。
+   *
+   * Bitmap/Text 每帧只为每个节点上传位置、纹理坐标、顶点色和索引，在 Native 上是主要开销。
+   * 这里把几何固定成单位四边形，用矩阵缩放表达节点尺寸，透明度走 uniform；
+   * 纹理坐标比例走 uniform，避免每次重新上传四个缓冲区。
+   */
+  _drawTexturedQuad(
+    matrix: Matrix,
+    width: number,
+    height: number,
+    texture: WebGLTexture,
+    alpha: number,
+    uvScaleX: number = 1,
+    uvScaleY: number = 1,
+  ) {
+    const gl = this.gl;
+
+    if (typeof (gl as any).bindVertexArray === "function") {
+      (gl as any).bindVertexArray(null);
+    } else {
+      const vaoExt = gl.getExtension("OES_vertex_array_object");
+      if (vaoExt) vaoExt.bindVertexArrayOES(null);
+    }
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.quadPositionBuffer);
+    gl.enableVertexAttribArray(this.positionLocation);
+    gl.vertexAttribPointer(this.positionLocation, 2, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.quadTexCoordBuffer);
+    gl.enableVertexAttribArray(this.texCoordLocation);
+    gl.vertexAttribPointer(this.texCoordLocation, 2, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.quadColorBuffer);
+    gl.enableVertexAttribArray(this.colorLocation);
+    gl.vertexAttribPointer(this.colorLocation, 4, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.quadIndexBuffer);
+
+    gl.uniform1i(this._useTextureLocation, 1);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.uniform1i(this._imageLocation, 0);
+    gl.uniform4f(this._tintLocation, 1, 1, 1, alpha);
+    gl.uniform2f(this._uvScaleLocation, uvScaleX, uvScaleY);
+    gl.uniformMatrix3fv(this.matrixLocation, false, matrix.clone().scale(width, height).toArray());
+
+    gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+  }
+
+  /** 释放某条 Graphics 命令的缓存缓冲区。 */
+  _releaseCachedGeometry(key: object) {
+    const cached = this._geometryCache.get(key);
+    if (!cached) return;
+    this.gl.deleteBuffer(cached.position);
+    this.gl.deleteBuffer(cached.color);
+    this.gl.deleteBuffer(cached.index);
+    this._geometryCache.delete(key);
+    const index = this._geometryBuffers.indexOf(cached);
+    if (index >= 0) this._geometryBuffers.splice(index, 1);
+  }
+
+  /**
+   * 绘制不可变的图形命令。
+   *
+   * 几何只在首次绘制时上传；颜色里的 alpha 固定为 1，实际透明度走 u_tint。
+   * 这样 Graphics 每帧的圆角矩形不再重新分配并上传四个缓冲区。
+   */
+  _drawCachedGeometry(
+    key: object,
+    positions: Float32Array,
+    colors: Float32Array,
+    indices: Uint16Array,
+    alpha: number,
+  ) {
+    const gl = this.gl;
+    let cached = this._geometryCache.get(key);
+    if (!cached) {
+      cached = {
+        position: gl.createBuffer(),
+        color: gl.createBuffer(),
+        index: gl.createBuffer(),
+        count: indices.length,
+      };
+      gl.bindBuffer(gl.ARRAY_BUFFER, cached.position);
+      gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+      gl.bindBuffer(gl.ARRAY_BUFFER, cached.color);
+      gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cached.index);
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+      this._geometryCache.set(key, cached);
+      this._geometryBuffers.push(cached);
+    }
+
+    if (typeof (gl as any).bindVertexArray === "function") {
+      (gl as any).bindVertexArray(null);
+    } else {
+      const vaoExt = gl.getExtension("OES_vertex_array_object");
+      if (vaoExt) vaoExt.bindVertexArrayOES(null);
+    }
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, cached.position);
+    gl.enableVertexAttribArray(this.positionLocation);
+    gl.vertexAttribPointer(this.positionLocation, 2, gl.FLOAT, false, 0, 0);
+
+    // 纯色图形不使用纹理，但属性仍要指向有效缓冲区。
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.quadTexCoordBuffer);
+    gl.enableVertexAttribArray(this.texCoordLocation);
+    gl.vertexAttribPointer(this.texCoordLocation, 2, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, cached.color);
+    gl.enableVertexAttribArray(this.colorLocation);
+    gl.vertexAttribPointer(this.colorLocation, 4, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cached.index);
+    gl.uniform1i(this._useTextureLocation, 0);
+    gl.uniform4f(this._tintLocation, 1, 1, 1, alpha);
+    gl.uniform2f(this._uvScaleLocation, 1, 1);
+    gl.drawElements(gl.TRIANGLES, cached.count, gl.UNSIGNED_SHORT, 0);
   }
 
   parseColor(color: string | number): Color {
@@ -896,6 +1062,17 @@ class TinyUI {
     gl.deleteBuffer(this.texCoordBuffer);
     gl.deleteBuffer(this.colorBuffer);
     gl.deleteBuffer(this.indexBuffer);
+    gl.deleteBuffer(this.quadPositionBuffer);
+    gl.deleteBuffer(this.quadTexCoordBuffer);
+    gl.deleteBuffer(this.quadColorBuffer);
+    gl.deleteBuffer(this.quadIndexBuffer);
+    for (const cached of this._geometryBuffers) {
+      gl.deleteBuffer(cached.position);
+      gl.deleteBuffer(cached.color);
+      gl.deleteBuffer(cached.index);
+    }
+    this._geometryBuffers = [];
+    this._geometryCache = new WeakMap();
 
     // 删除着色器程序
     this.shaderManager.deleteProgram(this.shaderProgram);
