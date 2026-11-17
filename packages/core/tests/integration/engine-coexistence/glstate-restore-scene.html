@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>GLState Restore Test</title>
+  <script src="/dist/tiny-ui-core.js"></script>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+<canvas id="game" width="800" height="600"></canvas>
+<script>
+/**
+ * 宿主状态恢复测试。
+ *
+ * 场景：宿主（Phaser / Pixi / three）在 `new TinyUI(...)` **之前**就把一批
+ * WebGL 状态设成了非默认值。`GLState.install()` 必须真读这些值，不能写死
+ * WebGL 规范默认值 —— 否则第一次 `patchRender()` 结束时 `restore()` 会把宿主的
+ * 设置改回默认，画面上表现为宿主渲染整体变色/描边错位，而且不报任何 GL 错误。
+ *
+ * 覆盖面刻意分成两段：
+ *   1. 安装前设置 → 安装 → 一次渲染 → 核对。抓「初始值写死」。
+ *   2. 安装后由宿主改值 → 再渲染 → 核对。抓「缓存冻结在安装那一刻」。
+ *
+ * 第二段很重要：只修第一段的话，把 readFromGL 的结果存起来当常量也能过测试。
+ */
+(async () => {
+  try {
+    const canvas = document.getElementById('game');
+    const gl = canvas.getContext('webgl2', { antialias: true, alpha: true });
+    if (!gl) throw new Error('webgl2 not available');
+
+    /** 一组互相不重合、且都不是 WebGL 默认值的状态。 */
+    const HOST_STATE = {
+      clearColor: [0.11, 0.22, 0.33, 0.44],
+      clearDepth: 0.25,
+      clearStencil: 7,
+      blendColor: [0.6, 0.5, 0.4, 0.3],
+      dither: false,
+      polygonOffsetFill: true,
+      polygonOffsetFactor: 1.5,
+      polygonOffsetUnits: 2.5,
+      sampleCoverage: true,
+      sampleCoverageValue: 0.75,
+      sampleCoverageInvert: true,
+      // pixelStorei 四项：宿主常在上传贴图时改，且忘记还原
+      unpackFlipY: true,
+      unpackPremultiplyAlpha: true,
+      unpackAlignment: 1,
+      unpackColorspaceConversion: gl.NONE,
+    };
+
+    /** 安装后的第二组值，用来证明缓存没有停在安装那一刻。 */
+    const LATER_STATE = {
+      clearColor: [0.9, 0.8, 0.1, 0.7],
+      clearDepth: 0.6,
+      clearStencil: 3,
+      blendColor: [0.2, 0.3, 0.4, 0.5],
+      dither: true,
+      polygonOffsetFill: false,
+      polygonOffsetFactor: 3.5,
+      polygonOffsetUnits: 4.5,
+      sampleCoverage: false,
+      sampleCoverageValue: 0.25,
+      sampleCoverageInvert: false,
+      unpackFlipY: false,
+      unpackPremultiplyAlpha: false,
+      unpackAlignment: 8,
+      unpackColorspaceConversion: gl.BROWSER_DEFAULT_WEBGL,
+    };
+
+    function applyState(s) {
+      gl.clearColor(s.clearColor[0], s.clearColor[1], s.clearColor[2], s.clearColor[3]);
+      gl.clearDepth(s.clearDepth);
+      gl.clearStencil(s.clearStencil);
+      gl.blendColor(s.blendColor[0], s.blendColor[1], s.blendColor[2], s.blendColor[3]);
+      if (s.dither) gl.enable(gl.DITHER); else gl.disable(gl.DITHER);
+      if (s.polygonOffsetFill) gl.enable(gl.POLYGON_OFFSET_FILL);
+      else gl.disable(gl.POLYGON_OFFSET_FILL);
+      gl.polygonOffset(s.polygonOffsetFactor, s.polygonOffsetUnits);
+      if (s.sampleCoverage) gl.enable(gl.SAMPLE_COVERAGE);
+      else gl.disable(gl.SAMPLE_COVERAGE);
+      gl.sampleCoverage(s.sampleCoverageValue, s.sampleCoverageInvert);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, s.unpackFlipY);
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, s.unpackPremultiplyAlpha);
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, s.unpackAlignment);
+      gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, s.unpackColorspaceConversion);
+    }
+
+    /** 直接问 GL，不看 GLState 的内部缓存。 */
+    function readState() {
+      const cc = gl.getParameter(gl.COLOR_CLEAR_VALUE);
+      const bc = gl.getParameter(gl.BLEND_COLOR);
+      return {
+        clearColor: [cc[0], cc[1], cc[2], cc[3]],
+        clearDepth: gl.getParameter(gl.DEPTH_CLEAR_VALUE),
+        clearStencil: gl.getParameter(gl.STENCIL_CLEAR_VALUE),
+        blendColor: [bc[0], bc[1], bc[2], bc[3]],
+        dither: gl.isEnabled(gl.DITHER),
+        polygonOffsetFill: gl.isEnabled(gl.POLYGON_OFFSET_FILL),
+        polygonOffsetFactor: gl.getParameter(gl.POLYGON_OFFSET_FACTOR),
+        polygonOffsetUnits: gl.getParameter(gl.POLYGON_OFFSET_UNITS),
+        sampleCoverage: gl.isEnabled(gl.SAMPLE_COVERAGE),
+        sampleCoverageValue: gl.getParameter(gl.SAMPLE_COVERAGE_VALUE),
+        sampleCoverageInvert: gl.getParameter(gl.SAMPLE_COVERAGE_INVERT),
+        unpackFlipY: gl.getParameter(gl.UNPACK_FLIP_Y_WEBGL),
+        unpackPremultiplyAlpha: gl.getParameter(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL),
+        unpackAlignment: gl.getParameter(gl.UNPACK_ALIGNMENT),
+        unpackColorspaceConversion: gl.getParameter(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL),
+      };
+    }
+
+    // ---- 1. 宿主先摆好状态，然后 TinyUI 才安装 ---------------------------
+    applyState(HOST_STATE);
+
+    // 不传 glState：让 TinyUI 自己 new GLState(gl) 并 install()，
+    // 这样测的是默认初始化路径，而不是测试自己手动同步过的路径。
+    const tinyUI = new TinyUI(canvas, { manageCanvasSize: false });
+
+    const title = tinyUI.createText('GLState restore');
+    title.x = 40;
+    title.y = 40;
+    title.color = '#00FF88';
+    title.fontSize = 28;
+    tinyUI.root.addChild(title);
+
+    const box = tinyUI.createGraphics();
+    box.drawRect(0, 0, 160, 60, '#FFD400');
+    box.x = 40;
+    box.y = 100;
+    tinyUI.root.addChild(box);
+
+    window.testScenario = {
+      gl,
+      tinyUI,
+      HOST_STATE,
+      LATER_STATE,
+      applyState,
+      readState,
+      /** 跑一次完整的安全区（snapshot → TinyUI 乱改 GL → restore） */
+      render() {
+        tinyUI.patchRender();
+      },
+      /** 宿主在安装之后继续改状态，走的是被包装过的 GL 方法 */
+      applyLaterState() {
+        applyState(LATER_STATE);
+      },
+    };
+
+    console.log('GLState restore scenario ready');
+  } catch (error) {
+    console.error('Initialization error:', error);
+    window.testScenario = null;
+  }
+})();
+</script>
+</body>
+</html>

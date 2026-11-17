@@ -1175,6 +1175,22 @@ export class GLState {
         ? orig.getParameter(gl.SAMPLE_COVERAGE_INVERT)
         : gl.getParameter(gl.SAMPLE_COVERAGE_INVERT);
 
+      /* pixelStorei 同样必须真读。宿主的贴图管线常在安装前把 UNPACK_FLIP_Y
+         或 UNPACK_PREMULTIPLY_ALPHA 设成 true，写死规范默认值会让宿主下一次
+         上传贴图得到上下颠倒/双重预乘的结果，而且不报错。 */
+      const unpackPremultiplyAlpha = orig.getParameter
+        ? orig.getParameter(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL)
+        : gl.getParameter(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL);
+      const unpackAlignment = orig.getParameter
+        ? orig.getParameter(gl.UNPACK_ALIGNMENT)
+        : gl.getParameter(gl.UNPACK_ALIGNMENT);
+      const unpackFlipY = orig.getParameter
+        ? orig.getParameter(gl.UNPACK_FLIP_Y_WEBGL)
+        : gl.getParameter(gl.UNPACK_FLIP_Y_WEBGL);
+      const unpackColorspaceConversion = orig.getParameter
+        ? orig.getParameter(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL)
+        : gl.getParameter(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL);
+
       const arrayBuffer = orig.getParameter
         ? orig.getParameter(gl.ARRAY_BUFFER_BINDING)
         : gl.getParameter(gl.ARRAY_BUFFER_BINDING);
@@ -1307,11 +1323,11 @@ export class GLState {
         sampleCoverageEnabled,
         sampleCoverageValue,
         sampleCoverageInvert,
-        // pixelStorei defaults per WebGL spec
-        unpackPremultiplyAlpha: false,
-        unpackAlignment: 4,
-        unpackFlipY: false,
-        unpackColorspaceConversion: gl.BROWSER_DEFAULT_WEBGL,
+        // pixelStorei 初始值（真读，可能是宿主设过的非默认值）
+        unpackPremultiplyAlpha,
+        unpackAlignment,
+        unpackFlipY,
+        unpackColorspaceConversion,
       };
     });
   }
