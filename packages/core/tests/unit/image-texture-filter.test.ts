@@ -84,6 +84,32 @@ describe("图像纹理采样", () => {
     expect(gl.deleteTexture).toHaveBeenCalledWith(first);
   });
 
+  it("没有 src 的画布源各自独立上传，不复用纹理", () => {
+    const { gl, app } = fixture();
+    const manager = app.textureManager;
+    const firstCanvas: any = { width: 10, height: 10 };
+    const secondCanvas: any = { width: 20, height: 20 };
+
+    const first = manager.createImageTexture(firstCanvas);
+    const second = manager.createImageTexture(secondCanvas);
+
+    // 回归点：canvas 没有 src，缓存键若拼 `${src}|filter` 会让两者共用一个键
+    expect(second).not.toBe(first);
+    expect(gl.createTexture).toHaveBeenCalledTimes(2);
+    expect(manager.getTextureInfo(first)).toEqual({
+      width: 10, height: 10, premultiplyAlpha: false,
+    });
+    expect(manager.getTextureInfo(second)).toEqual({
+      width: 20, height: 20, premultiplyAlpha: false,
+    });
+
+    // 不进缓存 → 节点销毁时纹理真的释放
+    manager.deleteTexture(first);
+    expect(gl.deleteTexture).toHaveBeenCalledWith(first);
+    manager.deleteTexture(second);
+    expect(gl.deleteTexture).toHaveBeenCalledWith(second);
+  });
+
   it("Bitmap 的 Image/URL 和工厂路径透传选项，并保留 resize=false", async () => {
     const { app, tasks, image } = fixture();
     const create = vi.spyOn(app.textureManager, "createImageTexture");

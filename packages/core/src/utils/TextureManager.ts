@@ -102,6 +102,7 @@ export class TextureManager {
   private textureCache: Map<string, WebGLTexture> = new Map();
   private inflight: Map<string, Deferred<WebGLTexture>> = new Map();
   private pixelTextureSeq: number = 0;
+  private imageTextureSeq: number = 0;
   /**
    * 本 manager 创建的每条纹理的尺寸与上传口径。
    *
@@ -406,10 +407,18 @@ export class TextureManager {
 
   // 创建图像纹理（必须在 safe section 内调用）
   createImageTexture(image: HTMLImageElement, options: ImageTextureOptions = {}): WebGLTexture {
-    const url = `${image.src}|${options.filter ?? "default"}`;
-    const cached = this.textureCache.get(url);
-    if (cached && this.gl.isTexture(cached)) return cached;
-    if (cached) this.textureCache.delete(url);
+    /* 缓存键只能来自图片自身的 URL。
+       canvas（以及未设 src 的 Image）没有 src，若照旧拼 `${image.src}|filter`，
+       所有画布源都会落在同一个键 `undefined|default` 上：第二个节点起直接复用
+       第一张画布纹理，表现为「所有图片都渲染成第一张」。
+       没有 URL 的源每次独立上传，语义等同于加固前的行为。 */
+    const src: string | undefined = (image as HTMLImageElement).src;
+    const cacheKey = src ? `${src}|${options.filter ?? "default"}` : null;
+    if (cacheKey) {
+      const cached = this.textureCache.get(cacheKey);
+      if (cached && this.gl.isTexture(cached)) return cached;
+      if (cached) this.textureCache.delete(cacheKey);
+    }
 
     const texture = this.createTexture();
     this.setTextureFromImage(texture, image);
@@ -418,9 +427,12 @@ export class TextureManager {
       this.applyPixelTextureParams(texture, options.filter);
     }
 
-    // 添加到缓存
-    this.textureCache.set(url, texture);
-    this.textures.set(url, texture);
+    /* textures 是 destroy() 的释放清单，必须收录每一条纹理；
+       只有带 URL 的源才额外进 textureCache（可复用缓存）。 */
+    this.imageTextureSeq++;
+    const key = cacheKey ?? `image-${this.imageTextureSeq}`;
+    if (cacheKey) this.textureCache.set(cacheKey, texture);
+    this.textures.set(key, texture);
     /* 上传的是图片的自然像素，必须用 naturalWidth/Height。
        image.width/height 是显示尺寸，被 CSS 或属性改过时会与纹理真实尺寸不一致，
        拿它做越界校验会出现「校验通过、GL 报 INVALID_VALUE」。 */
