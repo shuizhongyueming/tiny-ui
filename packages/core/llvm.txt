@@ -1,7 +1,7 @@
 # Tiny UI Core 通用接口说明与 Demo
 
 > 目标：让第一次接触 Tiny UI Core 的人能在 5 分钟内知道"有哪些接口、怎么用"。  
-> 版本：对应代码库 v1.9.0
+> 版本：对应代码库 v1.10.0
 
 ---
 
@@ -106,6 +106,7 @@ tinyUI.createBitmapFromUrl('img.png').then(bitmap => {
 | Emitter | `Emitter` | 生命周期事件发射器 | minimal |
 | Math | `Matrix` | 2D 变换矩阵 | - |
 | Resource | `TextureManager`, `ShaderManager` | 资源管理（高级） | - |
+| Hit Area | `HitPadding`, `expandHitRect`, `hitSlopFor` | 命中区外扩工具 | minimal |
 | GL State | `GLState*`, `StatePreservationStrategy` | WebGL 状态管理 | complex |
 | BBCode | `BBCodeParser`, `BBCodeTypes` | 富文本解析（高级） | - |
 
@@ -181,6 +182,7 @@ class DisplayObject {
   pivotY: number;               // 0-1 归一化；未设时跟随 anchorY
   alpha: number;
   visible: boolean;
+  hitPadding: HitPadding;       // 命中区四边外扩量，局部坐标；不影响渲染与 getBounds
   
   moveTo(x: number, y: number): void;
   moveToPoint(p: Point): void;
@@ -209,6 +211,7 @@ class DisplayObject {
 **常见坑**：
 - 直接修改 `width/height` 无效（无 setter），需用 `scaleX/scaleY` 或 `scaleTo()`
 - 设置 `visible = false` 或 `alpha <= 0` 的节点不响应事件
+- 小按钮想放大触摸区请用 `hitPadding`。用 `scaleTo()` 或改 `width/height` 放大会同时改变布局和 `getBounds()`，视觉也跟着变大
 
 ---
 
@@ -792,6 +795,25 @@ label.updateTexture();
 const ink = label.inkBounds;
 if (ink) icon.y = label.y + ink.y + ink.height / 2 - icon.height / 2;
 ```
+
+### hitPadding：只放大命中区，不放大视觉
+
+`node.hitPadding` 在节点**局部坐标**四边外扩命中矩形，不影响渲染、不影响 `width/height`、不影响 `getBounds()`。默认 `0`。支持三种形式：数字（四边相同）、`{ x, y }`、函数（每次命中判定时求值）。负数按 0 处理。
+
+传函数是为了跟随尺寸变化：按钮在按下反馈里会重设尺寸，固定值算出的外扩量到那一刻就错了。
+
+```javascript
+const btn = tinyUI.createGraphics();
+btn.drawRect(0, 0, 20, 20, '#6584cd');
+btn.hitPadding = 12;            // 视觉 20×20，命中 44×44
+// 或者让 core 按最小触摸尺寸算：
+import { hitSlopFor } from '@shuizhongyueming/tiny-ui-core';
+btn.hitPadding = hitSlopFor(btn.width, btn.height, 44);
+```
+
+同目录的另外两个工具：`expandHitRect(rect, size, bounds?)` 把矩形保持中心扩到至少 `size`（只扩不缩，`bounds` 存在时夹在边界内）；`hitSlopFor(width, height, size, slop = 0)` 返回 `{x, y}` 形式的每边放宽量。`Pressable` 的 `hitPadding` 选项会写到 `node.hitPadding` 上，让事件入口过滤与抬手判定共用同一份命中区；与 `slop` 同时给出时取较大值。
+
+注意区分两件事：`hitPadding` 改命中区**大小**，`Pressable.slop` 改「抬手点还算不算在按钮上」，`Pressable.moveThreshold` 改「这还算不算一次点击」。
 
 ### 8.1 术语表
 

@@ -1,7 +1,7 @@
 # Tiny UI Components 通用接口说明与 Demo
 
 > 目标：让第一次接触 Tiny UI Components 的人能在 5 分钟内知道"有哪些组件、怎么用"。  
-> 版本：对应代码库 v2.1.0
+> 版本：对应代码库 v2.1.2
 > 依赖：@shuizhongyueming/tiny-ui-core
 
 ---
@@ -921,11 +921,12 @@ createResponsiveUI(tinyUI);
 
 ### Pressable 与 Popup
 
-`Pressable(app, node, { onTap, onPressChange, pressDy, slop, moveThreshold, stopPropagation })` 返回 `{ node, setEnabled, cancel, destroy }`。首根手指独占：其他手指不能完成或取消本手势，但**它们的输入不会被吞**——另一根手指照常点别的按钮，游戏也能收到。本指事件在结束后（命中取消、抬手、取消）仍会被拦住，避免落到下层。默认无视觉；`pressDy/onPressChange` 可选。
+`Pressable(app, node, { onTap, onPressChange, pressDy, slop, hitPadding, moveThreshold, stopPropagation })` 返回 `{ node, setEnabled, cancel, destroy }`。首根手指独占：其他手指不能完成或取消本手势，但**它们的输入不会被吞**——另一根手指照常点别的按钮，游戏也能收到。本指事件在结束后（命中取消、抬手、取消）仍会被拦住，避免落到下层。默认无视觉；`pressDy/onPressChange` 可选。
 
-`slop` 与 `moveThreshold` 是两件事：
+`slop`、`hitPadding` 与 `moveThreshold` 是三件事：
 
 - `slop`（默认 0）：抬起点/移动点距节点盒边缘多少像素内仍算「在按钮上」。`slop=0` 时离开节点盒即取消。
+- `hitPadding`（默认 0）：**命中区外扩量**，写入 `node.hitPadding`，事件入口过滤与抬手判定共用同一份命中区。视觉尺寸不变。可传数字、`{x,y}` 或函数；与 `slop` 同时给出时取较大值。「视觉 20、触摸区 44」用 `() => 12` 或 core 的 `hitSlopFor(w, h, 44)`。
 - `moveThreshold`（默认 0，即关闭）：起手点移动超过该距离即**永久**取消本次手势，用于区分点击与滑动。
 
 TextBtn 用 `moveThreshold: 10` 保留历史上的「移动超过 10px 不算点击」。`pressDy` 只影响视觉位移，命中判定按起手位置计算，边缘点按不会丢。
